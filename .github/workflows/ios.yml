@@ -30,7 +30,14 @@ jobs:
           assert phones, 'Install an iOS 26 iPhone simulator runtime'
           print('YICLASS_SIMULATOR=' + phones[0]['udid'])
           PY
+      - name: Boot simulator and prewarm app launch
+        timeout-minutes: 5
+        run: |
+          xcrun simctl bootstatus "$YICLASS_SIMULATOR" -b
+          xcrun simctl install "$YICLASS_SIMULATOR" DerivedData/Build/Products/Debug-iphonesimulator/YIClass.app
+          xcrun simctl launch "$YICLASS_SIMULATOR" com.ddyec.YIClassNative --ui-testing-demo
       - name: UI smoke test
+        timeout-minutes: 10
         run: xcodebuild -project YIClass.xcodeproj -scheme YIClass -destination "platform=iOS Simulator,id=$YICLASS_SIMULATOR" -derivedDataPath DerivedData -resultBundlePath /tmp/YIClass-UI.xcresult CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test
       - name: Export UI screenshots
         if: always()
