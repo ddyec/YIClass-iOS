@@ -1,0 +1,9 @@
+YIClass iOS — native Swift rewrite
+
+Based on the YIClass project: https://github.com/ddyec/YIClass
+Source baseline: c8f857828c236706afa745b7aea6435f9a428396
+Original project: Copyright 2025 wykwey, Apache License 2.0.
+
+This distribution retains the original app icon and logo and the original license.
+The Swift implementation, native iOS interface, shared time-profile model,
+transfer support, and conversational planning flow are newly written in 2026.
