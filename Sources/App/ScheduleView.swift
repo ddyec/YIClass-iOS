@@ -144,7 +144,7 @@ struct WeekGrid: View {
     let week: Int
     let onSelect: (Course) -> Void
     @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 83
-    @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 76
+    @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 64
     private var days: Int { table.showWeekend ? 7 : 5 }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
 
