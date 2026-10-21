@@ -17,7 +17,7 @@ import XCTest
 
     func testDarkAppearanceAcrossMainScreens() {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", "dark"]
+        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", "dark", "--ui-testing-demo"]
         app.launch()
         XCTAssertTrue(app.buttons["添加课程"].firstMatch.waitForExistence(timeout: 10))
         attach(app, name: "深色-课表")
@@ -27,6 +27,15 @@ import XCTest
         app.tabBars.buttons["设置"].tap()
         XCTAssertTrue(app.buttons["统一课节时间"].waitForExistence(timeout: 5))
         attach(app, name: "深色-设置")
+    }
+
+    func testLightWeeklySchedule() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", "light", "--ui-testing-demo"]
+        app.launch()
+        XCTAssertTrue(app.navigationBars["秋季学期"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "高等数学")).firstMatch.exists)
+        attach(app, name: "浅色-周视图")
     }
 
     private func attach(_ app: XCUIApplication, name: String) {

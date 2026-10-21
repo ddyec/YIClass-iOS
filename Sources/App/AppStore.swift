@@ -13,6 +13,28 @@ import YIClassCore
     var profile: TimeProfile { data.timeProfile }
 
     init() {
+        #if DEBUG
+        if CommandLine.arguments.contains("--ui-testing-demo") {
+            // Isolate UI fixtures from real user data; this branch is absent from Release builds.
+            file = FileManager.default.temporaryDirectory.appending(path: "yi-ui-\(UUID()).json")
+            let entries: [(String, String, Int, [Int], UInt32)] = [
+                ("高等数学", "教学楼 A301", 1, [1, 2], 0xFF637EEA),
+                ("大学英语", "外语楼 202", 2, [3, 4], 0xFF298F84),
+                ("程序设计", "实验楼 B102", 3, [1, 2, 3], 0xFFB77938),
+                ("线性代数", "教学楼 A206", 4, [5, 6], 0xFFAE65A3),
+                ("体育", "田径场", 5, [7, 8], 0xFFD36D71),
+                ("大学物理", "理学楼 108", 1, [5, 6], 0xFF658AAB),
+                ("自习", "图书馆", 3, [7, 8], 0xFF298F84)
+            ]
+            let table = Timetable(name: "秋季学期", startDate: ScheduleEngine.monday(of: Date()), showWeekend: false,
+                courses: entries.map { name, location, day, periods, color in
+                    Course(name: name, location: location, color: color,
+                        schedules: [CourseSchedule(weekday: day, periods: periods, weekPattern: Array(1...20))])
+                })
+            data = AppData(timetables: [table], selectedID: table.id)
+            return
+        }
+        #endif
         file = URL.applicationSupportDirectory.appending(path: "YIClass", directoryHint: .isDirectory)
             .appending(path: "library.json")
         do {
