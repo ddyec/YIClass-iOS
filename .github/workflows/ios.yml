@@ -33,6 +33,7 @@ jobs:
       - name: Boot simulator and prewarm app launch
         timeout-minutes: 5
         run: |
+          open -a Simulator --args -CurrentDeviceUDID "$YICLASS_SIMULATOR"
           xcrun simctl bootstatus "$YICLASS_SIMULATOR" -b
           xcrun simctl install "$YICLASS_SIMULATOR" DerivedData/Build/Products/Debug-iphonesimulator/YIClass.app
           xcrun simctl launch "$YICLASS_SIMULATOR" com.ddyec.YIClassNative --ui-testing-demo
