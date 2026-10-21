@@ -75,8 +75,8 @@ import YIClassCore
     func select(_ id: UUID) throws { var next = data; next.selectedID = id; try commit(next) }
     func create(name: String) throws {
         var next = data
-        let table = Timetable(name: name)
-        next.timetables.append(table); next.selectedID = table.id; try commit(next)
+        let created = table.emptyCopy(name: name)
+        next.timetables.append(created); next.selectedID = created.id; try commit(next)
     }
     func deleteTable(_ id: UUID) throws {
         guard data.timetables.count > 1 else { throw AppFailure("请至少保留一份课表。") }

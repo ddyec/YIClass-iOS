@@ -108,6 +108,10 @@ public struct Timetable: Codable, Equatable, Identifiable, Sendable {
         try profile.validate()
         for course in courses { try course.validate(profile: profile, totalWeeks: totalWeeks) }
     }
+    public func emptyCopy(name: String) -> Timetable {
+        Timetable(name: name, startDate: startDate, totalWeeks: totalWeeks,
+                  showWeekend: showWeekend, holidays: holidays)
+    }
 }
 
 public struct AppData: Codable, Equatable, Sendable {

@@ -60,16 +60,21 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
 }
 
 @Test func newTableAndSelectionDoNotHaveTimeOverrides() throws {
-    let table = Timetable()
+    let table = Timetable(startDate: Date(timeIntervalSince1970: 1_788_220_800), totalWeeks: 16, showWeekend: false)
     var data = AppData(timeProfile: TimeProfile(periods: [PeriodTime(period: 1, start: 600, end: 645)]),
                        timetables: [table], selectedID: table.id)
     let custom = data.timeProfile
-    let another = Timetable(name: "新课表")
+    let another = table.emptyCopy(name: "新课表")
     data.timetables.append(another); data.selectedID = another.id
     let reloaded = try JSONCoding.decoder().decode(AppData.self, from: JSONCoding.encoder().encode(data))
     try reloaded.validate()
     #expect(reloaded.timeProfile == custom)
     #expect(reloaded.selectedID == another.id)
+    #expect(another.startDate == table.startDate)
+    #expect(another.totalWeeks == 16)
+    #expect(another.showWeekend == false)
+    #expect(another.courses.isEmpty)
+    #expect(another.id != table.id)
 }
 
 @Test func disjointPeriodsRenderAsSeparateBlocksAndOverlapsAreVisible() {
