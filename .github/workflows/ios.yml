@@ -1,10 +1,18 @@
 name: Native iOS
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    paths-ignore: ['**/*.md', 'LICENSE', 'NOTICE']
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: native-ios-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   test:
     runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: maxim-lobanov/setup-xcode@v1
@@ -23,7 +31,7 @@ jobs:
           print('YICLASS_SIMULATOR=' + phones[0]['udid'])
           PY
       - name: UI smoke test
-        run: xcodebuild -project YIClass.xcodeproj -scheme YIClass -destination "platform=iOS Simulator,id=$YICLASS_SIMULATOR" -resultBundlePath /tmp/YIClass-UI.xcresult CODE_SIGNING_ALLOWED=NO test
+        run: xcodebuild -project YIClass.xcodeproj -scheme YIClass -destination "platform=iOS Simulator,id=$YICLASS_SIMULATOR" -derivedDataPath DerivedData -resultBundlePath /tmp/YIClass-UI.xcresult CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test
       - name: Export UI screenshots
         if: always()
         continue-on-error: true

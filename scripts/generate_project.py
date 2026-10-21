@@ -81,6 +81,7 @@ def configuration_list(name, settings):
         values = dict(settings)
         values['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone' if mode == 'Debug' else '-O'
         values['DEBUG_INFORMATION_FORMAT'] = 'dwarf' if mode == 'Debug' else 'dwarf-with-dsym'
+        values['ONLY_ACTIVE_ARCH'] = 'YES' if mode == 'Debug' else 'NO'
         if mode == 'Debug': values['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = 'DEBUG $(inherited)'
         body = ' '.join(f'{k} = {quote(v)};' for k, v in values.items())
         configurations.append(add(name + mode, f'isa = XCBuildConfiguration; buildSettings = {{ {body} }}; name = {mode};'))
