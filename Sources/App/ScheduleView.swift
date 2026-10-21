@@ -175,7 +175,7 @@ struct WeekGrid: View {
                     }
                 }.frame(width: 54 + columnWidth * CGFloat(days))
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.automatic)
         }
     }
     private func dateHeader(_ day: Int) -> some View {

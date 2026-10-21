@@ -276,11 +276,11 @@ struct AISettingsView: View {
                 Text(AIService.availability).font(.footnote).foregroundStyle(.secondary)
             }
             if mode == .remote {
-                Section("OpenAI 兼容接口") {
+                Section {
                     TextField("完整 Chat Completions HTTPS 地址", text: $endpoint).textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
                     TextField("模型名称", text: $model).textInputAutocapitalization(.never).autocorrectionDisabled()
                     SecureField("API Key", text: $apiKey).textInputAutocapitalization(.never).autocorrectionDisabled()
-                } footer: {
+                } header: { Text("OpenAI 兼容接口") } footer: {
                     Text("API Key 仅保存在本机钥匙串。发送后，当前课表和对话会交给此服务；图片先在本机识字，识别文字可检查修改后再发送。支持提供 OpenAI 兼容接口的服务，暂不直接支持 Claude / Gemini 原生协议。")
                 }
             }

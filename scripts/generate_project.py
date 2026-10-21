@@ -58,9 +58,9 @@ project_settings = {
 app_settings = {
     'PRODUCT_BUNDLE_IDENTIFIER': 'com.ddyec.YIClassNative', 'PRODUCT_NAME': 'YIClass',
     'GENERATE_INFOPLIST_FILE': 'YES', 'INFOPLIST_KEY_CFBundleDisplayName': 'YIClass',
+    'INFOPLIST_FILE': 'Sources/App/Info.plist',
     'INFOPLIST_KEY_LSRequiresIPhoneOS': 'YES',
     'INFOPLIST_KEY_UIApplicationSceneManifest_Generation': 'YES',
-    'INFOPLIST_KEY_UILaunchScreen_Generation': 'YES',
     'INFOPLIST_KEY_UISupportedInterfaceOrientations': 'UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight',
     'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad': 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight',
     'TARGETED_DEVICE_FAMILY': '1,2', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator',
