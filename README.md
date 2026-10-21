@@ -4,6 +4,28 @@
 
 这是原生首版源码，已通过 **Xcode 26 / iOS 26 SDK 应用构建和 15 项核心测试**。早期模拟器运行中，浅色周视图与时间设置导航测试通过；**完整 UI 回归仍未通过**，托管模拟器发生启动进度超时、BackBoard 等待及后续测试启动超时。深色适配已实现，深色截图、真机签名安装和设备端 AI 尚未验收，不能视为正式发布版。结果见 [验证记录](docs/VALIDATION.md)。
 
+## 下载构建包
+
+**Release 构建及打包已实际完成**：[成功的打包工作流](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840)，版本 `3.0.0 (1)`，最低系统 `26.0`，对应源码 `8a68125bbd56034a0e1ee2342488148b76c40b89`。
+
+| 构建 | 下载 | 使用条件 |
+| --- | --- | --- |
+| iPhone / iPad IPA，arm64 | [下载 IPA 构建包](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390323114) | 未签名，需用自己的 Apple 签名身份及有效描述文件重新签名，才能安装到设备。不能直接点击 IPA 安装。 |
+| Mac 上的 iOS 模拟器 App，arm64 + x86_64 | [下载模拟器构建包](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390199991) | 需要 Xcode 26+ 和 iOS 26+ 模拟器，无需开发者证书。 |
+| 构建日志 | [下载日志](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390364701) | 包含设备归档与模拟器编译的完整日志。 |
+
+GitHub Artifacts 下载需要登录，保存 30 天。下载的 ZIP 内包含实际 IPA 或 `tar.gz`、构建清单及 SHA-256 校验文件。
+
+模拟器包解压后，在启动的 iOS 26+ 模拟器中安装：
+
+```bash
+tar -xzf YIClass-iOS26-simulator.tar.gz
+xcrun simctl install booted YIClass.app
+xcrun simctl launch booted com.ddyec.YIClassNative
+```
+
+后续可在 Actions → **Downloadable iOS builds** → Run workflow 重新生成。此工作流独立归档、打包和上传，不等待 UI 测试启动。构建产物成功不代表此前未通过的完整 UI 回归已经通过。
+
 ## 本次实现
 
 - 原生 TabView、NavigationStack、表单、文件选择与文件导出；悬浮周次控制使用 iOS 26 `GlassEffectContainer` / `glassEffect`，系统标签栏和工具栏采用原生外观。课程内容保持清晰的实色层次。响应减少透明度、减少动态效果与动态字号。

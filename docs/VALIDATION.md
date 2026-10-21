@@ -2,6 +2,18 @@
 
 验证日期：2026-10-21。基线：`ddyec/YIClass@c8f857828c236706afa745b7aea6435f9a428396`。
 
+## 已交付的实际构建产物
+
+[打包运行 39695780840](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840) **全部通过**，源码提交 `8a68125bbd56034a0e1ee2342488148b76c40b89`，Xcode 26.0.1，Release 配置：
+
+- 15 项核心测试、工程结构检查通过。
+- 真实设备 `generic/platform=iOS` 归档成功，生成 `YIClass-iOS26-unsigned.ipa`，365,086 字节；SHA-256 为 `cbcb146f88788403d8cde6d224b0b5716043043eb042ad52ce88d738610b04e8`。
+- 下载 IPA 后再次校验：ZIP 完整，包含 `Payload/YIClass.app`、真实 arm64 Mach-O 程序、资源与隐私清单；平台为 `iPhoneOS`，最低版本 26.0。IPA 未签名，不含设备描述文件，安装前必须自行签名。
+- 模拟器 Release 构建成功，生成 `YIClass-iOS26-simulator.tar.gz`；下载后核对校验和，解包验证可执行权限、`iPhoneSimulator` 平台和 Mach-O 架构，确认包含 `arm64`、`x86_64`。
+- 两个构建包、构建清单、校验和及完整日志均已上传到上述工作流 Artifacts，下载入口见 README。
+
+以上为编译、归档、打包和产物检查；尚未使用 Apple 证书签名，未安装到真实设备，也不代表下面仍失败的 UI 工作流已经通过。
+
 ## 已实际执行
 
 - Swift 6.0.3，Linux x86_64，核心包完整编译与运行，15 项 Swift Testing 测试通过。
