@@ -6,3 +6,5 @@ xcuserdata/
 *.ipa
 *.xcarchive
 .swiftpm/
+build/
+dist/
