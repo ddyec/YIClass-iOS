@@ -79,7 +79,7 @@ struct ScheduleView: View {
                             VStack(spacing: 2) {
                                 Text("第 \(week) 周").font(.headline)
                                 Text(ScheduleEngine.date(week: week, weekday: 1, table: store.table), format: .dateTime.month().day())
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(Color(.secondaryLabel))
                             }
                         }
                         Spacer()
@@ -143,7 +143,7 @@ struct WeekGrid: View {
     let profile: TimeProfile
     let week: Int
     let onSelect: (Course) -> Void
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 83
+    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 64
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 64
     private var days: Int { table.showWeekend ? 7 : 5 }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
@@ -183,7 +183,7 @@ struct WeekGrid: View {
         let today = Calendar.current.isDateInToday(date)
         return VStack(spacing: 5) {
             Text(weekdayNames[day - 1]).font(.caption).foregroundStyle(.secondary)
-            Text(date, format: .dateTime.day()).font(.subheadline.weight(.semibold))
+            Text("\(Calendar.current.component(.day, from: date))").font(.subheadline.weight(.semibold))
                 .frame(width: 30, height: 30)
                 .background(today ? Color.indigo : Color.clear, in: Circle())
                 .foregroundStyle(today ? Color.white : Color.primary)
