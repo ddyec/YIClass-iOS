@@ -2,7 +2,7 @@
 
 面向 **iOS / iPadOS 26.0 及以上**的 Swift 6、SwiftUI 原生重写。工程中没有 Flutter、Dart、WebView UI 或跨端兼容层。基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) 的 `c8f857828c236706afa745b7aea6435f9a428396` 版本重新实现，沿用原图标与 Logo。
 
-这是可继续开发的原生首版源码，**尚未在 Xcode、模拟器或真机完成编译与验收，不能视为可安装的正式发布版**。本环境已用 Swift 6.0.3 在 Linux 运行核心测试；原生 UI 只有语法检查，Apple SDK 类型检查与视觉验证仍需下面的 Mac 步骤。
+这是原生首版源码，已通过 **Xcode 26 / iOS 26 SDK 应用构建和 15 项核心测试**。早期模拟器运行中，浅色周视图与时间设置导航测试通过；**完整 UI 回归仍未通过**，托管模拟器发生启动进度超时、BackBoard 等待及后续测试启动超时。深色适配已实现，深色截图、真机签名安装和设备端 AI 尚未验收，不能视为正式发布版。结果见 [验证记录](docs/VALIDATION.md)。
 
 ## 本次实现
 
@@ -12,6 +12,7 @@
 - 冲突课程全部可见，按重叠组并排排列；不连续节次拆分为多张卡片，单 / 双周按实际周次显示。
 - 课程增删改、多条排课、周次选择、配色、多课表切换、学期起点、总周数、周末显示与停课日期。
 - 统一课节时间：所有课表共享一份 `TimeProfile`；新建、切换、导入、AI 方案不会替换用户配置。保存会校验重叠、跨日时间与所有现有课程的节次引用。
+- 新建空课表继承当前学期的开学日期、周数、周末选项和停课日期；不同学期仍可分别修改学期设置。
 - 旧版 JSON 导入与原生 JSON 导出，先预览后导入。新版导出包含课节时间；选择采用文件时间时会明确提示它将影响所有课表。默认保持已有时间。
 - 对话助手：模糊描述 → 选择追问选项 / 自由补充 → 1–3 个候选方案 → 查看全部课程与变更 → 应用。支持 Apple Intelligence 本机模型，或自定义 OpenAI 兼容 Chat Completions 接口。
 - 截图通过 Vision 在本机识字，结果可编辑后再发送；支持粘贴文本及 UTF-8 TXT / CSV。截图 OCR 不会保留完整二维表格语义，需核对生成结果。不直接解析 XLSX 工作簿。
@@ -61,9 +62,15 @@ xcodebuild -project YIClass.xcodeproj -scheme YIClass \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
-`check.sh` 先检查工程与资源，再执行 `swift test`，在 Mac 上继续构建模拟器 App。GitHub Actions 工作流使用 Xcode 26，执行相同步骤和 UI 冒烟测试，保存 `.xcresult` 供查看失败与截图。**工作流已编写，但本次没有远程仓库可供运行，不能宣称 CI 已通过。**
+`check.sh` 先检查工程与资源，再执行 `swift test`，在 Mac 上继续构建模拟器 App。GitHub Actions 工作流使用 Xcode 26，执行相同步骤和 UI 冒烟测试，分别保存 `ios-ui-results`（测试结果）与 `ios-screenshots`（界面截图）附件。
 
-本次环境已完成：15 项 Swift 核心回归测试全部通过；所有 App Swift 文件经 Swift 编译器语法解析通过；工程可重复生成、文件成员、引用、iOS 26 部署目标、图标、隐私清单、scheme 与协议检查通过。详细边界见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+托管模拟器出现过首次启动进度请求超时；CI 使用单模拟器运行，并通过 Xcode 对失败测试最多重试一次。原始失败与重试记录保留在 `.xcresult`，持续失败仍使工作流失败。这项设置不代表真机冷启动性能已经验收。
+
+本次已完成：Linux / macOS 上的 15 项 Swift 核心回归测试；Xcode 26.0.1 应用与 UI 测试目标编译；工程结构、资源、隐私清单与协议检查。最新完整 UI 运行因测试启动超时失败，不能宣称 CI 全绿。详细边界见 [docs/VALIDATION.md](docs/VALIDATION.md)。
+
+以下是已实际运行的原生统一时间设置页面，来自 iPhone 17 Pro / iOS 26.0.1 模拟器；不是设计稿：
+
+<img src="docs/screenshots/time-settings.png" alt="原生统一课节时间设置" width="300">
 
 ## AI 使用
 
@@ -83,11 +90,12 @@ xcodebuild -project YIClass.xcodeproj -scheme YIClass \
 
 本目录与旧项目分离，旧仓库未作修改。GitHub 连接创建仓库时返回 `Resource not accessible by integration (createRepository)`；用户随后手动创建了 [ddyec/YIClass-iOS](https://github.com/ddyec/YIClass-iOS)，该仓库用作本次原生重写的远程仓库。
 
-在 GitHub 手动建立空仓库后，可将本目录推送：
+源码已推送到该仓库的 `main` 分支。后续可直接从新仓库克隆：
 
 ```bash
-git remote add origin https://github.com/ddyec/YIClass-iOS.git
-git push -u origin main
+git clone https://github.com/ddyec/YIClass-iOS.git
+cd YIClass-iOS
+open YIClass.xcodeproj
 ```
 
 ## 开源协议

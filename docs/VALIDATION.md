@@ -11,11 +11,19 @@
 - AI 追问选项、课表 / 时间变化后禁止应用旧方案、无效和超大文件拒绝。
 - `swiftc -frontend -parse Sources/App/*.swift`：通过。此项仅检查语法，不解析 Apple SDK，也不校验 SwiftUI 泛型或 Apple 平台并发类型。
 - 工程结构与资源检查：生成器输出一致；对象引用完整；所有 App 文件被加入编译；iOS 最低版本 26；禁用 Mac Catalyst；1024×1024 图标；隐私 plist、scheme XML 与开源协议存在。
+- GitHub macOS runner：Xcode 26.0.1、iOS 26 SDK 应用构建通过，核心测试通过。模拟器测试的架构配置已对齐，避免 App 与 Swift 包编译不同架构。
+- `SmokeTests.testFirstLaunchAndSettingsNavigation` 与 `SmokeTests.testLightWeeklySchedule` 在 [运行 39624415305](https://github.com/ddyec/YIClass-iOS/actions/runs/39624415305) 中通过，已查看真实截图；其中统一时间页面截图保存在 [screenshots/time-settings.png](screenshots/time-settings.png)。这次运行的完整套件仍失败，深色用例在应用启动进度请求处超时，没有完成页面断言。
+- 截图检查发现周视图日期带中文后缀后被圆点截断，后续已改为纯数字，并降低行高；修正源码已通过 Xcode 编译，尚无修正后的完整运行截图。
 
-## 尚未执行，需要 Mac
+## 未通过的自动化检查
 
-- Xcode 26 对 SwiftUI、Foundation Models、Vision、Keychain 的完整 SDK 类型检查。
-- iOS 26 模拟器构建、UI 冒烟测试、截图与周视图视觉验收。
+- 托管模拟器独立启动等待停在 `Waiting on BackBoard`，五分钟超时；打开 Simulator 窗口也未解决。
+- [最新运行 39629560591](https://github.com/ddyec/YIClass-iOS/actions/runs/39629560591) 的工程检查、核心测试和应用构建通过，UI 测试目标也完成编译，但界面测试未正常启动，十分钟超时退出。结果包未完整写出，不能用它证明界面验证通过。
+- 工作流保留单模拟器与失败测试最多一次重试，以便后续排查；本次仍未取得完整 UI 通过记录。不得把“SDK 编译通过”写成“完整界面测试通过”，也不能声称夜间观感已完成验收。
+
+## 仍需验收
+
+- 完整 UI 冒烟测试、修正后周视图的截图，以及深色周视图 / 助手 / 设置页的视觉验收。
 - iPhone / iPad 真机的 Liquid Glass 效果、深色模式、大字号、VoiceOver、减少透明度和减少动态效果验收。
 - Apple Intelligence 可用 / 不可用、上下文过长与生成格式异常的实际体验。
 - 用户自定义远程接口的成功、超时、取消、鉴权错误与重定向拒绝。
@@ -32,4 +40,4 @@
 6. 取消 AI 请求、切换课表再返回；迟到的响应不得覆盖当前课表或重新出现旧方案。
 7. 检查 iPhone 窄屏、横屏、iPad 和辅助功能字号，确认横向 / 纵向滚动可达全部课程。
 
-以上未执行项不可写为“测试通过”。GitHub Actions 配置已提供，但受新仓库创建权限限制，本次没有远程 CI 运行结果。
+以上未执行项不可写为“测试通过”。用户已建立新仓库，源码已推送；最新远程结果见 [GitHub Actions](https://github.com/ddyec/YIClass-iOS/actions)。
