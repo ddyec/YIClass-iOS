@@ -23,10 +23,6 @@ struct ScheduleView: View {
                 AppBackdrop()
                 VStack(spacing: 12) {
                     controls.padding(.horizontal, 16)
-                    let unplaced = store.table.courses.filter { $0.unscheduledWeeks != nil }
-                    if !unplaced.isEmpty {
-                        Button("未排时间课程 \(unplaced.count) 门 · 列表中查看") { mode = .list }.font(.caption)
-                    }
                     if store.table.courses.isEmpty {
                         ContentUnavailableView {
                             Label(mode == .day ? "当天还没有课程" : "把这一周安排好", systemImage: "calendar.badge.plus")
@@ -50,6 +46,12 @@ struct ScheduleView: View {
                                 Label(table.name, systemImage: table.id == store.table.id ? "checkmark" : "calendar")
                             }
                         }
+                        let unplacedCount = store.table.courses.filter { $0.unscheduledWeeks != nil }.count
+                        if unplacedCount > 0 {
+                            Divider()
+                            Button("未排时间课程（\(unplacedCount)）", systemImage: "tray") { mode = .list }
+                        }
+                        Divider()
                         Button("新建课表", systemImage: "plus") { newTable = true }
                     } label: { Image(systemName: "square.stack").accessibilityLabel("切换课表") }
                 }
