@@ -13,7 +13,7 @@ import YIClassCore
     var table: Timetable { data.timetables.first { $0.id == data.selectedID }! }
     var profile: TimeProfile { data.timeProfile }
 
-    init() {
+    init(storageURL: URL? = nil) {
         #if DEBUG
         if CommandLine.arguments.contains("--ui-testing-demo") {
             // Isolate UI fixtures from real user data; this branch is absent from Release builds.
@@ -38,7 +38,7 @@ import YIClassCore
             return
         }
         #endif
-        file = URL.applicationSupportDirectory.appending(path: "YIClass", directoryHint: .isDirectory)
+        file = storageURL ?? URL.applicationSupportDirectory.appending(path: "YIClass", directoryHint: .isDirectory)
             .appending(path: "library.json")
         do {
             if FileManager.default.fileExists(atPath: file.path) {
