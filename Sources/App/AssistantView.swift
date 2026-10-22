@@ -287,14 +287,16 @@ struct AssistantView: View {
                     PhotosPicker(selection: $photo, matching: .images) {
                         Label("截图", systemImage: "photo")
                             .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 10).frame(minHeight: 44)
+                            .padding(.horizontal, 10).padding(.bottom, 6)
+                            .frame(minHeight: 44, alignment: .bottom)
                             .contentShape(Rectangle())
                     }.buttonStyle(.plain).foregroundStyle(.tint)
                         .accessibilityLabel("选择课表截图").disabled(busy || reading)
                     Button { inputFocused = false; importing = true } label: {
                         Label("文件", systemImage: "doc")
                             .font(.subheadline.weight(.medium))
-                            .padding(.horizontal, 10).frame(minHeight: 44)
+                            .padding(.horizontal, 10).padding(.bottom, 6)
+                            .frame(minHeight: 44, alignment: .bottom)
                             .contentShape(Rectangle())
                     }.buttonStyle(.plain).foregroundStyle(.tint)
                         .accessibilityLabel("导入课表文件").disabled(busy || reading)
