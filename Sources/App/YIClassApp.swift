@@ -19,6 +19,12 @@ import YIClassCore
                     }
                 } else { RootView() }
             }
+            .task {
+                if !store.loadFailed { await LessonReminderManager.shared.start(data: store.data) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                if !store.loadFailed { LessonReminderManager.shared.refresh(data: store.data) }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { store.syncWidgets() }
             }
@@ -33,6 +39,7 @@ import YIClassCore
 }
 
 struct RootView: View {
+    @Environment(AppStore.self) private var store
     @State private var selected = 0
     var body: some View {
         TabView(selection: $selected) {
@@ -41,6 +48,13 @@ struct RootView: View {
             Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView() }
         }
         .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
+        .onReceive(NotificationCenter.default.publisher(for: .lessonReminderOpened)) { notification in
+            selected = 0
+            if let rawID = notification.userInfo?["tableID"] as? String, let id = UUID(uuidString: rawID),
+               store.data.timetables.contains(where: { $0.id == id }), id != store.table.id {
+                store.perform { try store.select(id) }
+            }
+        }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
 }

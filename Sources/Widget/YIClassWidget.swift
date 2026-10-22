@@ -23,7 +23,8 @@ struct LessonProvider: TimelineProvider {
         let data = try? result.get()
         let lessons = data.map { WidgetSchedule.lessons(data: $0, from: now) } ?? []
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
-        let dates = Set([now] + lessons.flatMap { [$0.start, $0.end] }.filter { $0 > now && $0 < horizon })
+        let midnight = Calendar.current.startOfDay(for: horizon)
+        let dates = Set([now] + ([midnight] + lessons.flatMap { [$0.start.addingTimeInterval(-3600), $0.start, $0.end.addingTimeInterval(-3600), $0.end] }).filter { $0 > now && $0 < horizon })
         completion(Timeline(entries: dates.sorted().map { entry(at: $0, result: result) }, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
     }
     private func entry(at date: Date, result: Result<AppData, AppFailure>) -> LessonEntry {
@@ -42,24 +43,21 @@ struct LessonWidgetView: View {
         Group {
             switch family {
             case .accessoryInline:
-                if let next = entry.next { Text("\(next.course.name) \(next.start.formatted(date: .omitted, time: .shortened))") }
-                else { Text(entry.configured ? "暂无课程" : "打开 YIClass 同步") }
+                if let next = entry.next {
+                    let clock = (next.start <= entry.date ? next.end : next.start).formatted(date: .omitted, time: .shortened)
+                    Text("\(String(next.course.name.prefix(6))) · \(clock)" + (next.course.location.isEmpty ? "" : " · " + next.course.location))
+                } else { Text(entry.configured ? "暂无课程" : "打开 YIClass 同步") }
             case .accessoryCircular:
-                VStack(spacing: 2) {
-                    Image(systemName: "graduationcap.fill")
-                    if let next = entry.next {
-                        if next.start > entry.date { Text(next.start, style: .timer).font(.caption2).monospacedDigit() }
-                        else { Text("上课中").font(.caption2) }
-                    } else { Text("无课").font(.caption2) }
+                if let next = entry.next { circular(next) }
+                else {
+                    VStack(spacing: 2) {
+                        Image(systemName: entry.configured ? "checkmark" : "arrow.triangle.2.circlepath")
+                        Text(entry.configured ? "无课" : "待同步").font(.caption2)
+                    }
                 }
             case .accessoryRectangular:
-                if let next = entry.next {
-                    VStack(alignment: .leading) {
-                        Text(next.course.name).font(.headline).lineLimit(1)
-                        Text(next.start > entry.date ? "即将上课" : "正在上课").font(.caption)
-                        Text(next.start, style: .time).font(.caption).monospacedDigit()
-                    }
-                } else { Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
+                if let next = entry.next { rectangular(next) }
+                else { Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
             default:
                 home
             }
@@ -67,6 +65,50 @@ struct LessonWidgetView: View {
         .containerBackground(.background, for: .widget)
         .widgetURL(URL(string: "yiclass://schedule"))
         .privacySensitive()
+    }
+    private func dayLabel(_ date: Date) -> String {
+        if Calendar.current.isDate(date, inSameDayAs: entry.date) { return "今天" }
+        if let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: entry.date), Calendar.current.isDate(date, inSameDayAs: tomorrow) { return "明天" }
+        return date.formatted(.dateTime.month().day())
+    }
+    private func circular(_ lesson: ScheduledLesson) -> some View {
+        let ongoing = lesson.start <= entry.date
+        let target = ongoing ? lesson.end : lesson.start
+        let countdown = target.timeIntervalSince(entry.date) <= 3600
+        return ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 1) {
+                Text(String(lesson.course.name.prefix(4))).font(.system(size: 10, weight: .medium)).lineLimit(1)
+                if countdown {
+                    Text(target, style: .timer).font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                } else { Text(target, style: .time).font(.system(size: 12, weight: .semibold, design: .rounded)).monospacedDigit() }
+                Text(ongoing ? (countdown ? "距下课" : "下课") : (countdown ? "距上课" : dayLabel(lesson.start)))
+                    .font(.system(size: 9)).lineLimit(1)
+            }.padding(5)
+        }.accessibilityLabel("\(lesson.course.name)，\(ongoing ? "下课" : "上课")时间 \(target.formatted(date: .abbreviated, time: .shortened))，\(lesson.course.location)")
+    }
+    private func rectangular(_ lesson: ScheduledLesson) -> some View {
+        let ongoing = lesson.start <= entry.date
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 3) {
+                Text(lesson.course.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+                if ongoing { Text("上课中").font(.system(size: 9)).fixedSize() }
+            }
+            HStack(spacing: 2) {
+                Text(lesson.start, style: .time); Text("–"); Text(lesson.end, style: .time)
+                Spacer(minLength: 2)
+                if !Calendar.current.isDate(lesson.start, inSameDayAs: entry.date) { Text(dayLabel(lesson.start)) }
+            }.font(.caption2).monospacedDigit()
+            if !lesson.course.location.isEmpty {
+                Label(lesson.course.location, systemImage: "mappin").font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
+            } else {
+                HStack(spacing: 3) {
+                    Text(ongoing ? "距下课" : "距上课")
+                    Text(ongoing ? lesson.end : lesson.start, style: .timer).monospacedDigit()
+                }.font(.caption2)
+            }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
     private var home: some View {
         VStack(alignment: .leading, spacing: family == .systemMedium ? 4 : 6) {

@@ -329,3 +329,39 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     #expect(throws: AppFailure.self) { _ = try AIChatResponse.text(from: empty) }
     #expect(throws: AppFailure.self) { _ = try AIChatResponse.text(from: Data("{}".utf8)) }
 }
+
+@Test func lessonRemindersUseSelectedTableGlobalTimeHolidaysAndFutureTriggers() throws {
+    var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let monday = calendar.date(from: DateComponents(year: 2026, month: 10, day: 19))!
+    let now = calendar.date(byAdding: .hour, value: 8, to: monday)!
+    let english = Course(name: "英语", location: "教学楼203", schedules: [CourseSchedule(weekday: 1, periods: [1,2], weekPattern: [1,2,3])])
+    var table = Timetable(startDate: monday, holidays: [calendar.date(byAdding: .day, value: 7, to: monday)!], courses: [english])
+    let other = Timetable(startDate: monday, courses: [course("其他课表", day: 1, weeks: [1,2,3])])
+    var data = AppData(timetables: [other, table], selectedID: table.id)
+    let reminders = LessonReminderPlanner.reminders(data: data, now: now, calendar: calendar)
+    #expect(reminders.count == 2)
+    #expect(reminders[0].tableID == table.id && reminders[0].courseID == english.id)
+    #expect(reminders[0].date == calendar.date(bySettingHour: 8, minute: 20, second: 0, of: monday))
+    #expect(reminders[0].body.contains("教学楼203"))
+    let fiveMinutes = LessonReminderPlanner.reminders(data: data, now: now, leadMinutes: 5, calendar: calendar)
+    #expect(fiveMinutes[0].id == reminders[0].id && fiveMinutes[0].date.timeIntervalSince(reminders[0].date) == 300)
+    let late = LessonReminderPlanner.reminders(data: data, now: calendar.date(bySettingHour: 8, minute: 25, second: 0, of: monday)!, calendar: calendar)
+    #expect(late.count == 1)
+    table.courses = []
+    data.timetables[1] = table
+    #expect(LessonReminderPlanner.reminders(data: data, now: now, calendar: calendar).isEmpty)
+}
+
+@Test func lessonReminderQueueIsBoundedAndFollowsChangedCourseTimes() throws {
+    var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let monday = calendar.date(from: DateComponents(year: 2026, month: 10, day: 19))!
+    let lessons = (1...7).map { day in Course(name: "课程\(day)", schedules: [CourseSchedule(weekday: day, periods: [1,2], weekPattern: Array(1...60))]) }
+    let table = Timetable(startDate: monday, totalWeeks: 60, courses: lessons)
+    var data = AppData(timetables: [table], selectedID: table.id)
+    let old = LessonReminderPlanner.reminders(data: data, now: monday, limit: 1000, calendar: calendar)
+    #expect(old.count == 60 && Set(old.map(\.id)).count == 60)
+    try data.timeProfile.moveStart(0, to: 540)
+    let changed = LessonReminderPlanner.reminders(data: data, now: monday, calendar: calendar)
+    #expect(changed[0].date.timeIntervalSince(old[0].date) == 1800)
+    #expect(changed[0].id != old[0].id)
+}

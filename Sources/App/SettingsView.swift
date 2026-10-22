@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 import YIClassCore
 
 struct JSONDocument: FileDocument {
@@ -18,6 +19,8 @@ private struct ImportSelection: Identifiable { let id = UUID(); let preview: Imp
 struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
+    @State private var reminders = LessonReminderManager.shared
+    @Environment(\.openURL) private var openURL
     @State private var importing = false
     @State private var reading = false
     @State private var aiImport = false
@@ -35,6 +38,24 @@ struct SettingsView: View {
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
                     NavigationLink("AI 模式与接口配置") { AISettingsView() }
+                }
+                Section("上课提醒") {
+                    Toggle("提醒当前课表", isOn: Binding(get: { reminders.enabled }, set: { value in
+                        Task { await reminders.setEnabled(value, data: store.data) }
+                    })).disabled(reminders.requesting)
+                    if reminders.enabled {
+                        Picker("提醒时间", selection: Binding(get: { reminders.leadMinutes }, set: { reminders.setLeadMinutes($0, data: store.data) })) {
+                            Text("上课时").tag(0)
+                            ForEach([5, 10, 15, 30], id: \.self) { Text("提前 \($0) 分钟").tag($0) }
+                        }
+                        Text("已安排 \(reminders.pendingCount) 条提醒").font(.caption).foregroundStyle(.secondary)
+                    }
+                    if reminders.authorization == .denied {
+                        Button("打开系统通知设置", systemImage: "bell.slash") {
+                            if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+                        }
+                    }
+                    if let issue = reminders.issue { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
                 Section("导入与备份") {
                     Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
