@@ -40,7 +40,7 @@ import UIKit
         attach(app, name: "浅色-周视图")
     }
 
-    func testEveningToggleStaysAboveFloatingNavigation() {
+    func testEveningToggleVisibleWhenCollapsedAndReachableAfterExpansion() {
         defer { XCUIDevice.shared.orientation = .portrait }
         for appearance in ["light", "dark"] {
             XCUIDevice.shared.orientation = .portrait
@@ -63,7 +63,8 @@ import UIKit
                 let grid = app.scrollViews["week-grid-scroll"]
                 let lastPeriod = app.staticTexts["20:40"]
                 for _ in 0..<5 {
-                    if lastPeriod.exists && lastPeriod.frame.maxY <= toggle.frame.minY { break }
+                    if toggle.isHittable && lastPeriod.isHittable &&
+                        toggle.frame.maxY <= assistant.frame.minY && lastPeriod.frame.maxY <= toggle.frame.minY { break }
                     grid.swipeUp()
                 }
                 XCTAssertTrue(lastPeriod.isHittable)

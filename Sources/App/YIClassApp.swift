@@ -43,16 +43,18 @@ import YIClassCore
 
 struct RootView: View {
     @Environment(AppStore.self) private var store
+    @AppStorage("theme.accent") private var accent = 0xFF637EEA
     @State private var selected = 0
     @State private var assistantPresented = false
     @State private var bottomNavigationHeight: CGFloat = 72
+    @State private var bottomNavigationFrame: CGRect?
     @State private var navigationMinimized = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $selected) {
                 Tab("课表", systemImage: "calendar", value: 0) {
-                    ScheduleView(bottomNavigationInset: bottomNavigationHeight)
+                    ScheduleView(bottomNavigationInset: bottomNavigationHeight, bottomNavigationTop: bottomNavigationFrame?.minY)
                         .toolbar(.hidden, for: .tabBar)
                 }
                 Tab("待办", systemImage: "checklist", value: 3) {
@@ -84,8 +86,9 @@ struct RootView: View {
                 // control account for its measured height; no navigation row.
                 bottomNavigation.padding(.horizontal, 18).padding(.top, 8)
                     .padding(.bottom, max(8, geometry.safeAreaInsets.bottom - 8))
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                        bottomNavigationHeight = $0
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: {
+                        bottomNavigationHeight = $0.height
+                        bottomNavigationFrame = $0
                     }
             }
             // Apply to the content AND overlay so the custom bar reaches the
@@ -134,9 +137,9 @@ struct RootView: View {
                 if !navigationMinimized { Text(title).font(.caption.weight(.medium)) }
             }
             .frame(maxWidth: .infinity, minHeight: 54)
-            .foregroundStyle(selected == value ? Color.accentColor : Color.primary)
+            .foregroundStyle(selected == value ? Color(argb: UInt32(clamping: accent)) : Color.primary)
             .background {
-                if selected == value { Capsule().fill(Color.primary.opacity(0.07)) }
+                if selected == value { Capsule().fill(Color(argb: UInt32(clamping: accent)).opacity(0.12)) }
             }
             .contentShape(Capsule())
         }
