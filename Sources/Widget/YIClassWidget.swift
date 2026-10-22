@@ -9,6 +9,7 @@ struct LessonEntry: TimelineEntry {
     let lessons: [ScheduledLesson]
     let configured: Bool
     let syncIssue: String?
+    var usesWideLastLesson = false
     var next: ScheduledLesson? { lessons.first { $0.end > date } }
     var showsTomorrow: Bool { !Calendar.current.isDate(displayDay, inSameDayAs: date) }
     var emptyMessage: String { showsTomorrow ? "明天没有课程" : "今天没有更多课程" }
@@ -25,7 +26,12 @@ struct LessonProvider: TimelineProvider {
         let now = Date(), result = SharedLibrary.readResult()
         let data = try? result.get()
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
-        let dates = data.map { WidgetSchedule.displayTimelineDates(data: $0, from: now, until: horizon) } ?? [now]
+        var dates = data.map { WidgetSchedule.displayTimelineDates(data: $0, from: now, until: horizon) } ?? [now]
+        if let data {
+            dates += WideLessonPlanner.windows(data: data, at: now).flatMap { [$0.visibleFrom, $0.end] }
+                .filter { $0 > now && $0 < horizon }
+            dates = Array(Set(dates)).sorted()
+        }
         let entries = dates.map { entry(at: $0, result: result) }
         completion(Timeline(entries: entries, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
     }
@@ -35,7 +41,11 @@ struct LessonProvider: TimelineProvider {
         if case .failure(let error) = result { issue = error.localizedDescription } else { issue = nil }
         let schedule = data.map { WidgetSchedule.daySchedule(data: $0, at: date) }
         return LessonEntry(date: date, displayDay: schedule?.day ?? date, tableName: data?.timetables.first { $0.id == data?.selectedID }?.name ?? "YIClass",
-                    lessons: schedule?.lessons ?? [], configured: data != nil, syncIssue: issue)
+                    lessons: schedule?.lessons ?? [], configured: data != nil, syncIssue: issue,
+                    usesWideLastLesson: data.map { library in
+                        guard let lessons = schedule?.lessons, lessons.count == 1 else { return false }
+                        return WideLessonBridge.covers(lessons[0], tableID: library.selectedID, at: date)
+                    } ?? false)
     }
 }
 
@@ -52,18 +62,21 @@ struct LessonWidgetView: View {
         Group {
             switch family {
             case .accessoryInline:
-                if let next = displayedLesson {
+                if entry.usesWideLastLesson { Color.clear.accessibilityHidden(true) }
+                else if let next = displayedLesson {
                     let clock = (next.start <= entry.date ? next.end : next.start).formatted(date: .omitted, time: .shortened)
                     Text("\(String(next.course.name.prefix(6))) · \(clock)" + (next.course.location.isEmpty ? "" : " · " + next.course.location))
                 } else if entry.configured { Color.clear.accessibilityHidden(true) }
                 else { Text("打开 YIClass 同步") }
             case .accessoryCircular:
-                if let next = displayedLesson { circular(next) }
+                if entry.usesWideLastLesson { Color.clear.accessibilityHidden(true) }
+                else if let next = displayedLesson { circular(next) }
                 else if entry.configured { Color.clear.accessibilityHidden(true) }
                 else { Text("待同步").font(.caption2) }
             case .accessoryRectangular:
                 let lessons = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date)
-                if lessons.indices.contains(position) { rectangular(lessons[position]) }
+                if entry.usesWideLastLesson { Color.clear.accessibilityHidden(true) }
+                else if lessons.indices.contains(position) { rectangular(lessons[position]) }
                 else if entry.configured { Color.clear.accessibilityHidden(true) }
                 else { Text(entry.syncIssue ?? "打开 YIClass 同步课表") }
             default:
@@ -282,5 +295,6 @@ struct CurrentLessonWidget: Widget {
         YIClassWidget()
         CurrentLessonWidget()
         FollowingLessonWidget()
+        LastLessonLiveActivity()
     }
 }
