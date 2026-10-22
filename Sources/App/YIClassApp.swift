@@ -21,11 +21,9 @@ import YIClassCore
             }
             .task {
                 if !store.loadFailed { await LessonReminderManager.shared.start(data: store.data) }
-                if !store.loadFailed { LastLessonActivityManager.shared.refresh(data: store.data) }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                 if !store.loadFailed { LessonReminderManager.shared.refresh(data: store.data) }
-                if !store.loadFailed { LastLessonActivityManager.shared.refresh(data: store.data) }
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { store.syncWidgets() }

@@ -19,36 +19,6 @@ private func gridTable() throws -> Timetable {
     return try PDFTimetableImporter.parse(grid, template: Timetable(startDate: start), profile: .standard)
 }
 
-@Test func wideLastLessonStartsAfterOtherClassEndsAndStopsAtItsOwnEnd() throws {
-    let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
-    let first = Course(name: "大学语文", schedules: [CourseSchedule(weekday: 4, periods: [5,6], weekPattern: [1])])
-    let last = Course(name: "最后一节", schedules: [CourseSchedule(weekday: 4, periods: [7,8], weekPattern: [1])])
-    let table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [first, last])
-    let data = AppData(timetables: [table], selectedID: table.id)
-    let lessons = WidgetSchedule.lessons(data: data, from: day, days: 1, calendar: utcCalendar)
-    let windows = WideLessonPlanner.windows(data: data, at: day.addingTimeInterval(13 * 3600), calendar: utcCalendar)
-    #expect(windows.count == 1)
-    #expect(windows.first?.courseID == last.id)
-    #expect(windows.first?.visibleFrom == lessons[0].end)
-    #expect(windows.first?.end == lessons[1].end)
-    #expect(WideLessonPlanner.windows(data: data, at: lessons[1].end, calendar: utcCalendar).isEmpty)
-}
-
-@Test func wideLastLessonRespectsEightHourLimitHolidayAndSimultaneousEnd() throws {
-    let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
-    let last = Course(name: "晚课", schedules: [CourseSchedule(weekday: 4, periods: [10], weekPattern: [1])])
-    var table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [last])
-    var data = AppData(timetables: [table], selectedID: table.id)
-    let window = try #require(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).first)
-    #expect(window.end.timeIntervalSince(window.visibleFrom) < 8 * 3600)
-    #expect(window.visibleFrom >= day)
-    table.courses.append(Course(name: "同时间另一门", schedules: last.schedules))
-    data.timetables = [table]
-    #expect(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).isEmpty)
-    table.courses = [last]; table.holidays = [day]; data.timetables = [table]
-    #expect(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).isEmpty)
-}
-
 @Test func dateToolReturnsWholeDayIncludingAfternoonAndSeparateHolidayState() throws {
     var table = try gridTable()
     let date = try AssistantDateEdits.date("2026-09-29", calendar: utcCalendar)
