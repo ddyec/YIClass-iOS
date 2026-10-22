@@ -22,6 +22,9 @@ public struct AssistantToolDefinition: Encodable, Sendable {
 }
 
 public enum AssistantTools {
+    public static func needsLookup(_ text: String) -> Bool {
+        text.range(of: #"今天|明天|后天|昨天|前天|本周|下周|上周|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}[月日号]|\d{4}-\d{2}-\d{2}|调课|搬课|移课"#, options: .regularExpression) != nil
+    }
     public static let definitions: [AssistantToolDefinition] = [
         AssistantToolDefinition(function: .init(name: "get_schedule_dates", description: "查询当前课表指定日期的完整课程 JSON（全天、原排课、有效课和停课状态）。查课或调课前先查源日及目标日。只读，不保存。", parameters: .init(properties: ["dates": .init(description: "1–30 个 yyyy-MM-dd 日期，含源日与目标日")], required: ["dates"]))),
         AssistantToolDefinition(function: .init(name: "get_course_records", description: "按 UUID 获取课程完整 JSON，包括所有周次、固定安排和未排时间。只读，不保存。", parameters: .init(properties: ["courseIDs": .init(description: "1–30 个当前课表课程 UUID")], required: ["courseIDs"])))

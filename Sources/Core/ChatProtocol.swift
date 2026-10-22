@@ -78,13 +78,15 @@ public struct AIChatRequest: Encodable, Sendable {
     public let thinking: Mode?
     public let response_format: Mode?
     public let tools: [AssistantToolDefinition]?
+    public let tool_choice: String?
     public static func resolvedModel(_ model: String, endpoint: URL) -> String {
         if endpoint.host?.lowercased() == "api.deepseek.com", ["deepseek-chat", "deepseek-reasoner"].contains(model) { return "deepseek-flash" }
         return model
     }
-    public init(model: String, messages: [ChatMessage], maxTokens: Int, endpoint: URL, testing: Bool = false, tools: [AssistantToolDefinition]? = nil) {
+    public init(model: String, messages: [ChatMessage], maxTokens: Int, endpoint: URL, testing: Bool = false, tools: [AssistantToolDefinition]? = nil, requireTool: Bool = false) {
         self.model = Self.resolvedModel(model, endpoint: endpoint)
         self.messages = messages; max_tokens = maxTokens; self.tools = tools
+        tool_choice = tools != nil && requireTool ? "required" : nil
         let officialDeepSeek = endpoint.host?.lowercased() == "api.deepseek.com"
         thinking = officialDeepSeek ? Mode(type: "disabled") : nil
         response_format = officialDeepSeek && !testing ? Mode(type: "json_object") : nil

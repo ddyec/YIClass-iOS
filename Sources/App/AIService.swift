@@ -69,8 +69,9 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             var turns = [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages
             var queriedDates = Set<String>()
             var repaired = false
-            for _ in 0..<6 {
-                let turn = try await remoteTurn(messages: turns, endpoint: endpoint, model: model, key: APIKeyStore.read(), tools: AssistantTools.definitions)
+            let requireLookup = AssistantTools.needsLookup(messages.last(where: { $0.role == "user" })?.content ?? "")
+            for round in 0..<6 {
+                let turn = try await remoteTurn(messages: turns, endpoint: endpoint, model: model, key: APIKeyStore.read(), tools: AssistantTools.definitions, requireTool: round == 0 && requireLookup)
                 try Task.checkCancellation()
                 if let calls = turn.tool_calls, !calls.isEmpty {
                     turns.append(turn)
@@ -112,7 +113,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
         return "连接成功 · \(model)"
     }
     private static func remoteTurn(messages: [ChatMessage], endpoint: String, model: String, key: String,
-                               testing: Bool = false, tools: [AssistantToolDefinition]? = nil) async throws -> ChatMessage {
+                               testing: Bool = false, tools: [AssistantToolDefinition]? = nil, requireTool: Bool = false) async throws -> ChatMessage {
             let endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
             let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
             let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -132,7 +133,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             for attempt in 0..<2 {
                 try Task.checkCancellation()
                 let budget = testing ? 64 : (attempt == 0 ? 16_384 : 32_768)
-                let body = AIChatRequest(model: model, messages: messages, maxTokens: budget, endpoint: url, testing: testing, tools: tools)
+                let body = AIChatRequest(model: model, messages: messages, maxTokens: budget, endpoint: url, testing: testing, tools: tools, requireTool: requireTool)
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"; request.timeoutInterval = 180
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

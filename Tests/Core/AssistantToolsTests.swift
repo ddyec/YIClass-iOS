@@ -100,13 +100,16 @@ private func gridTable() throws -> Timetable {
     let turn = try AIChatResponse.turn(from: Data(response.utf8))
     #expect(turn.tool_calls?.first?.id == "date_call")
     let result = ChatMessage(role: "tool", content: #"{"dates":[]}"#, toolCallID: "date_call")
-    let body = AIChatRequest(model: "deepseek-flash", messages: [turn, result], maxTokens: 4096, endpoint: URL(string: "https://api.deepseek.com/chat/completions")!, tools: AssistantTools.definitions)
+    let body = AIChatRequest(model: "deepseek-flash", messages: [turn, result], maxTokens: 4096, endpoint: URL(string: "https://api.deepseek.com/chat/completions")!, tools: AssistantTools.definitions, requireTool: true)
     let bytes = try JSONEncoder().encode(body)
     let decoded = try JSONDecoder().decode([String: [ChatMessage]].self, from: JSONSerialization.data(withJSONObject: ["messages": (JSONSerialization.jsonObject(with: bytes) as! [String: Any])["messages"]!]))
     #expect(decoded["messages"]?[0].tool_calls?.first?.id == "date_call")
     #expect(decoded["messages"]?[1].tool_call_id == "date_call")
     let object = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
     #expect((object["tools"] as? [Any])?.count == 2)
+    #expect(object["tool_choice"] as? String == "required")
+    #expect(AssistantTools.needsLookup("29号下午不是还有课吗"))
+    #expect(!AssistantTools.needsLookup("你好"))
 }
 
 @Test func lockScreenSlotsProgressAndEndTransitionUseOneTimeline() throws {
