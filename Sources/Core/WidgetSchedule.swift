@@ -8,11 +8,16 @@ public struct ScheduledLesson: Identifiable, Equatable, Sendable {
 }
 
 public enum WidgetSchedule {
-    /// Keep ongoing lessons first and retire them exactly at their end date.
-    public static func lockScreenLessons(_ lessons: [ScheduledLesson], at date: Date) -> [ScheduledLesson] {
-        Array(lessons.filter { $0.end > date }.sorted {
-            let left = $0.start <= date, right = $1.start <= date
-            if left != right { return left }
+    /// Ongoing lessons first; rectangular layouts may briefly retain a finished lesson.
+    public static func lockScreenLessons(_ lessons: [ScheduledLesson], at date: Date, completionGrace: TimeInterval = 0) -> [ScheduledLesson] {
+        let grace = max(0, min(300, completionGrace))
+        func rank(_ lesson: ScheduledLesson) -> Int {
+            if lesson.start <= date && lesson.end > date { return 0 }
+            return lesson.end <= date ? 1 : 2
+        }
+        return Array(lessons.filter { $0.end.addingTimeInterval(grace) > date }.sorted {
+            let left = rank($0), right = rank($1)
+            if left != right { return left < right }
             if $0.start != $1.start { return $0.start < $1.start }
             return $0.id < $1.id
         }.prefix(2))
@@ -26,7 +31,7 @@ public enum WidgetSchedule {
         let midnight = Calendar.current.startOfDay(for: horizon)
         if midnight > now && midnight < horizon { dates.insert(midnight) }
         for lesson in lessons {
-            for date in [lesson.start.addingTimeInterval(-3600), lesson.start, lesson.end.addingTimeInterval(-3600), lesson.end] where date > now && date < horizon { dates.insert(date) }
+            for date in [lesson.start.addingTimeInterval(-3600), lesson.start, lesson.end.addingTimeInterval(-3600), lesson.end, lesson.end.addingTimeInterval(180)] where date > now && date < horizon { dates.insert(date) }
             // Pre-render progress states; no background timer or reload polling.
             var tick = lesson.start.addingTimeInterval(5 * 60)
             while tick < min(lesson.end, horizon) {

@@ -307,7 +307,10 @@ struct AssistantView: View {
                     if inputFocused {
                         Button { inputFocused = false } label: {
                             Image(systemName: "keyboard.chevron.compact.down")
-                                .font(.body).frame(width: 44, height: 44).contentShape(Rectangle())
+                                .font(.body)
+                                .padding(.bottom, 6)
+                                .frame(width: 44, height: 44, alignment: .bottom)
+                                .contentShape(Rectangle())
                         }.buttonStyle(.plain).foregroundStyle(.tint).accessibilityLabel("收起键盘")
                     }
                     Button { send(input, images: pendingImages) } label: {

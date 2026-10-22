@@ -125,3 +125,18 @@ private func gridTable() throws -> Timetable {
     #expect(dates.contains(lessons[0].end) && dates.contains(lessons[1].start))
     #expect(Set(dates).count == dates.count && dates == dates.sorted())
 }
+
+@Test func rectangularCompletedLessonFadesBrieflyWithoutHidingAnOngoingClass() throws {
+    let start = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar).addingTimeInterval(14 * 3600)
+    let first = ScheduledLesson(course: Course(name: "刚下课", schedules: []), start: start, end: start.addingTimeInterval(6000))
+    let next = ScheduledLesson(course: Course(name: "下一节", schedules: []), start: start.addingTimeInterval(7200), end: start.addingTimeInterval(13200))
+    let later = ScheduledLesson(course: Course(name: "再下一节", schedules: []), start: start.addingTimeInterval(14400), end: start.addingTimeInterval(18000))
+    let all = [first, next, later]
+    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end, completionGrace: 180).map(\.course.name) == ["刚下课", "下一节"])
+    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end.addingTimeInterval(180), completionGrace: 180).map(\.course.name) == ["下一节", "再下一节"])
+    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end).map(\.course.name) == ["下一节", "再下一节"])
+    let dates = WidgetSchedule.lockScreenTimelineDates(lessons: all, from: start, until: start.addingTimeInterval(86400))
+    #expect(dates.contains(first.end.addingTimeInterval(180)))
+    let overlapping = ScheduledLesson(course: Course(name: "仍在上课", schedules: []), start: start.addingTimeInterval(3000), end: start.addingTimeInterval(6600))
+    #expect(WidgetSchedule.lockScreenLessons([first, overlapping, next], at: first.end, completionGrace: 180).first?.course.name == "仍在上课")
+}
