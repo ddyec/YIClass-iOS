@@ -265,7 +265,7 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
 
 @Test func directAIChangeAllowsEmptyLocationAndPersistsWithoutPreview() throws {
     let json = #"{"message":"今天的英语课已取消，其他周保留。","applyDirectly":true,"questions":[],"plans":[{"title":"取消今天","explanation":"只移除第8周","courses":[{"name":"英语","location":"","teacher":"","schedules":[{"weekday":4,"periods":[1,2],"weekPattern":[7,9]}]}]}]}"#
-    let table = Timetable(courses: [course("英语", day: 4, weeks: [7,8,9])])
+    let table = Timetable(startDate: Date(timeIntervalSince1970: 1_788_134_400), courses: [course("英语", day: 4, weeks: [7,8,9])])
     let reply = try AssistantReply.parse(json, table: table, profile: .standard)
     #expect(reply.applyDirectly == true)
     let changed = try reply.plans[0].proposedTable(from: table, profile: .standard)
