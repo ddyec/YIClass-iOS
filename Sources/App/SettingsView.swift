@@ -69,6 +69,12 @@ struct SettingsView: View {
                 }
                 if reading { ProgressView("正在读取课表…") }
                 Section("小组件") {
+                    DisclosureGroup("锁屏并排显示两门课") {
+                        Text("长按锁屏 → 自定 → 锁定屏幕 → 添加小组件。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        Text("各添加一个长方形的“课程安排”和“后续课程”，两门课会分别使用完整空间。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                     Button("同步课表到小组件", systemImage: "arrow.triangle.2.circlepath") { store.syncWidgets() }
                     if let date = store.widgetLastSync { LabeledContent("最近同步") { Text(date, style: .time) } }
                     if let issue = store.widgetSyncIssue { Text(issue).font(.footnote).foregroundStyle(.secondary) }

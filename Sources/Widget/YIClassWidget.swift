@@ -44,7 +44,6 @@ struct LessonWidgetView: View {
     @Environment(\.widgetContentMargins) private var margins
     let entry: LessonEntry
     var position = 0
-    var showsTwoLessons = false
     private var displayedLesson: ScheduledLesson? {
         let visible = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date)
         return visible.indices.contains(position) ? visible[position] : nil
@@ -64,8 +63,7 @@ struct LessonWidgetView: View {
                 else { Text("待同步").font(.caption2) }
             case .accessoryRectangular:
                 let lessons = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date)
-                if showsTwoLessons && lessons.count == 2 { rectangularPair(lessons) }
-                else if lessons.indices.contains(position) { rectangular(lessons[position]) }
+                if lessons.indices.contains(position) { rectangular(lessons[position]) }
                 else if entry.configured { Color.clear.accessibilityHidden(true) }
                 else { Text(entry.syncIssue ?? "打开 YIClass 同步课表") }
             default:
@@ -99,40 +97,6 @@ struct LessonWidgetView: View {
                     .font(.system(size: 9)).lineLimit(1)
             }.padding(5)
         }.accessibilityLabel("\(lesson.course.name)，\(ongoing ? "下课" : "上课")时间 \(target.formatted(date: .abbreviated, time: .shortened))，\(lesson.course.location)")
-    }
-    // The default lock-screen widget contains both lessons. A second widget
-    // is optional, for people who prefer two larger single-course cards.
-    private func rectangularPair(_ lessons: [ScheduledLesson]) -> some View {
-        GeometryReader { geometry in
-            HStack(alignment: .top, spacing: 6) {
-                ForEach(lessons) { lesson in
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(lesson.course.name)
-                            .font(.system(size: 12, weight: .semibold))
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(2)
-                        Text(clockRange(lesson))
-                            .font(.system(size: 9)).monospacedDigit().lineLimit(1)
-                            .minimumScaleFactor(0.85).layoutPriority(1)
-                        if lesson.course.location.isEmpty {
-                            HStack(spacing: 2) {
-                                Text(lesson.start <= entry.date ? "距下课" : "距上课")
-                                Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
-                            }.font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.8)
-                        } else {
-                            Text(lesson.course.location)
-                                .font(.system(size: 10)).lineLimit(2).minimumScaleFactor(0.8)
-                        }
-                    }
-                    .padding(.horizontal, 4).padding(.vertical, 5)
-                    .frame(width: max(1, (geometry.size.width - 10) / 2), height: max(1, geometry.size.height - 4), alignment: .topLeading)
-                    .overlay { courseOutline(lesson, single: false) }
-                    .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(2)
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }
     }
     private func clockRange(_ lesson: ScheduledLesson) -> String {
         let formatter = DateFormatter()
@@ -180,7 +144,7 @@ struct LessonWidgetView: View {
         }
         .padding(.horizontal, 5).padding(.vertical, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .overlay { courseOutline(lesson, single: true) }
+        .overlay { courseOutline(lesson, single: entry.lessons.count == 1) }
         .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
         .padding(2)
         .accessibilityLabel("\(lesson.course.name)，\(lesson.start <= entry.date ? "上课中" : "待上课")，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
@@ -250,10 +214,10 @@ struct LessonWidgetView: View {
 struct YIClassWidget: Widget {
     let kind = "YIClassLessons"
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: LessonProvider()) { LessonWidgetView(entry: $0, showsTwoLessons: true) }
+        StaticConfiguration(kind: kind, provider: LessonProvider()) { LessonWidgetView(entry: $0) }
             .contentMarginsDisabled()
             .configurationDisplayName("课程安排")
-            .description("锁屏双课左右并排，单课自动放大；今日结束后留白，夜间课节结束再切换明日。")
+            .description("锁屏每块显示一门课；再添加后续课程，可用两个完整长方形并排显示。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }
@@ -284,7 +248,7 @@ struct FollowingLessonWidget: Widget {
         }
         .contentMarginsDisabled()
         .configurationDisplayName("后续课程")
-        .description("与单课组件并排放置，显示后面一节课；下课后自动顺延。")
+        .description("放在课程安排旁边，以完整长方形显示第二门课，下课后自动顺延。")
         .supportedFamilies([.accessoryRectangular])
     }
 }
