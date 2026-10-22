@@ -6,12 +6,13 @@ import plistlib
 import re
 import struct
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 project = ROOT / 'YIClass.xcodeproj/project.pbxproj'
 before = project.read_bytes()
-subprocess.run(['python3', str(ROOT / 'scripts/generate_project.py')], check=True, capture_output=True)
+subprocess.run([sys.executable, str(ROOT / 'scripts/generate_project.py')], check=True, capture_output=True)
 assert before == project.read_bytes(), 'Project is stale; commit regenerated project'
 text = project.read_text()
 defined = re.findall(r'^\s*([0-9A-F]{24}) = \{', text, flags=re.M)
@@ -22,7 +23,7 @@ assert 'IPHONEOS_DEPLOYMENT_TARGET = "26.0"' in text
 assert 'SUPPORTS_MACCATALYST = "NO"' in text
 assert not list(ROOT.glob('**/*.dart')), 'Flutter sources must not be included'
 for file in (ROOT / 'Sources/App').glob('*.swift'):
-    assert str(file.relative_to(ROOT)) in text, f'Missing build source: {file}'
+    assert file.relative_to(ROOT).as_posix() in text, f'Missing build source: {file}'
 for file in ROOT.glob('**/*.json'):
     if '.build' not in file.parts and '.git' not in file.parts:
         json.loads(file.read_text())
@@ -40,7 +41,7 @@ assert app_info.get('NSSupportsLiveActivities') is True, 'Missing Live Activitie
 assert 'LastLessonLiveActivity.swift' in text and 'LastLessonActivityAttributes.swift' in text
 for folder in ['Widget', 'Shared']:
     for file in (ROOT / f'Sources/{folder}').glob('*.swift'):
-        assert str(file.relative_to(ROOT)) in text, f'Missing widget/shared source: {file}'
+        assert file.relative_to(ROOT).as_posix() in text, f'Missing widget/shared source: {file}'
 scheme = ET.parse(ROOT / 'YIClass.xcodeproj/xcshareddata/xcschemes/YIClass.xcscheme')
 assert scheme.find('.//TestableReference') is not None
 png = (ROOT / 'Sources/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png').read_bytes()

@@ -39,7 +39,9 @@ struct SettingsView: View {
                     NavigationLink("自由配色") { ThemeSettingsView() }
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
-                    NavigationLink("AI 模式与接口配置") { AISettingsView() }
+                    NavigationLink { AISettingsView() } label: {
+                        HStack { AssistantLogo(size: 20); Text("AI 模式与接口配置") }
+                    }
                 }
                 Section("上课提醒") {
                     Toggle("提醒当前课表", isOn: Binding(get: { reminders.enabled }, set: { value in
@@ -126,6 +128,7 @@ struct SettingsView: View {
                     Link("原项目与开源协议", destination: URL(string: "https://github.com/ddyec/YIClass")!)
                 }
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
+            .floatingNavigationScrollTracking()
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .background {
                 DocumentImportPicker(isPresented: $importing, contentTypes: [.json]) { url in

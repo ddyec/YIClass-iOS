@@ -5,52 +5,75 @@ struct TodoView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.colorScheme) private var colorScheme
     @State private var editing: TodoItem?
-    @State private var showCompleted = false
+    @State private var day = Date()
+    @State private var choosingDate = false
     var body: some View {
         NavigationStack {
             TimelineView(.everyMinute) { context in
-                let items = TodoItem.ranked(store.data.todos, on: context.date)
-                List {
-                    Section {
-                        if items.isEmpty {
-                            ContentUnavailableView("暂无待办", systemImage: "checklist")
-                                .listRowBackground(Color.clear)
+                let reference = Calendar.current.isDateInToday(day) ? context.date : day
+                let items = TodoItem.ranked(store.data.todos, on: reference)
+                VStack(spacing: 0) {
+                    HStack(spacing: 16) {
+                        Text("待办").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                        Spacer(minLength: 8)
+                        Button { choosingDate = true } label: {
+                            Text(day, format: .dateTime.month().day().weekday(.abbreviated))
+                                .font(.subheadline).foregroundStyle(.primary)
+                                .frame(minHeight: 44)
                         }
-                        ForEach(items) { item in
-                            taskRow(item, reference: context.date)
-                        }
-                    }
-                    Section {
-                        Button("添加待办", systemImage: "plus") { editing = TodoItem(title: "") }
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    if store.data.todos.contains(where: { $0.completedAt != nil }) {
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("查看日期，\(day.formatted(date: .complete, time: .omitted))")
+                        .accessibilityIdentifier("todo-calendar")
+                    }.padding(.horizontal, 20).padding(.vertical, 8)
+                    List {
                         Section {
-                            DisclosureGroup("已完成", isExpanded: $showCompleted) {
-                                ForEach(store.data.todos.filter { $0.completedAt != nil }.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) { item in
-                                    taskRow(item, reference: context.date)
-                                }
+                            if items.isEmpty {
+                                Label("暂无待办", systemImage: "checklist")
+                                    .foregroundStyle(.secondary).padding(.vertical, 12)
+                                    .listRowBackground(Color.clear)
+                            }
+                            ForEach(items) { item in
+                                taskRow(item, reference: reference)
                             }
                         }
+                        Section {
+                            Button("添加待办", systemImage: "plus") { editing = TodoItem(title: "") }
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        Section("已完成") {
+                            if !store.data.todos.contains(where: { $0.completedAt != nil }) {
+                                Text("暂无已完成事项").foregroundStyle(.secondary)
+                            }
+                            ForEach(store.data.todos.filter { $0.completedAt != nil }.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) { item in
+                                taskRow(item, reference: reference)
+                            }
+                        }
+                        if store.undoData != nil {
+                            Section { Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
+                        }
                     }
-                    if store.undoData != nil {
-                        Section { Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
-                    }
+                    .listRowSpacing(10)
+                    .listSectionSpacing(16)
+                    .contentMargins(.top, 8, for: .scrollContent)
+                    .floatingNavigationScrollTracking()
                 }
-                .listRowSpacing(10)
-                .listSectionSpacing(16)
-                .navigationTitle("")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { Text("待办").font(.title.bold()) }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Text(context.date, format: .dateTime.month().day().weekday(.abbreviated))
-                            .font(.subheadline).foregroundStyle(.secondary)
-                            .accessibilityLabel("今天的日期")
-                    }
+                .onChange(of: Calendar.current.startOfDay(for: context.date)) { old, new in
+                    if Calendar.current.isDate(day, inSameDayAs: old) { day = new }
                 }
             }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $editing) { TodoEditor(item: $0) }
+            .sheet(isPresented: $choosingDate) {
+                NavigationStack {
+                    DatePicker("查看日期", selection: $day, displayedComponents: .date)
+                        .datePickerStyle(.graphical).padding()
+                        .navigationTitle("查看日期").navigationBarTitleDisplayMode(.inline)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) { Button("今天") { day = Date() } }
+                            ToolbarItem(placement: .confirmationAction) { Button("完成") { choosingDate = false } }
+                        }
+                }.presentationDetents([.medium, .large])
+            }
         }
     }
     private func taskRow(_ item: TodoItem, reference: Date) -> some View {
