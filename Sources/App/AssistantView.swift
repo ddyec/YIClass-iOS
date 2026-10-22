@@ -88,7 +88,7 @@ struct AssistantView: View {
                     }
                 }
                 .onChange(of: messages.count) { _, _ in reader.scrollTo("end", anchor: .bottom) }
-                .safeAreaInset(edge: .bottom) { composer }
+                .safeAreaInset(edge: .bottom, spacing: 0) { composer }
                 .navigationTitle("课表助手")
                 .toolbar {
                     ToolbarItemGroup(placement: .keyboard) {
@@ -236,11 +236,11 @@ struct AssistantView: View {
     }
     private var composer: some View {
         GlassPanel {
-            VStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
                 TextField("描述课程，或补充你的偏好…", text: $input, axis: .vertical).lineLimit(1...5)
                     .focused($inputFocused)
-                    .padding(.horizontal, 4).disabled(busy || reading)
-                HStack(spacing: 8) {
+                    .padding(.horizontal, 4).padding(.top, 2).disabled(busy || reading)
+                HStack(alignment: .bottom, spacing: 8) {
                     PhotosPicker(selection: $photo, matching: .images) {
                         Label("截图", systemImage: "photo")
                             .font(.subheadline.weight(.medium))
@@ -265,12 +265,15 @@ struct AssistantView: View {
                     Button { send(input) } label: {
                         Image(systemName: "arrow.up").font(.body.weight(.semibold))
                             .frame(width: 44, height: 44).contentShape(Circle())
-                    }.buttonStyle(.glassProminent).buttonBorderShape(.circle)
+                            .foregroundStyle(.white)
+                            .background(.indigo, in: Circle())
+                    }.buttonStyle(.plain)
+                        .opacity(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.35 : 1)
                         .accessibilityLabel("发送")
                         .disabled(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-        }.padding(.horizontal, 16).padding(.bottom, 8)
+        }.padding(.horizontal, 16).padding(.bottom, inputFocused ? 2 : 8)
     }
     private func send(_ text: String) {
         guard !busy else { return }

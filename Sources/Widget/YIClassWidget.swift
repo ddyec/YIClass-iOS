@@ -69,30 +69,51 @@ struct LessonWidgetView: View {
         .privacySensitive()
     }
     private var home: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: family == .systemMedium ? 4 : 6) {
             HStack {
-                Label(entry.tableName, systemImage: "graduationcap.fill").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: 0)
+                Text(entry.next.map { $0.start <= entry.date ? "正在上课" : "下一节" } ?? "YIClass")
+                    .font(.caption.weight(.semibold)).foregroundStyle(.blue)
+                Spacer(minLength: 4)
+                Text(entry.next?.start ?? entry.date, format: .dateTime.month().day())
+                    .font(.caption2).foregroundStyle(.secondary)
             }
             if let next = entry.next {
-                Text(next.start > entry.date ? "下一节课" : "正在上课").font(.caption).foregroundStyle(.secondary)
-                Text(next.course.name).font(.headline).lineLimit(2)
-                HStack(spacing: 4) {
-                    if !Calendar.current.isDate(next.start, inSameDayAs: entry.date) { Text(next.start, format: .dateTime.month().day()) }
-                    Text(next.start, style: .time); Text("–"); Text(next.end, style: .time)
-                }.font(.caption).monospacedDigit()
-                if !next.course.location.isEmpty { Text(next.course.location).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                Text(next.course.name).font(.headline).lineLimit(family == .systemSmall ? 2 : 1)
+                HStack(spacing: 3) {
+                    Text(next.start, style: .time)
+                    Text("–")
+                    Text(next.end, style: .time)
+                    if family == .systemMedium {
+                        Spacer(minLength: 4)
+                        Text(next.course.location.isEmpty ? "地点待定" : next.course.location)
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }.font(.subheadline.monospacedDigit())
+                if family == .systemSmall {
+                    Text(next.course.location.isEmpty ? "地点待定" : next.course.location)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
                 if family == .systemMedium {
-                    ForEach(Array(entry.lessons.filter { $0.id != next.id && Calendar.current.isDate($0.start, inSameDayAs: entry.date) }.prefix(2))) { lesson in
-                        HStack { Text(lesson.start, style: .time); Text(lesson.course.name).lineLimit(1) }.font(.caption)
+                    ForEach(Array(entry.lessons.filter { $0.id != next.id && $0.end > entry.date }.prefix(2))) { lesson in
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack {
+                                Text(lesson.course.name).font(.caption).lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text(lesson.start, format: .dateTime.day().hour().minute())
+                                    .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+                            }
+                            Text(lesson.course.location.isEmpty ? "地点待定" : lesson.course.location)
+                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        }
                     }
                 }
             } else {
                 Spacer(minLength: 0)
-                Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")).font(.headline)
+                Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表"))
+                    .font(.subheadline)
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
-        }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 

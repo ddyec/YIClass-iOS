@@ -193,14 +193,12 @@ struct WeekGrid: View {
     @ScaledMetric(relativeTo: .body) private var sessionGap: CGFloat = 20
     @State private var showFullEvening = false
     private var days: Int { table.showWeekend ? 7 : 5 }
-    private var automaticPeriodCount: Int {
-        let daytime = profile.counts[0] + profile.counts[1]
-        let lastCourse = blocks.map(\.last).max() ?? 0
-        return min(profile.periods.count, max(1, daytime, lastCourse))
-    }
-    private var canCollapseEvening: Bool { automaticPeriodCount < profile.periods.count }
+    private var daytimePeriodCount: Int { profile.counts[0] + profile.counts[1] }
+    private var hasEveningCourses: Bool { blocks.contains { $0.last > daytimePeriodCount } }
+    private var canCollapseEvening: Bool { profile.counts[2] > 0 && !hasEveningCourses }
     private var visiblePeriods: [PeriodTime] {
-        Array(profile.periods.prefix(showFullEvening ? profile.periods.count : automaticPeriodCount))
+        let count = hasEveningCourses || showFullEvening ? profile.periods.count : max(1, daytimePeriodCount)
+        return Array(profile.periods.prefix(count))
     }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
 
@@ -238,7 +236,7 @@ struct WeekGrid: View {
                     }
                     if canCollapseEvening {
                         Button { showFullEvening.toggle() } label: {
-                            Label(showFullEvening ? "收起空闲晚间" : "展开晚间课节", systemImage: showFullEvening ? "chevron.up" : "moon")
+                            Label(showFullEvening ? "收起晚间" : "晚间无课 · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
                                 .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
                         }.buttonStyle(.plain).foregroundStyle(.tint)
                     }
