@@ -42,14 +42,6 @@ struct GlassPanel<Content: View>: View {
     }
 }
 
-struct BrandMark: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20).fill(Color(.secondarySystemGroupedBackground))
-            Image("Brand").resizable().scaledToFit().padding(8)
-        }.frame(width: 68, height: 68).accessibilityLabel("YIClass")
-    }
-}
 
 let weekdayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
 
@@ -83,5 +75,27 @@ struct ThemeSettingsView: View {
             }
             Section { Button("恢复默认配色") { accent = 0xFF637EEA; backdrop = 0xFF298F84 } }
         }.navigationTitle("配色").navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct ProductLogo: View {
+    var size: CGFloat = 72
+    var body: some View {
+        Image("Brand")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
+            .accessibilityHidden(true)
+    }
+}
+
+struct AssistantLogo: View {
+    var size: CGFloat = 88
+    var body: some View {
+        Image("AssistantLogo")
+            .resizable().renderingMode(.template).scaledToFit()
+            .foregroundStyle(.tint)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }

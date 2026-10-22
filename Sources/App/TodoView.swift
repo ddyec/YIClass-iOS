@@ -3,38 +3,33 @@ import YIClassCore
 
 struct TodoView: View {
     @Environment(AppStore.self) private var store
-    @State private var day = Date()
+    @Environment(\.colorScheme) private var colorScheme
     @State private var editing: TodoItem?
-    @State private var assistant = false
     @State private var showCompleted = false
     var body: some View {
         NavigationStack {
             TimelineView(.everyMinute) { context in
-                let reference = Calendar.current.isDateInToday(day) ? context.date : day
-                let items = TodoItem.ranked(store.data.todos, on: reference)
+                let items = TodoItem.ranked(store.data.todos, on: context.date)
                 List {
                     Section {
-                        DatePicker("查看日期", selection: $day, displayedComponents: .date)
-                        if !Calendar.current.isDateInToday(day) { Button("回到今天") { day = Date() } }
-                        Text("按重要程度和距截止日期的天数排序；逾期、当日截止优先。无截止时间的事项持续保留。")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                    Section("待处理 · \(items.count)") {
                         if items.isEmpty {
-                            ContentUnavailableView("这天没有待办", systemImage: "checklist", description: Text("点右上角添加，或让 AI 帮你整理。"))
+                            ContentUnavailableView("暂无待办", systemImage: "checklist")
+                                .listRowBackground(Color.clear)
                         }
                         ForEach(items) { item in
-                            row(item, reference: reference)
-                                .swipeActions(edge: .trailing) {
-                                    Button("删除", role: .destructive) { store.perform { try store.deleteTodo(item.id) } }
-                                }
+                            taskRow(item, reference: context.date)
                         }
                     }
                     Section {
-                        DisclosureGroup("已完成", isExpanded: $showCompleted) {
-                            ForEach(store.data.todos.filter { $0.completedAt != nil }.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) { item in
-                                row(item, reference: reference)
-                                    .swipeActions { Button("删除", role: .destructive) { store.perform { try store.deleteTodo(item.id) } } }
+                        Button("添加待办", systemImage: "plus") { editing = TodoItem(title: "") }
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    if store.data.todos.contains(where: { $0.completedAt != nil }) {
+                        Section {
+                            DisclosureGroup("已完成", isExpanded: $showCompleted) {
+                                ForEach(store.data.todos.filter { $0.completedAt != nil }.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }) { item in
+                                    taskRow(item, reference: context.date)
+                                }
                             }
                         }
                     }
@@ -42,36 +37,64 @@ struct TodoView: View {
                         Section { Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
                     }
                 }
-            }
-            .navigationTitle("待办")
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("AI 导入", systemImage: "sparkles") { assistant = true } }
-                ToolbarItem(placement: .topBarTrailing) { Button("添加待办", systemImage: "plus") { editing = TodoItem(title: "") } }
+                .listRowSpacing(10)
+                .listSectionSpacing(16)
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) { Text("待办").font(.title.bold()) }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Text(context.date, format: .dateTime.month().day().weekday(.abbreviated))
+                            .font(.subheadline).foregroundStyle(.secondary)
+                            .accessibilityLabel("今天的日期")
+                    }
+                }
             }
             .sheet(item: $editing) { TodoEditor(item: $0) }
-            .sheet(isPresented: $assistant) { AssistantView(todoMode: true) }
+        }
+    }
+    private func taskRow(_ item: TodoItem, reference: Date) -> some View {
+        row(item, reference: reference)
+            .padding(.vertical, 6)
+            .listRowSeparator(.hidden)
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(urgencyColor(item, reference: reference).opacity(colorScheme == .dark ? 0.24 : 0.12))
+            )
+            .swipeActions(edge: .trailing) {
+                Button("删除", role: .destructive) { store.perform { try store.deleteTodo(item.id) } }
+            }
+    }
+    private func urgencyColor(_ item: TodoItem, reference: Date) -> Color {
+        switch item.urgencyLevel(on: reference) {
+        case .overdue: .red
+        case .today: .orange
+        case .soon: .yellow
+        case .upcoming: .blue
+        case .unscheduled: .gray
+        case .completed: .green
         }
     }
     private func row(_ item: TodoItem, reference: Date) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Button {
                 var changed = item; changed.completedAt = item.completedAt == nil ? Date() : nil
                 store.perform { try store.saveTodo(changed) }
             } label: {
                 Image(systemName: item.completedAt == nil ? "circle" : "checkmark.circle.fill")
                     .font(.title2).frame(minWidth: 44, minHeight: 44)
+                    .foregroundStyle(item.completedAt == nil ? Color.primary : Color.secondary)
             }.buttonStyle(.plain).accessibilityLabel(item.completedAt == nil ? "完成：\(item.title)" : "重新打开：\(item.title)")
             Button { editing = item } label: {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(item.title).foregroundStyle(.primary).strikethrough(item.completedAt != nil)
-                    if let deadline = item.deadline {
-                        Text(deadline.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
-                    }
-                    HStack {
-                        Text("重要程度：\(item.importance.title)")
-                        if item.completedAt == nil { Text(item.urgency(on: reference)) }
-                        Text(item.source == .assistant ? "AI 导入" : "手动添加")
-                    }.font(.caption2).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(item.title).font(.headline).foregroundStyle(.primary).strikethrough(item.completedAt != nil)
+                    HStack(spacing: 8) {
+                        Text(item.urgency(on: reference)).fontWeight(.medium)
+                        if let deadline = item.deadline {
+                            Text(deadline.formatted(date: .abbreviated, time: .shortened))
+                        }
+                    }.font(.caption).foregroundStyle(.secondary)
+                    if item.importance == .high { Text("重要").font(.caption.weight(.medium)).foregroundStyle(.primary) }
                     if !item.notes.isEmpty { Text(item.notes).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)

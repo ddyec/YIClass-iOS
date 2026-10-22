@@ -60,7 +60,9 @@ struct SettingsView: View {
                     if let issue = reminders.issue { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
                 Section("导入与备份") {
-                    Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
+                    Button { aiImport = true } label: {
+                        HStack { ProductLogo(size: 20); Text("AI 识别课表") }
+                    }.accessibilityLabel("AI 识别课表")
                     Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }.disabled(reading)
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
                         do {

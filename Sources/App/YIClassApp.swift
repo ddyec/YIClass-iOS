@@ -44,12 +44,12 @@ import YIClassCore
 struct RootView: View {
     @Environment(AppStore.self) private var store
     @State private var selected = 0
+    @State private var assistantPresented = false
     var body: some View {
         TabView(selection: $selected) {
-            Tab("课表", systemImage: "calendar", value: 0) { ScheduleView() }
-            Tab("助手", systemImage: "sparkles", value: 1) { AssistantView() }
-            Tab("待办", systemImage: "checklist", value: 3) { TodoView() }
-            Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView() }
+            Tab("课表", systemImage: "calendar", value: 0) { ScheduleView().toolbar(.hidden, for: .tabBar) }
+            Tab("待办", systemImage: "checklist", value: 3) { TodoView().toolbar(.hidden, for: .tabBar) }
+            Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView().toolbar(.hidden, for: .tabBar) }
         }
         .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
         .onReceive(NotificationCenter.default.publisher(for: .lessonReminderOpened)) { notification in
@@ -59,6 +59,53 @@ struct RootView: View {
                 store.perform { try store.select(id) }
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomNavigation.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 6)
+        }
+        .sheet(isPresented: $assistantPresented) {
+            AssistantView()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationCornerRadius(32)
+        }
     }
+    private var bottomNavigation: some View {
+        GlassEffectContainer(spacing: 12) {
+            HStack(spacing: 12) {
+                HStack(spacing: 2) {
+                    navigationItem("课表", icon: "calendar", value: 0)
+                    navigationItem("待办", icon: "checklist", value: 3)
+                    navigationItem("设置", icon: "slider.horizontal.3", value: 2)
+                }
+                .padding(5)
+                .glassEffect(.regular, in: .capsule)
+                Button { assistantPresented = true } label: {
+                    ProductLogo(size: 36)
+                        .frame(width: 64, height: 64)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
+                .accessibilityLabel("AI 助手")
+            }
+        }
+    }
+    private func navigationItem(_ title: String, icon: String, value: Int) -> some View {
+        Button { selected = value } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 21, weight: .medium))
+                Text(title).font(.caption.weight(.medium))
+            }
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .foregroundStyle(selected == value ? Color.accentColor : Color.primary)
+            .background {
+                if selected == value { Capsule().fill(Color.primary.opacity(0.07)) }
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected == value ? .isSelected : [])
+    }
+
 }

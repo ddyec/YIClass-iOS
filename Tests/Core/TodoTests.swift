@@ -74,3 +74,19 @@ private var todoCalendar: Calendar {
     library.todos = [TodoItem(title: " \n ")]
     #expect(throws: (any Error).self) { try library.validate() }
 }
+
+@Test func taskCardUrgencyTracksExactDeadlineCompletionAndCalendarDays() {
+    let now = todoDate("2026-10-22T09:00:00Z")
+    var item = TodoItem(title: "报告", deadline: todoDate("2026-10-22T08:59:00Z"))
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .overdue)
+    item.deadline = todoDate("2026-10-22T23:59:00Z")
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .today)
+    item.deadline = todoDate("2026-10-25T23:59:00Z")
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .soon)
+    item.deadline = todoDate("2026-10-26T00:00:00Z")
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .upcoming)
+    item.deadline = nil
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .unscheduled)
+    item.completedAt = now
+    #expect(item.urgencyLevel(on: now, calendar: todoCalendar) == .completed)
+}

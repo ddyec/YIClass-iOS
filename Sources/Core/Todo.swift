@@ -7,6 +7,8 @@ public enum TodoImportance: String, Codable, CaseIterable, Sendable, Identifiabl
     public var weight: Int { switch self { case .low: 0; case .normal: 20; case .high: 40 } }
 }
 
+public enum TodoUrgency: Sendable { case overdue, today, soon, upcoming, unscheduled, completed }
+
 public enum TodoSource: String, Codable, Sendable { case manual, assistant }
 
 public struct TodoItem: Codable, Equatable, Identifiable, Sendable {
@@ -34,10 +36,23 @@ public struct TodoItem: Codable, Equatable, Identifiable, Sendable {
         let urgency = days < 0 ? 100 : days == 0 ? 80 : days == 1 ? 60 : days <= 3 ? 35 : days <= 7 ? 15 : 0
         return importance.weight + urgency
     }
+    public func urgencyLevel(on day: Date, calendar: Calendar = .current) -> TodoUrgency {
+        if completedAt != nil { return .completed }
+        guard let deadline else { return .unscheduled }
+        if deadline < day { return .overdue }
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: day), to: calendar.startOfDay(for: deadline)).day ?? 0
+        if days == 0 { return .today }
+        return days <= 3 ? .soon : .upcoming
+    }
     public func urgency(on day: Date, calendar: Calendar = .current) -> String {
-        guard let deadline else { return "未设截止时间" }
-        if calendar.isDate(deadline, inSameDayAs: day) { return deadline < day ? "已逾期" : "当日截止" }
-        return deadline < calendar.startOfDay(for: day) ? "已逾期" : "即将到期"
+        switch urgencyLevel(on: day, calendar: calendar) {
+        case .overdue: "已逾期"
+        case .today: "今日截止"
+        case .soon: "三天内截止"
+        case .upcoming: "稍后截止"
+        case .unscheduled: "未设截止时间"
+        case .completed: "已完成"
+        }
     }
     public static func ranked(_ items: [Self], on day: Date, calendar: Calendar = .current) -> [Self] {
         items.filter { $0.completedAt == nil && calendar.startOfDay(for: $0.createdAt) <= calendar.startOfDay(for: day) }.sorted {

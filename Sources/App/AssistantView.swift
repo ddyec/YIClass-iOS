@@ -25,6 +25,7 @@ struct AssistantView: View {
     @State private var reading = false
     @State private var localError: String?
     @Environment(AppStore.self) private var store
+    @AppStorage("ai.activeConversation") private var activeConversation = ""
     @AppStorage("ai.mode") private var modeName = AssistantMode.onDevice.rawValue
     @AppStorage("ai.endpoint") private var endpoint = "https://api.openai.com/v1/chat/completions"
     @AppStorage("ai.model") private var model = ""
@@ -54,7 +55,6 @@ struct AssistantView: View {
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        intro
                         ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
                             VStack(alignment: .leading, spacing: 8) {
                                 if let image = message.images.first, let preview = UIImage(data: image.data) {
@@ -105,6 +105,18 @@ struct AssistantView: View {
                     }.padding(18)
                         .background { TabBarScrollConnection() }
                 }
+                .overlay {
+                    if messages.isEmpty && !busy && !reading {
+                        VStack(spacing: 20) {
+                            AssistantLogo(size: 88)
+                            Text("我们应该安排什么？")
+                                .font(.title2.weight(.medium))
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .allowsHitTesting(false)
+                    }
+                }
                 .scrollBounceBehavior(.always, axes: .vertical)
                 .scrollDismissesKeyboard(.interactively)
                 .background { AppBackdrop() }
@@ -123,13 +135,19 @@ struct AssistantView: View {
                 }
                 .onChange(of: messages.count) { _, _ in reader.scrollTo("end", anchor: .bottom) }
                 .safeAreaInset(edge: .bottom, spacing: 0) { composer }
-                .navigationTitle("课表助手")
+                .navigationTitle("")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
                         Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { inputFocused = false }
                     }
-                    if importMode { ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } } }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            inputFocused = false; cancel(); cancelImport(); persistConversation(); dismiss()
+                        } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel("关闭助手")
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("历史记录", systemImage: "clock.arrow.circlepath") { persistConversation(); inputFocused = false; historyShowing = true }
                             .disabled(busy || reading)
@@ -167,7 +185,10 @@ struct AssistantView: View {
             .task {
                 if messages.isEmpty {
                     planningImport = importMode; sourceChangesCurrent = !importMode
-                    if todoMode { input = "帮我添加待办：" }
+                    if !importMode && !todoMode,
+                       let conversation = store.conversations.first(where: { $0.id.uuidString == activeConversation && !$0.importing }) {
+                        openConversation(conversation)
+                    }
                 }
                 if let url = URL(string: endpoint) { model = AIChatRequest.resolvedModel(model, endpoint: url) }
                 #if DEBUG
@@ -176,6 +197,9 @@ struct AssistantView: View {
                     catch { localError = error.localizedDescription }
                 }
                 #endif
+            }
+            .onDisappear {
+                cancel(); cancelImport(); persistConversation()
             }
             .onChange(of: store.table.id) { _, _ in reset() }
             .onChange(of: store.table) { _, _ in invalidatePlans() }
@@ -252,25 +276,6 @@ struct AssistantView: View {
         sourceChangesCurrent = !importMode || (payload.text.contains("通知") && (payload.text.contains("调整") || payload.text.contains("调课")))
         sourceReview = true
     }
-    private var intro: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.indigo.gradient)
-            Text(importMode ? "AI 导入课表" : "一起找到合适的安排").font(.title2.bold())
-            Text(importMode ? "选择截图、PDF 或文本，识别后预览导入。" : "直接说要怎么改，改完可以撤销。")
-                .font(.subheadline).foregroundStyle(.secondary)
-            NavigationLink("\(mode.rawValue) · 配置", destination: AISettingsView()).font(.caption)
-            if store.undoData != nil {
-                Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") {
-                    store.perform { try store.undo() }
-                }.font(.subheadline)
-            }
-            if messages.isEmpty && !importMode {
-                Button("试试：我想每周安排两次自习，怎么选时间？") {
-                    input = "我想每周安排两次自习，怎么选时间？"
-                }.font(.subheadline)
-            }
-        }
-    }
     private func questionChoices(_ reply: AssistantReply) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(reply.questions) { question in
@@ -281,7 +286,7 @@ struct AssistantView: View {
                             Image(systemName: selections[question.title] == option ? "checkmark.circle.fill" : "circle")
                             Text(option).multilineTextAlignment(.leading)
                             Spacer()
-                        }.padding(12).background(Color.indigo.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+                        }.padding(12).background(Color.accentColor.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
                     }.buttonStyle(.plain).disabled(busy)
                 }
             }
@@ -304,7 +309,7 @@ struct AssistantView: View {
                         Button("移除") { pendingImages = [] }.font(.caption)
                     }.padding(.horizontal, 4)
                 }
-                TextField("描述课程，或补充你的偏好…", text: $input, axis: .vertical).lineLimit(1...5)
+                TextField("说说你的安排…", text: $input, axis: .vertical).lineLimit(1...5)
                     .focused($inputFocused)
                     .padding(.horizontal, 4).padding(.top, 2).disabled(busy || reading)
                 HStack(alignment: .bottom, spacing: 8) {
@@ -338,7 +343,7 @@ struct AssistantView: View {
                         Image(systemName: "arrow.up").font(.body.weight(.semibold))
                             .frame(width: 32, height: 32)
                             .foregroundStyle(.white)
-                            .background(.indigo, in: Circle())
+                            .background(Color.accentColor, in: Circle())
                             .frame(width: 44, height: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                         .opacity(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.35 : 1)
@@ -424,6 +429,7 @@ struct AssistantView: View {
     private func invalidatePlans() { cancel(); reply = nil; snapshot = nil; selectedPlan = nil; selections = [:] }
     private func persistConversation() {
         guard !messages.isEmpty else { return }
+        if !planningImport { activeConversation = conversationID.uuidString }
         store.perform {
             try store.saveConversation(id: conversationID, messages: messages, modelHistory: modelHistory, importing: planningImport, importTable: importTable)
         }
@@ -437,7 +443,7 @@ struct AssistantView: View {
     private func reset() {
         persistConversation(); invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil
         cancelImport(); photo = nil
-        conversationID = UUID(); planningImport = importMode; pendingImages = []; retrySubmission = nil
+        conversationID = UUID(); activeConversation = ""; planningImport = importMode; pendingImages = []; retrySubmission = nil
         sourceImages = []; sourceText = ""; sourceGrid = nil
     }
     private var sourceReviewView: some View {
