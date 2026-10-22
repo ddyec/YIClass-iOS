@@ -12,6 +12,14 @@ public struct WideLessonWindow: Codable, Hashable, Sendable, Identifiable {
 }
 
 public enum WideLessonPlanner {
+    public static func remaining(data: AppData, at now: Date, calendar: Calendar = .current) -> [WideLessonWindow] {
+        let schedule = WidgetSchedule.daySchedule(data: data, at: now, calendar: calendar)
+        let ordered = WidgetSchedule.lockScreenLessons(schedule.lessons, at: now)
+        return ordered.map {
+            WideLessonWindow(tableID: data.selectedID, courseID: $0.course.id, name: $0.course.name,
+                location: $0.course.location, visibleFrom: now, start: $0.start, end: $0.end)
+        }
+    }
     /// Plan local starts while the app is open. ActivityKit limits each activity
     /// to eight hours, so very early next-day previews retain the regular widget.
     public static func windows(data: AppData, at now: Date, calendar: Calendar = .current) -> [WideLessonWindow] {

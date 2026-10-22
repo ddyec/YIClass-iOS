@@ -6,6 +6,12 @@ import YIClassCore
 struct LastLessonActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let window: WideLessonWindow
+        var following: [WideLessonWindow] = []
+        var remainingCount = 1
+        var referenceDate = Date()
+        var tableName = ""
+        var islandEnabled = true
+        var lessons: [WideLessonWindow] { [window] + following }
     }
     let windowID: String
 }

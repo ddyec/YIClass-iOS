@@ -34,6 +34,20 @@ private func gridTable() throws -> Timetable {
     #expect(WideLessonPlanner.windows(data: data, at: lessons[1].end, calendar: utcCalendar).isEmpty)
 }
 
+@Test func liveActivityReadsCurrentAndFollowingFromActualSelectedDay() throws {
+    let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
+    let first = Course(name: "已下课", schedules: [CourseSchedule(weekday: 4, periods: [1,2], weekPattern: [1])])
+    let second = Course(name: "正在上课", location: "", schedules: [CourseSchedule(weekday: 4, periods: [5,6], weekPattern: [1])])
+    let third = Course(name: "随后", location: "教室 203", schedules: [CourseSchedule(weekday: 4, periods: [7,8], weekPattern: [1])])
+    let table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [third, first, second])
+    let data = AppData(timetables: [table], selectedID: table.id)
+    let current = WideLessonPlanner.remaining(data: data, at: day.addingTimeInterval(14.5 * 3600), calendar: utcCalendar)
+    #expect(current.map(\.name) == ["正在上课", "随后"])
+    #expect(current.first?.location == "")
+    let end = try #require(current.last?.end)
+    #expect(WideLessonPlanner.remaining(data: data, at: end, calendar: utcCalendar).isEmpty)
+}
+
 @Test func wideLastLessonRespectsEightHourLimitHolidayAndSimultaneousEnd() throws {
     let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
     let last = Course(name: "晚课", schedules: [CourseSchedule(weekday: 4, periods: [10], weekPattern: [1])])

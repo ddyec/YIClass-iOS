@@ -70,9 +70,24 @@ struct SettingsView: View {
                 }
                 if reading { ProgressView("正在读取课表…") }
                 Section("小组件") {
-                    Toggle("末课使用锁屏宽幅卡片", isOn: Binding(get: { wideLesson.enabled }, set: {
+                    Toggle("锁屏实时活动", isOn: Binding(get: { wideLesson.enabled }, set: {
                         wideLesson.setEnabled($0, data: store.data)
                     }))
+                    if wideLesson.enabled {
+                        Picker("展示范围", selection: Binding(get: { wideLesson.allLessons }, set: { wideLesson.setAllLessons($0, data: store.data) })) {
+                            Text("仅末课宽幅").tag(false)
+                            Text("当前与后续课程").tag(true)
+                        }
+                        Toggle("灵动岛课程信息", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
+                        if !wideLesson.islandEnabled {
+                            Text("隐藏岛上的课程内容；iOS 可能仍保留活动占位。完全不占岛请关闭实时活动，使用普通锁屏组件。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        if wideLesson.allLessons {
+                            Text("回到应用时更新。后台到下课节点若未更新，可点卡片内“刷新课程”；普通组件继续自动按时间线切课。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                     if let issue = wideLesson.issue {
                         Text(issue).font(.footnote).foregroundStyle(.secondary)
                     }
