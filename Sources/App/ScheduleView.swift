@@ -314,27 +314,33 @@ private struct CourseTile: View {
     @Environment(\.colorScheme) private var scheme
     @ScaledMetric(relativeTo: .caption) private var titleSize: CGFloat = 11
     @ScaledMetric(relativeTo: .caption2) private var locationSize: CGFloat = 10
-    private func textHeight(_ text: String, size: CGFloat, width: CGFloat) -> CGFloat {
+    private func textHeight(_ text: String, size: CGFloat, width: CGFloat, weight: UIFont.Weight = .regular) -> CGFloat {
         ceil((text as NSString).boundingRect(
             with: CGSize(width: max(1, width), height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
-            attributes: [.font: UIFont.systemFont(ofSize: size)], context: nil).height)
+            attributes: [.font: UIFont.systemFont(ofSize: size, weight: weight)], context: nil).height)
     }
     var body: some View {
         GeometryReader { geometry in
-            let locationHeight = block.course.location.isEmpty ? 0 : textHeight(block.course.location, size: locationSize, width: geometry.size.width - 8) + 4
-            let titleBudget = geometry.size.height - 14 - locationHeight - (conflict ? 18 : 0)
-            let titleLines = max(1, Int(titleBudget / UIFont.systemFont(ofSize: titleSize, weight: .semibold).lineHeight))
+            let contentHeight = max(0, geometry.size.height - 8 - (conflict ? 18 : 0))
+            let titleLineHeight = UIFont.systemFont(ofSize: titleSize, weight: .semibold).lineHeight
+            let measuredTitle = textHeight(block.course.name, size: titleSize, width: geometry.size.width - 8, weight: .semibold)
+            let neededTitleLines = max(1, Int(ceil(measuredTitle / titleLineHeight)))
+            let titleLines = min(neededTitleLines, max(1, Int(contentHeight / titleLineHeight)))
+            let titleHeight = min(contentHeight, CGFloat(titleLines) * titleLineHeight)
+            let locationBudget = max(0, contentHeight - titleHeight - 4)
+            let locationLines = Int(locationBudget / UIFont.systemFont(ofSize: locationSize).lineHeight)
             VStack(alignment: .leading, spacing: 4) {
                 if conflict { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
                 Text(block.course.name).font(.system(size: titleSize, weight: .semibold))
                     .foregroundStyle(Color.primary).lineLimit(titleLines)
-                if !block.course.location.isEmpty {
+                    .fixedSize(horizontal: false, vertical: true).layoutPriority(2)
+                if !block.course.location.isEmpty && locationLines > 0 {
                     Text(block.course.location).font(.system(size: locationSize)).foregroundStyle(Color.secondary)
-                        .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
+                        .lineLimit(locationLines).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.horizontal, 4).padding(.vertical, 6)
+            .padding(.horizontal, 4).padding(.vertical, 4)
             .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
         .background(Color(argb: block.course.color).opacity(scheme == .dark ? 0.3 : 0.16), in: RoundedRectangle(cornerRadius: 9))
