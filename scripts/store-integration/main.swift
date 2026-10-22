@@ -55,7 +55,7 @@ import UniformTypeIdentifiers
         if case .success = SharedLibrary.readResult(from: sharedFile) { fatalError("Corrupt snapshot was accepted") }
         try SharedLibrary.write(store.data, to: sharedFile)
         let widgetData = try SharedLibrary.readResult(from: sharedFile).get()
-        precondition(widgetData == store.data)
+        precondition(widgetData == undone) // Compare persisted data; JSON date precision is lower than in-memory Date.
         precondition(widgetData.selectedID == store.table.id && widgetData.timeProfile == profile)
         print("PASS: production widget snapshot write/read preserves selected timetable and global times; missing permission, missing file and corrupt snapshot report failure")
         print("PASS: actual AppStore direct AI edit → atomic library.json save → reopen → undo → stale edit rejected without file mutation; empty location and global time preserved")
