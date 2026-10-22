@@ -81,11 +81,11 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.1.14 (16) iPhone/iPad 包已归档、下载并本地解包校验**，源码 `5e0b2c74e6369190371c400b546b8bbbd138855a`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39792914183)。包含待办、悬浮导航、晚间按钮、超长课名和锁屏实时活动的修复；真机视觉与触控待安装验收。
+**3.1.15 (17) iPhone/iPad 验收包已归档、下载并本地解包校验**，源码 `61e256120175e1765da2435604d76121599b0709`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39797887573)。本轮扩大周课表空间、将展开后的收起按钮移入滚动内容，并统一导航主题色；实际真机效果待用户验收。
 
 | 产物 | 下载 |
 | --- | --- |
-| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39792914183/artifacts/12432022118) |
+| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39797887573/artifacts/12435445875) |
 
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
