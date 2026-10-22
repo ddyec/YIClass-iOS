@@ -29,6 +29,7 @@ import YIClassCore
         }
     }
     private func reconcile(data: AppData) async {
+        boundary?.cancel()
         let now = Date()
         let allowed = ActivityAuthorizationInfo().areActivitiesEnabled
         let desired = enabled && allowed ? WideLessonPlanner.windows(data: data, at: now) : []

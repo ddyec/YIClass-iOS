@@ -72,6 +72,7 @@ else:
 
 assert info['CFBundleIdentifier'] == 'com.ddyec.YIClassNative'
 assert info['MinimumOSVersion'] == '26.0'
+assert info.get('NSSupportsLiveActivities') is True, 'Live Activities not enabled in packaged app'
 assert size > 100_000, 'Build artifact is unexpectedly small'
 manifest = {
     'platform': kind,
@@ -86,6 +87,7 @@ manifest = {
     'sizeBytes': size,
     'sha256': digest,
     'appGroup': 'group.com.ddyec.YIClassNative',
+    'supportsLiveActivities': info['NSSupportsLiveActivities'],
     'signing': 'ad-hoc signed with matching App Group entitlements; requires Apple-authorized re-signing and matching App Group profiles before iPhone installation' if kind == 'device' else 'simulator-only; no Apple developer certificate required',
 }
 Path(output).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
