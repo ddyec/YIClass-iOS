@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import YIClassCore
 
 private enum ScheduleMode: String, CaseIterable { case week = "周", day = "日", list = "列表" }
@@ -203,10 +204,11 @@ struct WeekGrid: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let columnWidth = max(minimumWidth, (geometry.size.width - 44) / CGFloat(days))
+            let columnWidth = max(minimumWidth, minimumLaneWidth, (geometry.size.width - 44) / CGFloat(days))
             let sectionGaps = CGFloat(visiblePeriods.filter { isSessionStart($0.period) }.count) * sessionGap
             let footerHeight: CGFloat = canCollapseEvening ? 44 : 0
-            let rowHeight = max(minimumRowHeight, min(80, (geometry.size.height - 72 - footerHeight - sectionGaps) / CGFloat(visiblePeriods.count)))
+            let rowHeight = max(minimumRowHeight, readableRowHeight(columnWidth: columnWidth),
+                                min(80, (geometry.size.height - 72 - footerHeight - sectionGaps) / CGFloat(visiblePeriods.count)))
             ScrollView(.horizontal) {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
@@ -242,6 +244,25 @@ struct WeekGrid: View {
         }
         .onChange(of: week) { _, _ in showFullEvening = false }
         .onChange(of: table.id) { _, _ in showFullEvening = false }
+    }
+    private var minimumLaneWidth: CGFloat {
+        let lanes = (1...days).flatMap { day in
+            ScheduleEngine.overlapGroups(blocks.filter { $0.weekday == day }).map(\.count)
+        }.max() ?? 1
+        return lanes > 1 ? CGFloat(lanes) * (minimumWidth + 5) : minimumWidth
+    }
+    private func readableRowHeight(columnWidth: CGFloat) -> CGFloat {
+        var required = minimumRowHeight
+        for day in 1...days {
+            for group in ScheduleEngine.overlapGroups(blocks.filter { $0.weekday == day }) {
+                let tileWidth = columnWidth / CGFloat(group.count) - 5
+                for block in group {
+                    let height = CourseTile.readableHeight(course: block.course, width: tileWidth, conflict: group.count > 1)
+                    required = max(required, ceil((height + 8) / CGFloat(block.last - block.first + 1)))
+                }
+            }
+        }
+        return required
     }
     private func isSessionStart(_ period: Int) -> Bool {
         period > 1 && (period == profile.counts[0] + 1 || period == profile.counts[0] + profile.counts[1] + 1)
@@ -295,20 +316,34 @@ private struct CourseTile: View {
     let block: CourseBlock
     let conflict: Bool
     @Environment(\.colorScheme) private var scheme
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 3) {
-                if conflict && geometry.size.height > 60 { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
-                Text(block.course.name).font(.caption.weight(.semibold)).lineLimit(geometry.size.height > 85 ? 3 : 2)
-                if !block.course.location.isEmpty && geometry.size.height > 75 {
-                    Text(block.course.location).font(.caption2).lineLimit(2).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-                if geometry.size.height > 100 { Text("\(block.first)–\(block.last) 节").font(.system(size: 10)).foregroundStyle(.secondary) }
-            }
-            .padding(.horizontal, 4).padding(.vertical, 6)
-            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+    static func readableHeight(course: Course, width: CGFloat, conflict: Bool) -> CGFloat {
+        let availableWidth = max(1, width - 8)
+        func height(_ text: String, font: UIFont) -> CGFloat {
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineBreakMode = .byWordWrapping
+            return ceil((text as NSString).boundingRect(
+                with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: [.font: font, .paragraphStyle: paragraph], context: nil).height)
         }
+        let titleFont = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: .caption1).pointSize, weight: .semibold)
+        let locationFont = UIFont.preferredFont(forTextStyle: .caption2)
+        return 18 + height(course.name, font: titleFont)
+            + (course.location.isEmpty ? 0 : 4 + height(course.location, font: locationFont))
+            + (conflict ? 20 : 0)
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if conflict { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
+            Text(block.course.name).font(.caption.weight(.semibold))
+                .foregroundStyle(Color.primary).fixedSize(horizontal: false, vertical: true)
+            if !block.course.location.isEmpty {
+                Text(block.course.location).font(.caption2).foregroundStyle(Color.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 4).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(argb: block.course.color).opacity(scheme == .dark ? 0.3 : 0.16), in: RoundedRectangle(cornerRadius: 9))
         .overlay(alignment: .top) { Capsule().fill(Color(argb: block.course.color)).frame(height: 3).padding(.horizontal, 6) }
         .clipShape(RoundedRectangle(cornerRadius: 9))
