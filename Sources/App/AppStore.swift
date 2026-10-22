@@ -188,7 +188,7 @@ import YIClassCore
         try commit(next, undoable: true, reason: "删除待办")
     }
     func addTodos(_ proposals: [AssistantTodo]) throws -> String {
-        let items = try proposals.map { try $0.materialize() }
+        let items = try proposals.map { try $0.materialize(table: table, profile: profile) }
         guard !items.isEmpty else { throw AppFailure("没有可导入的待办。") }
         var next = data; next.todos.append(contentsOf: items)
         try commit(next, undoable: true, reason: "AI 导入待办")

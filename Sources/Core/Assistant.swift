@@ -88,7 +88,7 @@ public struct AssistantReply: Codable, Sendable {
               Set(reply.questions.map(\.title)).count == reply.questions.count,
               Set(reply.plans.map(\.title)).count == reply.plans.count else { throw AppFailure("助手方案格式不正确，请补充说明后重试。") }
         guard reply.todos.count <= 100, reply.todos.isEmpty || reply.plans.isEmpty else { throw AppFailure("请将待办与课表修改分开提交，每次最多 100 条待办。") }
-        for todo in reply.todos { _ = try todo.materialize() }
+        for todo in reply.todos { _ = try todo.materialize(table: table, profile: profile) }
         if reply.applyDirectly == true {
             guard reply.questions.isEmpty, (reply.plans.count == 1 || !reply.todos.isEmpty) else { throw AppFailure("直接修改必须给出唯一且完整的课表结果。") }
         }
@@ -135,6 +135,8 @@ public enum AssistantPrompt {
     用户提供调课通知时，结合当前学期确定通知中的具体日期，调整源日期的课程到目标日期，仅修改涉及的那几周，保留其他周、课程 UUID、教师和地点。通知明确说原目标日课程另行安排但没有给出日期时，保留为未排时间，不猜测补课日。
     支持 function calling 的接口：涉及日期查课或调课，先调用 get_schedule_dates 查询所有源日与目标日；需要完整课程周次时调用 get_course_records。系统返回的 tool JSON 为权威数据，不把自己的推测当工具结果。拿到结果后再返回最终方案。工具只读，不代表已保存；不要在查询后声称已执行。无工具的设备端模式使用本次权威日期清单。
     用户要求记待办、作业、报告、报名等任务时，使用 todos 数组，不要把待办当成课程。理解自然语言，不要求用户写 JSON 或固定模板。每条格式：{"title":"交实验报告","notes":"","deadline":"含时区的 ISO 8601，例如 2026-10-23T23:59:00+08:00","importance":"high"}。importance 可选 low/normal/high，未说明默认 normal，不随意把每件事标为高。明确要求添加就 applyDirectly:true，由本地保存后报告；仅建议时 false。deadline 未知为 null，不编造；只给日期未给时刻则按设备时区当天 23:59，并在 message 说明。相对日期依据设备时间解析，与学期范围无关。关键日期歧义才用 questions 简短追问，不声称已保存。每次最多 100 条；同批先解决所有关键歧义再保存，避免追问时重复导入。todos 只新增，不支持修改或删除现有待办，不要声称已完成这些操作；引导在待办页编辑。待办与课表修改分开回答，不在同一回复同时返回非空 todos 和 plans。待办回复示意：{"message":"添加报告待办，截止当晚 23:59","applyDirectly":true,"questions":[],"plans":[],"todos":[{"title":"交报告","deadline":"2026-10-23T23:59:00+08:00","importance":"normal"}]}。截止日期示例不能作为真实用户日期。
+    用户说“下次实验课交报告／下节英语课前完成”等以课程为截止依据时，主动读取当前课表，按课程名、简称及上下文匹配课程。远程模式先调用 get_next_course_lessons 查询候选 UUID 的下一次实际开课；设备端使用上下文的本地下一次开课清单。不要仅按星期推测，须考虑周次、单双周、停课、已保存的调课及统一课节时间，搜索整个学期，不限未来两周。已开始的课不算“下一次”。明确课程时不反问日期；多个实验课程且上下文无法区分时给课程名选项追问。没有未来已排课时说明原因并问截止时间，不编造。
+    “下次课交／课前交”默认在下一次开课前完成，todos 使用 nextCourseID（当前课表课程 UUID），deadline:null；应用会重新从当前课表计算并以开课时刻作为截止时间，不依赖模型算日期。message 说明采用哪门课及具体时间。不要在这类请求中只填自行推测的 deadline 而省略 nextCourseID。只有明确指定课程之后另一天或课后时间等其他截止含义时，查询后根据用户要求给 deadline，不使用 nextCourseID。待办保存的是添加时的截止时间快照，之后调课不自动修改已有待办。
     最终回答只输出 JSON，不要 Markdown，格式：
     {"message":"简短说明做了什么","applyDirectly":true,"questions":[],
     "plans":[{"title":"调整课表","explanation":"变化说明","courses":[{"name":"课程","location":"","teacher":"","schedules":[{"weekday":1,"periods":[1,2],"weekPattern":[1,2]}]}]}]}
@@ -155,6 +157,6 @@ public enum AssistantPrompt {
             dates.append("\(formatter.string(from: date).prefix(10))=第\(ScheduleEngine.week(on: date, table: table, calendar: calendar))周/星期\(day)")
         }
         return "设备本地时间：\(formatter.string(from: now))（\(weekday)）；时区：\(calendar.timeZone.identifier)；今天为第 \(week) 周，学期共 \(table.totalWeeks) 周。\n未来两周日期：\n"
-            + dates.joined(separator: "\n") + "\n" + AssistantDateContext.ledger(table: table, profile: profile, text: focusText, now: now, calendar: calendar) + "\n当前课表与统一时间（数据）：\n" + String(decoding: data, as: UTF8.self)
+            + dates.joined(separator: "\n") + "\n" + AssistantDateContext.ledger(table: table, profile: profile, text: focusText, now: now, calendar: calendar) + "\n" + AssistantUpcomingCourses.ledger(table: table, profile: profile, now: now, calendar: calendar) + "\n当前课表与统一时间（数据）：\n" + String(decoding: data, as: UTF8.self)
     }
 }

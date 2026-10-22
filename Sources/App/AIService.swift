@@ -68,6 +68,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
         case .remote:
             var turns = [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages
             var queriedDates = Set<String>()
+            var queriedCourses = Set<UUID>()
             var repaired = false
             let requireLookup = AssistantTools.needsLookup(messages.last(where: { $0.role == "user" })?.content ?? "")
             for round in 0..<6 {
@@ -79,6 +80,10 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                         let content: String
                         do {
                             content = try AssistantTools.execute(call, table: table, profile: profile)
+                            if call.function.name == "get_next_course_lessons",
+                               let args = try? JSONDecoder().decode([String: [String]].self, from: Data(call.function.arguments.utf8)) {
+                                queriedCourses.formUnion((args["courseIDs"] ?? []).compactMap(UUID.init(uuidString:)))
+                            }
                             if call.function.name == "get_schedule_dates",
                                let args = try? JSONDecoder().decode([String: [String]].self, from: Data(call.function.arguments.utf8)) {
                                 queriedDates.formUnion(args["dates"] ?? [])
@@ -93,6 +98,10 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                 }
                 do {
                     let reply = try AssistantReply.parse(turn.content, table: table, profile: profile)
+                    let referencedCourses = Set(reply.todos.compactMap(\.nextCourseID))
+                    guard referencedCourses.isSubset(of: queriedCourses) else {
+                        throw AppFailure("请先调用 get_next_course_lessons 查询待办所引用课程的下一次开课，再返回待办。")
+                    }
                     let requiredDates = Set(reply.plans.flatMap { $0.dateMoves ?? [] }.flatMap { [$0.from, $0.to] })
                     guard requiredDates.isSubset(of: queriedDates) else { throw AppFailure("请先调用 get_schedule_dates 查询所有调课源日和目标日，再返回方案。") }
                     return reply
@@ -100,7 +109,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                     guard !repaired else { throw error }
                     repaired = true
                     turns.append(turn)
-                    turns.append(ChatMessage(role: "user", content: "方案校验未通过，尚未保存任何修改：" + error.localizedDescription + " 请依据本次权威课表修正；整天调课使用 dateMoves，其他修改保留全部现有课程和 UUID。"))
+                    turns.append(ChatMessage(role: "user", content: "方案校验未通过，尚未保存任何修改：" + error.localizedDescription + " 请依据本次权威课表修正；待办引用下一次课程时先查 get_next_course_lessons 并使用 nextCourseID；整天调课使用 dateMoves，其他修改保留全部现有课程和 UUID。"))
                 }
             }
             throw AppFailure("本次查询次数已达上限，未应用任何修改。请缩小日期范围后重试。")

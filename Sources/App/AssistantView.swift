@@ -72,7 +72,9 @@ struct AssistantView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     ForEach(reply.todos.indices, id: \.self) { index in
                                         Text(reply.todos[index].title)
-                                        Text(reply.todos[index].deadline ?? "未设截止时间").font(.caption).foregroundStyle(.secondary)
+                                        let item = try? reply.todos[index].materialize(table: store.table, profile: store.profile)
+                                        Text(item?.deadline?.formatted(date: .abbreviated, time: .shortened) ?? "未设截止时间").font(.caption).foregroundStyle(.secondary)
+                                        if let notes = item?.notes, !notes.isEmpty { Text(notes).font(.caption).foregroundStyle(.secondary) }
                                     }
                                     Button("添加这些待办") {
                                         do {

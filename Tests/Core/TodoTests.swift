@@ -10,6 +10,7 @@ private var todoCalendar: Calendar {
 
 @Test func oldLibraryLoadsWithoutTodosAndNewLibraryRoundTrips() throws {
     var library = AppData.fresh()
+    library.timetables[0].startDate = todoDate("2026-08-31T00:00:00Z")
     let old = try JSONCoding.encoder().encode(library)
     var object = try #require(JSONSerialization.jsonObject(with: old) as? [String: Any])
     object.removeValue(forKey: "todos")

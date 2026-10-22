@@ -56,7 +56,9 @@ public struct AssistantTodo: Codable, Sendable {
     public var notes: String?
     public var deadline: String?
     public var importance: TodoImportance?
-    public func materialize(now: Date = Date()) throws -> TodoItem {
+    public var nextCourseID: UUID?
+    public func materialize(now: Date = Date(), table: Timetable? = nil, profile: TimeProfile? = nil,
+                            calendar: Calendar = .current) throws -> TodoItem {
         var date: Date?
         if let deadline {
             let formatter = ISO8601DateFormatter()
@@ -67,7 +69,18 @@ public struct AssistantTodo: Codable, Sendable {
             }
             guard date != nil else { throw AppFailure("待办截止时间无效，请使用含时区的 ISO 8601 时间。") }
         }
-        let item = TodoItem(title: title.trimmingCharacters(in: .whitespacesAndNewlines), notes: notes ?? "",
+        var resolvedNotes = notes ?? ""
+        if let nextCourseID {
+            guard let table, let profile,
+                  let lesson = AssistantUpcomingCourses.nextLessons(table: table, profile: profile, now: now, calendar: calendar)
+                    .first(where: { $0.courseID == nextCourseID }) else {
+                throw AppFailure("该课程没有可确定的下一次上课时间，请核对当前课表或补充截止日期。")
+            }
+            // The locally resolved class start is authoritative, even if AI supplied a different date.
+            date = lesson.start
+            resolvedNotes += (resolvedNotes.isEmpty ? "" : "\n") + "截止依据：添加时课表中“\(lesson.name)”的下一次开课时间。"
+        }
+        let item = TodoItem(title: title.trimmingCharacters(in: .whitespacesAndNewlines), notes: resolvedNotes,
                             deadline: date, importance: importance ?? .normal, source: .assistant, createdAt: now)
         try item.validate()
         return item
