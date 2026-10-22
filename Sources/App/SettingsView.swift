@@ -27,16 +27,12 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("外观") {
+                Section {
                     Picker("显示模式", selection: $appearance) {
                         ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
                     }
-                }
-                Section {
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
-                } footer: {
-                    Text("所有课表共用课节时间。")
                 }
                 Section("导入与备份") {
                     Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
@@ -47,12 +43,9 @@ struct SettingsView: View {
                             exporting = true
                         } catch { store.error = error.localizedDescription }
                     }
-                    Text("支持 YIClass JSON 课表。")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("小组件") {
-                    Text(store.widgetSyncIssue ?? "桌面与锁屏小组件显示当前课表，保存后自动同步。")
-                        .font(.footnote).foregroundStyle(.secondary)
+                if let issue = store.widgetSyncIssue {
+                    Section("小组件同步") { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
                 Section("智能助手") { NavigationLink("AI 模式与接口配置") { AISettingsView() } }
                 if store.undoData != nil {
@@ -104,7 +97,7 @@ struct ImportReviewView: View {
                 Section("课表预览") {
                     TextField("课表名称", text: $importName)
                     DatePicker("开学日期", selection: $startDate, displayedComponents: .date)
-                    LabeledContent("课程", value: "\(preview.table.courses.count) 门")
+                    LabeledContent("课程", value: "\(Set(preview.table.courses.map(\.name)).count) 门 · \(preview.table.courses.flatMap(\.schedules).count) 条安排")
                     LabeledContent("学期", value: "\(preview.table.totalWeeks) 周")
                     if let warning = preview.warning { Text(warning).font(.footnote).foregroundStyle(.secondary) }
                 }
@@ -115,7 +108,7 @@ struct ImportReviewView: View {
                         if adoptTimes { ForEach(profile.periods) { Text("第 \($0.period) 节  \($0.label)").font(.footnote.monospacedDigit()) } }
                     }
                 } footer: { Text("导入会新建一份课表。现有课程不会被覆盖。") }
-                Section("课程") {
+                Section("课程记录") {
                     ForEach(preview.table.courses) { course in
                         VStack(alignment: .leading, spacing: 3) {
                             Text(course.name)
@@ -162,15 +155,29 @@ struct TimeSettingsView: View {
     var body: some View {
         Form {
             Section("每日课节 · 共 \(draft.periods.count) 节") {
-                ForEach(0..<3, id: \.self) { group in
-                    Stepper("\(sessions[group])  \(draft.counts[group]) 节", value: countBinding(group), in: 0...12)
+                HStack {
+                    ForEach(0..<3, id: \.self) { group in
+                        Menu {
+                            ForEach(0...12, id: \.self) { count in
+                                Button("\(count) 节") { countBinding(group).wrappedValue = count }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("\(sessions[group]) \(draft.counts[group])")
+                                Image(systemName: "chevron.up.chevron.down").font(.caption2)
+                            }.frame(maxWidth: .infinity)
+                        }.accessibilityLabel("\(sessions[group]) \(draft.counts[group]) 节")
+                    }
                 }
-                Stepper("每节 \(duration) 分钟", value: Binding(get: { duration }, set: { value in
-                    change { try draft.setDuration(value) }; duration = draft.periods.first.map { $0.end - $0.start } ?? 45
-                }), in: 10...120, step: 5)
-                Stepper("课间 \(gap) 分钟", value: Binding(get: { gap }, set: { value in
-                    change { try draft.setDuration(duration, gap: value) }; gap = typicalGap
-                }), in: 0...60, step: 5)
+                HStack {
+                    Picker("时长", selection: Binding(get: { duration }, set: { value in
+                        change { try draft.setDuration(value) }; duration = draft.periods.first.map { $0.end - $0.start } ?? 45
+                    })) { ForEach(Array(stride(from: 10, through: 120, by: 5)), id: \.self) { Text("\($0) 分").tag($0) } }
+                    Divider().frame(height: 24)
+                    Picker("课间", selection: Binding(get: { gap }, set: { value in
+                        change { try draft.setDuration(duration, gap: value) }; gap = typicalGap
+                    })) { ForEach(Array(stride(from: 0, through: 60, by: 5)), id: \.self) { Text("\($0) 分").tag($0) } }
+                }.pickerStyle(.menu)
             }
             ForEach(0..<3, id: \.self) { group in
                 if draft.counts[group] > 0 {
@@ -182,6 +189,7 @@ struct TimeSettingsView: View {
                                 Text("–").foregroundStyle(.tertiary)
                                 DatePicker("第 \(index + 1) 节结束", selection: timeBinding(index, end: true), displayedComponents: .hourAndMinute).labelsHidden()
                             }.frame(maxWidth: .infinity)
+                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                         }
                     }
                 }
@@ -189,7 +197,9 @@ struct TimeSettingsView: View {
             Section { Text("修改时间会联动后续课节；增减节数会重新编号。保存后对所有课表生效。")
                 .font(.footnote).foregroundStyle(.secondary) }
         }
+        .environment(\.defaultMinListRowHeight, 44).listSectionSpacing(.compact)
         .navigationTitle("统一课节时间").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存") {

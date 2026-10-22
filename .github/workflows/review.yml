@@ -25,6 +25,8 @@ jobs:
           assert phones
           print('YICLASS_SIMULATOR=' + phones[0]['udid'])
           PY
+      - name: Start simulator while compiling
+        run: xcrun simctl boot "$YICLASS_SIMULATOR" || true
       - name: Import sample PDF and review layout
         timeout-minutes: 12
         run: |

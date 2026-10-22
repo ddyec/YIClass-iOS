@@ -51,7 +51,7 @@ struct AssistantView: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(plan.title).font(.headline)
                                     Text(plan.explanation).font(.subheadline).foregroundStyle(.secondary)
-                                    Text("\(plan.courses.count) 门课程 · \(ScheduleEngine.conflictCount(courses: plan.courses.map { $0.materialize() })) 组冲突")
+                                    Text("\(Set(plan.courses.map(\.name)).count) 门课程 · \(ScheduleEngine.conflictCount(courses: plan.courses.map { $0.materialize() })) 组冲突")
                                         .font(.caption).foregroundStyle(.secondary)
                                     Button("查看变更并选择") {
                                         if let snapshot { selectedPlan = PlanSelection(plan: plan, snapshot: snapshot) }
@@ -249,7 +249,7 @@ struct AssistantView: View {
     private var sourceReviewView: some View {
         NavigationStack {
             Form {
-                if let sourceGrid {
+                if let sourceGrid, sourceText == sourceGrid.source {
                     Section {
                         Button("直接预览结构化课表") {
                             do {
@@ -261,7 +261,7 @@ struct AssistantView: View {
                     } footer: { Text("已识别星期列；可直接预览，或交给 AI 整理。") }
                 }
                 if sourceText.count > 18_000 { Text("内容超过 18,000 字，请分批导入，避免漏课。").font(.footnote).foregroundStyle(.orange) }
-                Section("识别内容 · 可修正") { TextEditor(text: $sourceText).frame(minHeight: 280).onChange(of: sourceText) { _, _ in sourceGrid = nil } }
+                Section("识别内容 · 可修正") { TextEditor(text: $sourceText).frame(height: 260) }
                 Section { Text(mode == .remote ? "识别时会将以上文字发送到已配置的 AI 接口。" : "使用设备端模型整理课表。")
                     .font(.footnote).foregroundStyle(.secondary) }
             }.alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
@@ -309,7 +309,7 @@ struct PlanReviewView: View {
                     Label("\(conflicts) 组课程冲突", systemImage: conflicts > 0 ? "exclamationmark.triangle" : "checkmark.circle")
                         .foregroundStyle(conflicts > 0 ? Color.orange : Color.green)
                 }
-                Section("应用后的课程（\(proposed.count) 门）") {
+                Section("应用后的课程记录（\(proposed.count) 条）") {
                     ForEach(Array(proposed.enumerated()), id: \.offset) { _, course in
                         let old = snapshot.table.courses.first { $0.id == course.id }
                         VStack(alignment: .leading, spacing: 6) {
