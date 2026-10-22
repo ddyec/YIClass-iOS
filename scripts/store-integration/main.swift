@@ -32,7 +32,8 @@ import YIClassCore
         let currentBytes = try Data(contentsOf: file)
         do { try store.apply(reply.plans[0], snapshot: PlanSnapshot(table: Timetable(), profile: .standard)); fatalError("Stale plan was accepted") }
         catch is AppFailure { }
-        precondition(try Data(contentsOf: file) == currentBytes)
+        let afterRejectedEdit = try Data(contentsOf: file)
+        precondition(afterRejectedEdit == currentBytes)
         print("PASS: actual AppStore direct AI edit → atomic library.json save → reopen → undo → stale edit rejected without file mutation; empty location and global time preserved")
     }
 }
