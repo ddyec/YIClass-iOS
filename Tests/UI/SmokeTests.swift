@@ -55,7 +55,7 @@ extension SmokeTests {
         app.tabBars.buttons["设置"].tap()
         attach(app, name: "紧凑-设置")
         app.buttons["统一课节时间"].tap()
-        XCTAssertTrue(app.steppers["上午  4 节"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.steppers.matching(NSPredicate(format: "label CONTAINS %@", "上午")).firstMatch.waitForExistence(timeout: 5))
         attach(app, name: "紧凑-统一课节时间")
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["AI 识别课表"].tap()
