@@ -51,6 +51,9 @@
 		0189424A5A60FED329FA868E = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (FB90684E69A6C96ED866993E, B397C018A17BFBF166508EA2,); runOnlyForDeploymentPostprocessing = 0; };
 		7561BFB015D8F536760CB671 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (1C25D3719CB905525B1D275B,); runOnlyForDeploymentPostprocessing = 0; };
 		9F3002A5D69B22D357A58AA9 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (525E8CE1EB9C4574FCF88921,); runOnlyForDeploymentPostprocessing = 0; };
+		D82FC19C2BF1673D1BC48199 = { isa = PBXFileReference; lastKnownFileType = image.pdf; path = Tests/Fixtures/timetable-grid.pdf; sourceTree = SOURCE_ROOT; };
+		1BB876787C14E074CF2249D5 = { isa = PBXBuildFile; fileRef = D82FC19C2BF1673D1BC48199; };
+		C584AE92222380FB29B6223F = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (1BB876787C14E074CF2249D5,); runOnlyForDeploymentPostprocessing = 0; };
 		99C7943D90D870A50ADE9160 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		28D98A7904D19DDB9DA03442 = { isa = XCSwiftPackageProductDependency; package = 582681C2EAE02B3F3D399C0C; productName = YIClassCore; };
 		84A499502C2EB795556524D1 = { isa = PBXBuildFile; productRef = 28D98A7904D19DDB9DA03442; };
@@ -76,7 +79,7 @@
 		4F6027D858B72CC70E5CC8E9 = { isa = PBXNativeTarget; buildConfigurationList = 60EA43DB068BD71C9709BED5; buildPhases = (BCE16DD0260827ECF338C787, 7561BFB015D8F536760CB671, 0189424A5A60FED329FA868E, FB0D7E467A32CDE57EC8D450,); buildRules = (); dependencies = (16883B4D41B223F124B63CE6,); name = YIClass; packageProductDependencies = (E23EF4DFD8458EBA92BF9064,); productName = YIClass; productReference = 38A007151ABE87CC01A5B6E9; productType = "com.apple.product-type.application"; };
 		3B07A601889A5C98A1E12C74 = { isa = PBXContainerItemProxy; containerPortal = 98F54143AB4E86B28C3AFEE0; proxyType = 1; remoteGlobalIDString = 4F6027D858B72CC70E5CC8E9; remoteInfo = YIClass; };
 		2A21D9E9044D0B11FAFCCFE3 = { isa = PBXTargetDependency; target = 4F6027D858B72CC70E5CC8E9; targetProxy = 3B07A601889A5C98A1E12C74; };
-		0A06C5E2DA34E686D888A695 = { isa = PBXNativeTarget; buildConfigurationList = 87F2532CB576F7CE6EB48F72; buildPhases = (9F3002A5D69B22D357A58AA9, 99C7943D90D870A50ADE9160,); buildRules = (); dependencies = (2A21D9E9044D0B11FAFCCFE3,); name = YIClassUITests; productName = YIClassUITests; productReference = B7480EC88B7F22D0A4757273; productType = "com.apple.product-type.bundle.ui-testing"; };
+		0A06C5E2DA34E686D888A695 = { isa = PBXNativeTarget; buildConfigurationList = 87F2532CB576F7CE6EB48F72; buildPhases = (9F3002A5D69B22D357A58AA9, 99C7943D90D870A50ADE9160, C584AE92222380FB29B6223F,); buildRules = (); dependencies = (2A21D9E9044D0B11FAFCCFE3,); name = YIClassUITests; productName = YIClassUITests; productReference = B7480EC88B7F22D0A4757273; productType = "com.apple.product-type.bundle.ui-testing"; };
 		98F54143AB4E86B28C3AFEE0 = { isa = PBXProject; attributes = { BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2600; TargetAttributes = { 0A06C5E2DA34E686D888A695 = { TestTargetID = 4F6027D858B72CC70E5CC8E9; }; }; }; buildConfigurationList = BC7E287B75C6D3E574547D08; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = ("zh-Hans", en, Base); mainGroup = 325F10A6957A34D66CB8C0E4; packageReferences = (582681C2EAE02B3F3D399C0C,); productRefGroup = FBDC4F23F93125BBEEAE800C; projectDirPath = ""; projectRoot = ""; targets = (4F6027D858B72CC70E5CC8E9, 5EE42F2E32BE1CF287E9A672, 0A06C5E2DA34E686D888A695,); };
 	};
 	rootObject = 98F54143AB4E86B28C3AFEE0;

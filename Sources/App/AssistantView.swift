@@ -5,6 +5,7 @@ import YIClassCore
 
 struct AssistantView: View {
     var importMode = false
+    @Environment(\.dismiss) private var dismiss
     @State private var importTable: Timetable?
     @State private var sourceText = ""
     @State private var sourceGrid: PDFGridDocument?
@@ -69,6 +70,7 @@ struct AssistantView: View {
                 .safeAreaInset(edge: .bottom) { composer }
                 .navigationTitle("课表助手")
                 .toolbar {
+                    if importMode { ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } } }
                     ToolbarItem(placement: .topBarTrailing) { Button("新对话", systemImage: "square.and.pencil") { reset() } }
                 }
             }
@@ -85,6 +87,14 @@ struct AssistantView: View {
             .alert("识别未完成", isPresented: Binding(get: { localError != nil }, set: { if !$0 { localError = nil } })) {
                 Button("好", role: .cancel) { localError = nil }
             } message: { Text(localError ?? "") }
+            .task {
+                #if DEBUG
+                if importMode, let encoded = ProcessInfo.processInfo.environment["YICLASS_UI_PDF"], let bytes = Data(base64Encoded: encoded) {
+                    do { let payload = try await ImportSource.read(bytes, type: .pdf); sourceText = payload.text; sourceGrid = payload.grid; sourceReview = true }
+                    catch { localError = error.localizedDescription }
+                }
+                #endif
+            }
             .onChange(of: store.table.id) { _, _ in reset() }
             .onChange(of: store.table) { _, _ in invalidatePlans() }
             .onChange(of: store.profile) { _, _ in invalidatePlans() }

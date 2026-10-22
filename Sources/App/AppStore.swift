@@ -27,7 +27,9 @@ import YIClassCore
                 ("大学物理", "理学楼 108", 1, [5, 6], 0xFF658AAB),
                 ("自习", "图书馆", 3, [7, 8], 0xFF298F84)
             ]
-            let table = Timetable(name: "秋季学期", startDate: ScheduleEngine.monday(of: Date()), showWeekend: false,
+            let today = ScheduleEngine.monday(of: Date())
+            let semesterStart = CommandLine.arguments.contains("--ui-testing-pdf") ? Calendar.current.date(byAdding: .day, value: -49, to: today)! : today
+            let table = Timetable(name: "秋季学期", startDate: semesterStart, showWeekend: false,
                 courses: entries.map { name, location, day, periods, color in
                     Course(name: name, location: location, color: color,
                         schedules: [CourseSchedule(weekday: day, periods: periods, weekPattern: Array(1...20))])

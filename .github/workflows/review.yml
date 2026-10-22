@@ -1,0 +1,47 @@
+name: Import and layout review
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: import-layout-review
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0'
+      - name: Select simulator
+        run: |
+          xcrun simctl list devices available -j > /tmp/yi-simulators.json
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          import json
+          data = json.load(open('/tmp/yi-simulators.json'))
+          phones = [device for runtime, devices in data['devices'].items() if 'iOS-26-' in runtime for device in devices if device['name'].startswith('iPhone') and device['isAvailable']]
+          assert phones
+          print('YICLASS_SIMULATOR=' + phones[0]['udid'])
+          PY
+      - name: Import sample PDF and review layout
+        timeout-minutes: 12
+        run: |
+          xcodebuild -project YIClass.xcodeproj -scheme YIClass \
+            -destination "platform=iOS Simulator,id=$YICLASS_SIMULATOR" \
+            -derivedDataPath DerivedData -resultBundlePath /tmp/YIClass-Review.xcresult \
+            -parallel-testing-enabled NO -only-testing:YIClassUITests/SmokeTests/testPDFImportCompactSettingsAndWeekHeight \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test
+      - name: Export screenshots
+        if: always()
+        continue-on-error: true
+        run: xcrun xcresulttool export attachments --path /tmp/YIClass-Review.xcresult --output-path /tmp/yi-review-screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: import-layout-review
+          path: |
+            /tmp/yi-review-screenshots
+            /tmp/YIClass-Review.xcresult
+          retention-days: 14

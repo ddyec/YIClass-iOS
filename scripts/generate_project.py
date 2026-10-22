@@ -57,7 +57,10 @@ sources = add('sources', f'isa = PBXSourcesBuildPhase; buildActionMask = 2147483
 resources = add('resources', f'isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = {refs(resource_builds)}; runOnlyForDeploymentPostprocessing = 0;')
 frameworks = add('frameworks', f'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = {refs([core_build])}; runOnlyForDeploymentPostprocessing = 0;')
 test_sources = add('testsources', f'isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = {refs(test_builds)}; runOnlyForDeploymentPostprocessing = 0;')
-test_frameworks = add('testframeworks', 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
+pdf_fixture = add('pdffixture', 'isa = PBXFileReference; lastKnownFileType = image.pdf; path = Tests/Fixtures/timetable-grid.pdf; sourceTree = SOURCE_ROOT;')
+pdf_fixture_build = add('pdffixturebuild', f'isa = PBXBuildFile; fileRef = {pdf_fixture};')
+test_resources = add('testresources', f'isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = {refs([pdf_fixture_build])}; runOnlyForDeploymentPostprocessing = 0;')
+test_frameworks = add('testframeworks' , 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
 
 widget_core_product = add('widgetcoreproduct', f'isa = XCSwiftPackageProductDependency; package = {package}; productName = YIClassCore;')
 widget_core_build = add('widgetcorebuild', f'isa = PBXBuildFile; productRef = {widget_core_product};')
@@ -123,7 +126,7 @@ widget_target = add('widgettarget', f'isa = PBXNativeTarget; buildConfigurationL
 app_target = add('apptarget' , f'isa = PBXNativeTarget; buildConfigurationList = {app_configs}; buildPhases = {refs([sources, frameworks, resources, embed_phase])}; buildRules = (); dependencies = {refs([widget_dependency])}; name = YIClass; packageProductDependencies = {refs([core_product])}; productName = YIClass; productReference = {product}; productType = "com.apple.product-type.application";')
 proxy = add('testproxy', f'isa = PBXContainerItemProxy; containerPortal = {uid("project")}; proxyType = 1; remoteGlobalIDString = {app_target}; remoteInfo = YIClass;')
 dependency = add('testdependency', f'isa = PBXTargetDependency; target = {app_target}; targetProxy = {proxy};')
-test_target = add('testtarget', f'isa = PBXNativeTarget; buildConfigurationList = {test_configs}; buildPhases = {refs([test_sources, test_frameworks])}; buildRules = (); dependencies = {refs([dependency])}; name = YIClassUITests; productName = YIClassUITests; productReference = {test_product}; productType = "com.apple.product-type.bundle.ui-testing";')
+test_target = add('testtarget', f'isa = PBXNativeTarget; buildConfigurationList = {test_configs}; buildPhases = {refs([test_sources, test_frameworks, test_resources])}; buildRules = (); dependencies = {refs([dependency])}; name = YIClassUITests; productName = YIClassUITests; productReference = {test_product}; productType = "com.apple.product-type.bundle.ui-testing";')
 add('project', f'isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2600; TargetAttributes = {{ {test_target} = {{ TestTargetID = {app_target}; }}; }}; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = ("zh-Hans", en, Base); mainGroup = {root_group}; packageReferences = {refs([package])}; productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = {refs([app_target, widget_target, test_target])};')
 project_dir = ROOT / 'YIClass.xcodeproj'
 project_dir.mkdir(exist_ok=True)

@@ -81,7 +81,7 @@ struct SettingsView: View {
             .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "YIClass-课表") { result in
                 if case .failure(let error) = result { store.error = error.localizedDescription }
             }
-            .sheet(isPresented: $aiImport) { NavigationStack { AssistantView(importMode: true).toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { aiImport = false } } } } }
+            .sheet(isPresented: $aiImport) { AssistantView(importMode: true) }
             .sheet(item: $selection) { ImportReviewView(preview: $0.preview) }
             .confirmationDialog("删除“\(store.table.name)”？", isPresented: $deleting, titleVisibility: .visible) {
                 Button("删除课表", role: .destructive) { store.perform { try store.deleteTable(store.table.id) } }

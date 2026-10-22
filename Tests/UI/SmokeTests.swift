@@ -43,3 +43,36 @@ import XCTest
         screenshot.name = name; screenshot.lifetime = .keepAlways; add(screenshot)
     }
 }
+
+extension SmokeTests {
+    func testPDFImportCompactSettingsAndWeekHeight() throws {
+        let fixture = Bundle(for: SmokeTests.self).url(forResource: "timetable-grid", withExtension: "pdf")!
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "--ui-testing-demo", "--ui-testing-pdf"]
+        app.launchEnvironment["YICLASS_UI_PDF"] = try Data(contentsOf: fixture).base64EncodedString()
+        app.launch()
+        XCTAssertTrue(app.buttons["添加课程"].firstMatch.waitForExistence(timeout: 20))
+        app.tabBars.buttons["设置"].tap()
+        attach(app, name: "紧凑-设置")
+        app.buttons["统一课节时间"].tap()
+        XCTAssertTrue(app.steppers["上午  4 节"].waitForExistence(timeout: 5))
+        attach(app, name: "紧凑-统一课节时间")
+        app.navigationBars.buttons.firstMatch.tap()
+        app.buttons["AI 识别课表"].tap()
+        XCTAssertTrue(app.buttons["直接预览结构化课表"].waitForExistence(timeout: 20))
+        app.buttons["直接预览结构化课表"].tap()
+        XCTAssertTrue(app.navigationBars["确认导入"].waitForExistence(timeout: 5))
+        attach(app, name: "PDF-导入预览")
+        app.navigationBars.buttons["导入"].tap()
+        XCTAssertTrue(app.buttons["完成"].waitForExistence(timeout: 5))
+        app.buttons["完成"].tap()
+        app.tabBars.buttons["课表"].tap()
+        XCTAssertTrue(app.navigationBars["导入课表"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "普通化学II")).firstMatch.exists)
+        attach(app, name: "PDF-第8周-一屏高度")
+        app.buttons["列表"].tap()
+        XCTAssertTrue(app.staticTexts["未排时间"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "军事技能")).firstMatch.exists)
+        attach(app, name: "PDF-未排时间课程")
+    }
+}
