@@ -31,7 +31,13 @@ struct AssistantView: View {
     @State private var selectedPlan: PlanSelection?
     @State private var photo: PhotosPickerItem?
     @State private var importing = false
-    @State private var pendingFileURL: URL?
+    @FocusState private var inputFocused: Bool
+    @FocusState private var sourceFocused: Bool
+    @State private var importStatus = ""
+    @State private var importFilename = ""
+    @State private var importTask: Task<Void, Never>?
+    @State private var importTimeout: Task<Void, Never>?
+    @State private var importID = UUID()
     private var mode: AssistantMode { AssistantMode(rawValue: modeName) ?? .onDevice }
 
     var body: some View {
@@ -61,16 +67,34 @@ struct AssistantView: View {
                                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
                             }
                         }
-                        if reading { ProgressView("正在读取课表…") }
+
                         if busy { HStack { ProgressView(); Text("正在整理…").foregroundStyle(.secondary); Spacer(); Button("取消") { cancel() } } }
                         Color.clear.frame(height: 1).id("end")
                     }.padding(18)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .background { AppBackdrop() }
+                .safeAreaInset(edge: .top) {
+                    if reading {
+                        HStack(spacing: 12) {
+                            ProgressView()
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(importStatus).font(.subheadline)
+                                if !importFilename.isEmpty { Text(importFilename).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                            }
+                            Spacer()
+                            Button("取消") { cancelImport() }
+                        }.padding(12).background(.regularMaterial)
+                    }
+                }
                 .onChange(of: messages.count) { _, _ in reader.scrollTo("end", anchor: .bottom) }
                 .safeAreaInset(edge: .bottom) { composer }
                 .navigationTitle("课表助手")
                 .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { inputFocused = false }
+                    }
                     if importMode { ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } } }
                     ToolbarItem(placement: .topBarTrailing) { Button("新对话", systemImage: "square.and.pencil") { reset() } }
                 }
@@ -102,37 +126,70 @@ struct AssistantView: View {
             .onChange(of: modeName) { _, _ in reset() }
             .onChange(of: photo) { _, value in
                 guard let value else { return }
+                cancelImport()
+                let token = UUID(); importID = token
+                inputFocused = false
+                importFilename = "课表截图"
+                importStatus = "正在识别图片…"
                 reading = true
-                Task {
+                importTask = Task {
                     do {
                         guard let data = try await value.loadTransferable(type: Data.self) else { throw AppFailure("图片读取失败。") }
-                        sourceGrid = nil
-                        sourceText = try await ImageTextRecognition.recognize(data)
+                        let text = try await ImageTextRecognition.recognize(data)
+                        try Task.checkCancellation()
+                        guard token == importID else { return }
+                        sourceGrid = nil; sourceText = text
                         sourceReview = true
-                    } catch { localError = error.localizedDescription }
-                    photo = nil; reading = false
+                    } catch is CancellationError { }
+                    catch { if token == importID { localError = error.localizedDescription } }
+                    if token == importID { photo = nil; reading = false; importTask = nil }
                 }
             }
-            .fullScreenCover(isPresented: $importing, onDismiss: importChosenFile) {
-                DocumentImportPicker(contentTypes: [.pdf, .image, .text, .commaSeparatedText]) { url in
-                    pendingFileURL = url
-                    importing = false
-                }.ignoresSafeArea()
+            .background {
+                DocumentImportPicker(isPresented: $importing, contentTypes: [.pdf, .image, .text, .commaSeparatedText]) { url in
+                    if let url { importChosenFile(url) }
+                }.frame(width: 0, height: 0)
             }
         }
     }
-    private func importChosenFile() {
-        guard let url = pendingFileURL else { return }
-        pendingFileURL = nil
+    private func cancelImport() {
+        importID = UUID()
+        importTask?.cancel(); importTask = nil
+        importTimeout?.cancel(); importTimeout = nil
+        reading = false
+    }
+    private func importChosenFile(_ url: URL) {
+        cancelImport()
+        inputFocused = false
+        importFilename = url.lastPathComponent
+        importStatus = "正在读取文件…"
         reading = true
-        Task {
+        let token = UUID(); importID = token
+        importTimeout = Task {
+            do { try await Task.sleep(for: .seconds(90)) } catch { return }
+            guard token == importID else { return }
+            cancelImport()
+            localError = "读取或解析超时。请将文件下载到‘我的 iPhone’后重试，或改用课表截图。"
+        }
+        importTask = Task {
             do {
                 let file = try await DocumentFileReader.read(url, maximumBytes: 20_000_000)
-                let payload = try await ImportSource.read(file.data, type: file.type)
+                try Task.checkCancellation()
+                guard token == importID else { return }
+                importStatus = file.type?.conforms(to: .pdf) == true ? "正在解析 PDF…" : "正在识别课表…"
+                let payload = try await Task.detached(priority: .userInitiated) {
+                    try await ImportSource.read(file.data, type: file.type)
+                }.value
+                try Task.checkCancellation()
+                guard token == importID else { return }
                 sourceText = payload.text; sourceGrid = payload.grid
                 sourceReview = true
-            } catch { localError = error.localizedDescription }
-            reading = false
+            } catch is CancellationError { }
+            catch { if token == importID { localError = error.localizedDescription } }
+            if token == importID {
+                reading = false; importTask = nil
+                importTimeout?.cancel(); importTimeout = nil
+            }
         }
     }
     private var intro: some View {
@@ -181,11 +238,15 @@ struct AssistantView: View {
         GlassPanel {
             VStack(spacing: 8) {
                 TextField("描述课程，或补充你的偏好…", text: $input, axis: .vertical).lineLimit(1...5)
-                    .padding(.horizontal, 4).disabled(busy)
+                    .focused($inputFocused)
+                    .padding(.horizontal, 4).disabled(busy || reading)
                 HStack {
                     PhotosPicker(selection: $photo, matching: .images) { Label("课表截图", systemImage: "photo") }.disabled(busy || reading)
-                    Button("导入文件", systemImage: "doc") { pendingFileURL = nil; importing = true }.disabled(busy || reading)
+                    Button("导入文件", systemImage: "doc") { inputFocused = false; importing = true }.disabled(busy || reading)
                     Spacer()
+                    if inputFocused {
+                        Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { inputFocused = false }.labelStyle(.iconOnly)
+                    }
                     Button("发送", systemImage: "arrow.up") { send(input) }
                         .labelStyle(.iconOnly).buttonStyle(.glassProminent)
                         .disabled(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -200,6 +261,7 @@ struct AssistantView: View {
         guard messages.reduce(0, { $0 + $1.content.count }) + text.count <= 40_000 else {
             store.error = "这段对话过长，请开始新对话，并简要说明需求。"; return
         }
+        inputFocused = false
         input = ""; busy = true; reply = nil; selections = [:]
         messages.append(ChatMessage(role: "user", content: text))
         modelHistory.append(ChatMessage(role: "user", content: text))
@@ -263,15 +325,19 @@ struct AssistantView: View {
                     } footer: { Text("已识别星期列；可直接预览，或交给 AI 整理。") }
                 }
                 if sourceText.count > 18_000 { Text("内容超过 18,000 字，请分批导入，避免漏课。").font(.footnote).foregroundStyle(.orange) }
-                Section("识别内容 · 可修正") { TextEditor(text: $sourceText).frame(height: 260) }
+                Section("识别内容 · 可修正") { TextEditor(text: $sourceText).focused($sourceFocused).frame(height: 260) }
                 Section { Text(mode == .remote ? "识别时会将以上文字发送到已配置的 AI 接口。" : "使用设备端模型整理课表。")
                     .font(.footnote).foregroundStyle(.secondary) }
-            }.alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
+            }.scrollDismissesKeyboard(.interactively).alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
                 Button("好", role: .cancel) { sourceIssue = nil }
             } message: { Text(sourceIssue ?? "") }
             .navigationTitle("识别课表").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("取消") { sourceReview = false } }
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { sourceFocused = false }
+                    }
+                    ToolbarItem(placement: .cancellationAction) { Button("取消") { sourceFocused = false; sourceReview = false } }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("识别并生成") {
                             sourceReview = false

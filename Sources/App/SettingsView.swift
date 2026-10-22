@@ -19,7 +19,6 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     @State private var importing = false
-    @State private var pendingFileURL: URL?
     @State private var reading = false
     @State private var aiImport = false
     @State private var exporting = false
@@ -39,7 +38,7 @@ struct SettingsView: View {
                 }
                 Section("导入与备份") {
                     Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
-                    Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { pendingFileURL = nil; importing = true }.disabled(reading)
+                    Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }.disabled(reading)
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
                         do {
                             document = JSONDocument(data: try TimetableTransfer.encode(table: store.table, profile: store.profile))
@@ -64,11 +63,10 @@ struct SettingsView: View {
                 }
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
-            .fullScreenCover(isPresented: $importing, onDismiss: importChosenFile) {
-                DocumentImportPicker(contentTypes: [.json]) { url in
-                    pendingFileURL = url
-                    importing = false
-                }.ignoresSafeArea()
+            .background {
+                DocumentImportPicker(isPresented: $importing, contentTypes: [.json]) { url in
+                    if let url { importChosenFile(url) }
+                }.frame(width: 0, height: 0)
             }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "YIClass-课表") { result in
                 if case .failure(let error) = result { store.error = error.localizedDescription }
@@ -80,9 +78,7 @@ struct SettingsView: View {
             }
         }
     }
-    private func importChosenFile() {
-        guard let url = pendingFileURL else { return }
-        pendingFileURL = nil
+    private func importChosenFile(_ url: URL) {
         reading = true
         Task {
             do {
