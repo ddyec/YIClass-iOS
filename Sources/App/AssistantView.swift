@@ -8,6 +8,14 @@ struct AssistantView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var importTable: Timetable?
     @State private var sourceText = ""
+    @State private var sourceImages: [ChatImage] = []
+    @State private var pendingImages: [ChatImage] = []
+    @State private var sourceChangesCurrent = true
+    @State private var planningImport = false
+    @State private var pendingSubmission: AssistantSubmission?
+    @State private var retrySubmission: AssistantSubmission?
+    @State private var historyShowing = false
+    @State private var conversationID = UUID()
     @State private var sourceGrid: PDFGridDocument?
     @State private var directImport: ImportPreview?
     @State private var pendingImport: ImportPreview?
@@ -47,7 +55,12 @@ struct AssistantView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         intro
                         ForEach(Array(messages.enumerated()), id: \.offset) { _, message in
-                            Text(message.content.hasPrefix("请将以下课表资料") ? "已提交课表资料，请识别并生成导入方案。" : message.content).font(.subheadline).textSelection(.enabled)
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let image = message.images.first, let preview = UIImage(data: image.data) {
+                                    Image(uiImage: preview).resizable().scaledToFit().frame(maxHeight: 160)
+                                }
+                                Text(message.content).font(.subheadline).textSelection(.enabled)
+                            }
                                 .padding(14).frame(maxWidth: .infinity, alignment: message.role == "user" ? .trailing : .leading)
                                 .background(message.role == "user" ? Color.indigo.opacity(0.1) : Color(.secondarySystemGroupedBackground),
                                             in: RoundedRectangle(cornerRadius: 18))
@@ -96,23 +109,43 @@ struct AssistantView: View {
                         Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { inputFocused = false }
                     }
                     if importMode { ToolbarItem(placement: .cancellationAction) { Button("完成") { dismiss() } } }
-                    ToolbarItem(placement: .topBarTrailing) { Button("新对话", systemImage: "square.and.pencil") { reset() } }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("历史记录", systemImage: "clock.arrow.circlepath") { persistConversation(); inputFocused = false; historyShowing = true }
+                            .disabled(busy || reading)
+                    }
                 }
             }
-            .sheet(item: $selectedPlan) { PlanReviewView(plan: $0.plan, snapshot: $0.snapshot, importing: importMode) {
-                reset()
-                messages = [ChatMessage(role: "assistant", content: importMode ? "课表已导入，可在课表页切换查看。" : "方案已应用。")]
+            .sheet(item: $selectedPlan) { PlanReviewView(plan: $0.plan, snapshot: $0.snapshot, importing: planningImport) {
+                let imported = planningImport
+                reply = nil; snapshot = nil; selectedPlan = nil
+                messages.append(ChatMessage(role: "assistant", content: imported ? "课表已导入，可在课表页切换查看。" : "方案已应用。"))
+                persistConversation()
             } }
+            .sheet(isPresented: $historyShowing) {
+                AssistantHistoryView(onOpen: openConversation, onNew: { reset(); historyShowing = false }, onRestored: { reset(); historyShowing = false })
+            }
             .sheet(isPresented: $sourceReview, onDismiss: {
                 if let pendingImport { directImport = pendingImport; self.pendingImport = nil }
+                if let submission = pendingSubmission {
+                    pendingSubmission = nil
+                    send(submission.text, images: submission.images, importing: submission.importing, display: submission.display)
+                }
             }) { sourceReviewView }
             .sheet(isPresented: Binding(get: { directImport != nil }, set: { if !$0 { directImport = nil } })) {
                 if let directImport { ImportReviewView(preview: directImport) }
             }
             .alert("识别未完成", isPresented: Binding(get: { localError != nil }, set: { if !$0 { localError = nil } })) {
-                Button("好", role: .cancel) { localError = nil }
+                if let submission = retrySubmission {
+                    Button("重试") {
+                        localError = nil
+                        send(submission.text, images: submission.images, importing: submission.importing, display: submission.display)
+                    }
+                }
+                Button("关闭", role: .cancel) { localError = nil }
             } message: { Text(localError ?? "") }
             .task {
+                if messages.isEmpty { planningImport = importMode; sourceChangesCurrent = !importMode }
+                if let url = URL(string: endpoint) { model = AIChatRequest.resolvedModel(model, endpoint: url) }
                 #if DEBUG
                 if importMode, let encoded = ProcessInfo.processInfo.environment["YICLASS_UI_PDF"], let bytes = Data(base64Encoded: encoded) {
                     do { let payload = try await ImportSource.read(bytes, type: .pdf); sourceText = payload.text; sourceGrid = payload.grid; sourceReview = true }
@@ -135,11 +168,10 @@ struct AssistantView: View {
                 importTask = Task {
                     do {
                         guard let data = try await value.loadTransferable(type: Data.self) else { throw AppFailure("图片读取失败。") }
-                        let text = try await ImageTextRecognition.recognize(data)
+                        let payload = try await ImportSource.read(data, type: .image)
                         try Task.checkCancellation()
                         guard token == importID else { return }
-                        sourceGrid = nil; sourceText = text
-                        sourceReview = true
+                        review(payload)
                     } catch is CancellationError { }
                     catch { if token == importID { localError = error.localizedDescription } }
                     if token == importID { photo = nil; reading = false; importTask = nil }
@@ -182,8 +214,7 @@ struct AssistantView: View {
                 }.value
                 try Task.checkCancellation()
                 guard token == importID else { return }
-                sourceText = payload.text; sourceGrid = payload.grid
-                sourceReview = true
+                review(payload)
             } catch is CancellationError { }
             catch { if token == importID { localError = error.localizedDescription } }
             if token == importID {
@@ -191,6 +222,11 @@ struct AssistantView: View {
                 importTimeout?.cancel(); importTimeout = nil
             }
         }
+    }
+    private func review(_ payload: ImportPayload) {
+        sourceText = payload.text; sourceGrid = payload.grid; sourceImages = payload.images
+        sourceChangesCurrent = !importMode || (payload.text.contains("通知") && (payload.text.contains("调整") || payload.text.contains("调课")))
+        sourceReview = true
     }
     private var intro: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -235,8 +271,15 @@ struct AssistantView: View {
         }
     }
     private var composer: some View {
-        GlassPanel {
-            VStack(alignment: .leading, spacing: 8) {
+        GlassPanel(inset: 8) {
+            VStack(alignment: .leading, spacing: 0) {
+                if !pendingImages.isEmpty {
+                    HStack {
+                        Label("已附原图", systemImage: "photo").font(.caption)
+                        Spacer()
+                        Button("移除") { pendingImages = [] }.font(.caption)
+                    }.padding(.horizontal, 4)
+                }
                 TextField("描述课程，或补充你的偏好…", text: $input, axis: .vertical).lineLimit(1...5)
                     .focused($inputFocused)
                     .padding(.horizontal, 4).padding(.top, 2).disabled(busy || reading)
@@ -262,7 +305,7 @@ struct AssistantView: View {
                                 .font(.body).frame(width: 44, height: 44).contentShape(Rectangle())
                         }.buttonStyle(.plain).foregroundStyle(.tint).accessibilityLabel("收起键盘")
                     }
-                    Button { send(input) } label: {
+                    Button { send(input, images: pendingImages) } label: {
                         Image(systemName: "arrow.up").font(.body.weight(.semibold))
                             .frame(width: 44, height: 44).contentShape(Circle())
                             .foregroundStyle(.white)
@@ -275,19 +318,27 @@ struct AssistantView: View {
             }
         }.padding(.horizontal, 16).padding(.bottom, inputFocused ? 2 : 8)
     }
-    private func send(_ text: String) {
+    private func send(_ text: String, images: [ChatImage] = [], importing: Bool? = nil, display: String? = nil) {
         guard !busy else { return }
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.count <= 20_000 else { store.error = "请输入 1–20,000 字的说明。"; return }
-        guard messages.reduce(0, { $0 + $1.content.count }) + text.count <= 40_000 else {
+        guard modelHistory.reduce(0, { $0 + $1.content.count }) + text.count <= 80_000 else {
             store.error = "这段对话过长，请开始新对话，并简要说明需求。"; return
         }
+        if let importing, importing != planningImport {
+            planningImport = importing; importTable = nil; modelHistory = []
+        }
+        let deliveredImages = mode == .remote ? images : []
+        guard deliveredImages.reduce(0, { $0 + $1.data.count }) <= 25_000_000 else { localError = "图片过大，请减少图片后重试。"; return }
+        let submission = AssistantSubmission(text: text, images: images, importing: planningImport, display: display ?? text)
+        retrySubmission = nil
         inputFocused = false
-        input = ""; busy = true; reply = nil; selections = [:]
-        messages.append(ChatMessage(role: "user", content: text))
-        modelHistory.append(ChatMessage(role: "user", content: text))
-        if importMode && importTable == nil { importTable = store.table.emptyCopy(name: "导入课表") }
-        let captured = PlanSnapshot(table: importMode ? importTable! : store.table, profile: store.profile)
+        input = ""; pendingImages = []; busy = true; reply = nil; selections = [:]
+        messages.append(ChatMessage(role: "user", content: submission.display, images: images))
+        modelHistory.append(ChatMessage(role: "user", content: text, images: deliveredImages))
+        persistConversation()
+        if planningImport && importTable == nil { importTable = store.table.emptyCopy(name: "导入课表") }
+        let captured = PlanSnapshot(table: planningImport ? importTable! : store.table, profile: store.profile)
         snapshot = captured
         let history = modelHistory
         let token = UUID(); requestID = token
@@ -297,9 +348,9 @@ struct AssistantView: View {
                     profile: captured.profile, endpoint: endpoint, model: model)
                 try Task.checkCancellation()
                 guard token == requestID else { return }
-                try captured.check(current: importMode ? (importTable ?? store.table) : store.table, profile: store.profile)
+                try captured.check(current: planningImport ? (importTable ?? store.table) : store.table, profile: store.profile)
                 // Keep the full structured answer in model history, but display human-readable text only.
-                if result.applyDirectly == true && !importMode, let plan = result.plans.first {
+                if result.applyDirectly == true && !planningImport, let plan = result.plans.first {
                     try store.apply(plan, snapshot: captured)
                     reply = nil; snapshot = nil
                     messages.append(ChatMessage(role: "assistant", content: "已更新课表。" + result.message))
@@ -312,28 +363,54 @@ struct AssistantView: View {
             } catch is CancellationError { }
             catch {
                 if token == requestID {
-                    localError = error.localizedDescription; input = text
+                    localError = error.localizedDescription
+                    retrySubmission = submission
+                    input = submission.display; pendingImages = images
                     modelHistory = Array(history.dropLast())
-                    if messages.last?.role == "user", messages.last?.content == text { messages.removeLast() }
+                    if messages.last?.role == "user" { messages.removeLast() }
                 }
             }
-            if token == requestID { busy = false; requestTask = nil }
+            if token == requestID { busy = false; requestTask = nil; persistConversation() }
         }
     }
     private func cancel() {
         requestID = UUID(); requestTask?.cancel(); requestTask = nil
         if busy, modelHistory.last?.role == "user" {
-            let canceled = modelHistory.removeLast().content
-            if messages.last?.role == "user", messages.last?.content == canceled { messages.removeLast() }
-            input = canceled
+            let canceled = modelHistory.removeLast()
+            if messages.last?.role == "user" {
+                input = messages.removeLast().content
+                pendingImages = canceled.images
+            }
         }
         busy = false
     }
     private func invalidatePlans() { cancel(); reply = nil; snapshot = nil; selectedPlan = nil; selections = [:] }
-    private func reset() { invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil }
+    private func persistConversation() {
+        guard !messages.isEmpty else { return }
+        store.perform {
+            try store.saveConversation(id: conversationID, messages: messages, modelHistory: modelHistory, importing: planningImport, importTable: importTable)
+        }
+    }
+    private func openConversation(_ conversation: ConversationRecord) {
+        persistConversation(); invalidatePlans()
+        conversationID = conversation.id; messages = conversation.messages; modelHistory = conversation.modelHistory
+        planningImport = conversation.importing; importTable = conversation.importTable
+        input = ""; pendingImages = []; retrySubmission = nil; historyShowing = false
+    }
+    private func reset() {
+        persistConversation(); invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil
+        conversationID = UUID(); planningImport = importMode; pendingImages = []; retrySubmission = nil
+    }
     private var sourceReviewView: some View {
         NavigationStack {
             Form {
+                Picker("用途", selection: $sourceChangesCurrent) {
+                    Text("修改当前课表").tag(true)
+                    Text("导入新课表").tag(false)
+                }.pickerStyle(.segmented)
+                if let image = sourceImages.first, let preview = UIImage(data: image.data) {
+                    Section("原图") { Image(uiImage: preview).resizable().scaledToFit().frame(maxHeight: 220).frame(maxWidth: .infinity) }
+                }
                 if let sourceGrid, sourceText == sourceGrid.source {
                     Section {
                         Button("直接预览结构化课表") {
@@ -347,7 +424,7 @@ struct AssistantView: View {
                 }
                 if sourceText.count > 18_000 { Text("内容超过 18,000 字，请分批导入，避免漏课。").font(.footnote).foregroundStyle(.orange) }
                 Section("识别内容 · 可修正") { TextEditor(text: $sourceText).focused($sourceFocused).frame(height: 260) }
-                Section { Text(mode == .remote ? "识别时会将以上文字发送到已配置的 AI 接口。" : "使用设备端模型整理课表。")
+                Section { Text(mode == .remote ? (sourceImages.isEmpty ? "文字将发送到已配置的 AI 接口。" : "原图与文字将发送到已配置的 AI 接口。") : "设备端使用本机识别的文字。")
                     .font(.footnote).foregroundStyle(.secondary) }
             }.scrollDismissesKeyboard(.interactively).alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
                 Button("好", role: .cancel) { sourceIssue = nil }
@@ -361,13 +438,25 @@ struct AssistantView: View {
                     ToolbarItem(placement: .cancellationAction) { Button("取消") { sourceFocused = false; sourceReview = false } }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("识别并生成") {
-                            sourceReview = false
-                            send("请将以下课表资料整理成可导入的完整课程方案。保留已有课程，不要重复创建同一课程。准确识别星期、节次、周次、单双周、教室和教师；截图文字带有归一化坐标（x 从左到右、y 从上到下），请结合表头和位置恢复行列对应。资料里明确的课程事实必须照录，无法确定的关键字段集中给出选项询问，不得猜测。不要更改统一课节时间；若资料的时间无法映射到当前节次，先提示用户调整设置。\n资料：\n" + sourceText)
-                        }.disabled(sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || sourceText.count > 18_000)
+                            let purpose = sourceChangesCurrent
+                                ? "请按附件中的通知或课程资料修改当前课表。明确的调课直接返回可应用的完整结果，保留其他日期课程。只有无法确定的关键目标才给选项询问。"
+                                : "请将附件中的完整课表整理成新课表的导入方案。"
+                            let instruction = purpose + "优先阅读原图，文字仅作辅助；不要遗漏课程、教师、地点和周次。缺少地点可留空，不要修改统一课节时间。\n资料：\n" + sourceText
+                            pendingSubmission = AssistantSubmission(text: instruction, images: sourceImages, importing: !sourceChangesCurrent,
+                                display: sourceChangesCurrent ? "请按这份资料调整当前课表。" : "请识别这份资料，导入为新课表。")
+                            sourceFocused = false; sourceReview = false
+                        }.disabled((sourceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && sourceImages.isEmpty) || sourceText.count > 18_000)
                     }
                 }
         }
     }
+}
+
+private struct AssistantSubmission {
+    let text: String
+    let images: [ChatImage]
+    let importing: Bool
+    let display: String
 }
 
 private struct PlanSelection: Identifiable {
@@ -477,8 +566,8 @@ struct AISettingsView: View {
             }
             if mode == .remote {
                 Section("快捷配置") {
-                    Button("DeepSeek") {
-                        endpoint = "https://api.deepseek.com/chat/completions"; model = "deepseek-chat"; testResult = nil
+                    Button("DeepSeek · 支持原图") {
+                        endpoint = "https://api.deepseek.com/chat/completions"; model = "deepseek-flash"; testResult = nil
                     }
                 }
                 Section("OpenAI 兼容接口") {
@@ -513,7 +602,8 @@ struct AISettingsView: View {
                     }.disabled(testing)
                 }
             }.onAppear {
-                mode = AssistantMode(rawValue: savedMode) ?? .onDevice; endpoint = savedEndpoint; model = savedModel
+                mode = AssistantMode(rawValue: savedMode) ?? .onDevice; endpoint = savedEndpoint
+                model = URL(string: savedEndpoint).map { AIChatRequest.resolvedModel(savedModel, endpoint: $0) } ?? savedModel
                 if mode == .onDevice { availability = AIService.availability }
                 do { apiKey = try APIKeyStore.read() } catch { store.error = error.localizedDescription }
             }.onChange(of: mode) { _, value in

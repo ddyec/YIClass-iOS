@@ -29,12 +29,13 @@ struct AppBackdrop: View {
 /// Glass is reserved for controls floating above content. Course cards remain readable.
 struct GlassPanel<Content: View>: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var inset: CGFloat = 12
     @ViewBuilder var content: Content
     var body: some View {
         if reduceTransparency {
-            content.padding(12).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
+            content.padding(inset).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
         } else {
-            content.padding(12).glassEffect(.regular, in: .rect(cornerRadius: 24))
+            content.padding(inset).glassEffect(.regular, in: .rect(cornerRadius: 24))
         }
     }
 }

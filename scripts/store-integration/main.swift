@@ -4,6 +4,11 @@ import UniformTypeIdentifiers
 
 @main struct StoreCheck {
     @MainActor static func main() async throws {
+        let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jP1sAAAAASUVORK5CYII=")!
+        let attachment = try await ImageAttachment.read(png)
+        precondition(attachment.data == png && attachment.mimeType == "image/png")
+        precondition(ImageAttachment.plainText("[x=0.1 y=0.2 w=0.3 h=0.4] 关于调课的通知") == "关于调课的通知")
+        print("PASS: original PNG is preserved byte-for-byte and OCR coordinates stay out of display text")
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("yi-store-test-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -65,6 +70,24 @@ import UniformTypeIdentifiers
         precondition(widgetData == undone) // Compare persisted data; JSON date precision is lower than in-memory Date.
         precondition(widgetData.selectedID == store.table.id && widgetData.timeProfile == profile)
         print("PASS: production widget snapshot write/read preserves selected timetable and global times; missing permission, missing file and corrupt snapshot report failure")
+        let conversationID = UUID()
+        try store.saveConversation(id: conversationID,
+            messages: [ChatMessage(role: "user", content: "按通知调课", images: [attachment])],
+            modelHistory: [ChatMessage(role: "user", content: "原排9月28日调整至10月18日", images: [attachment])], importing: false, importTable: nil)
+        let reopenedHistory = AppStore(storageURL: file)
+        precondition(reopenedHistory.conversations.first?.id == conversationID)
+        precondition(reopenedHistory.conversations.first?.messages.first?.images.isEmpty == true)
+        precondition(reopenedHistory.conversations.first?.modelHistory.first?.content.contains("10月18日") == true)
+        let beforeFirstEdit = reopenedHistory.revisions.last!
+        try reopenedHistory.restoreRevision(beforeFirstEdit.id)
+        let restoredHistory = AppStore(storageURL: file)
+        precondition(restoredHistory.table.courses.isEmpty)
+        precondition(restoredHistory.revisions.first?.title == "恢复历史记录")
+        try restoredHistory.restoreRevision(restoredHistory.revisions.first!.id)
+        let recoveredHistory = AppStore(storageURL: file)
+        precondition(recoveredHistory.table.courses.first?.name == "英语" && recoveredHistory.profile == profile)
+        precondition(recoveredHistory.conversations.first?.id == conversationID)
+        print("PASS: conversations persist across reopen without original image storage; historical restore preserves current state and can be reversed after restart")
         print("PASS: actual AppStore direct AI edit → atomic library.json save → reopen → undo → stale edit rejected without file mutation; empty location and global time preserved")
     }
 }

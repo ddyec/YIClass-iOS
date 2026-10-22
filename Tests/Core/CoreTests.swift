@@ -278,3 +278,54 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     let invalid = #"{"message":"含糊","applyDirectly":true,"questions":[{"title":"哪门课","options":["A","B"]}],"plans":[]}"#
     #expect(throws: AppFailure.self) { _ = try AssistantReply.parse(invalid, table: table, profile: .standard) }
 }
+
+@Test func assistantAcceptsConversationWithoutPlanButRejectsIncompleteEdits() throws {
+    let table = Timetable()
+    let greeting = try AssistantReply.parse("你好，请告诉我想调整的课程。", table: table, profile: .standard)
+    #expect(greeting.plans.isEmpty && greeting.applyDirectly == false)
+    let shortJSON = try AssistantReply.parse(#"{"message":"你好"}"#, table: table, profile: .standard)
+    #expect(shortJSON.questions.isEmpty && shortJSON.plans.isEmpty)
+    #expect(throws: AppFailure.self) {
+        _ = try AssistantReply.parse(#"{"message":"已调整","applyDirectly":true,"plans":[{"title":"调课"}]}"#, table: table, profile: .standard)
+    }
+    #expect(throws: AppFailure.self) { _ = try AssistantReply.parse("{\"message\":", table: table, profile: .standard) }
+}
+
+@Test func originalImageIsEncodedAsMultimodalUserContentWithoutChangingBytes() throws {
+    let original = Data([0x89, 0x50, 0x4E, 0x47, 1, 2, 3, 4])
+    let message = ChatMessage(role: "user", content: "请按原图调课", images: [ChatImage(data: original, mimeType: "image/png")])
+    let encoded = try JSONEncoder().encode(message)
+    let root = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    let parts = try #require(root["content"] as? [[String: Any]])
+    #expect(parts.count == 2 && parts[0]["type"] as? String == "text")
+    let image = try #require(parts[1]["image_url"] as? [String: String])
+    #expect(image["url"] == "data:image/png;base64," + original.base64EncodedString())
+    #expect(image["detail"] == "high")
+    let restored = try JSONDecoder().decode(ChatMessage.self, from: encoded)
+    #expect(restored.images.first?.data == original)
+    let plain = try JSONSerialization.jsonObject(with: JSONEncoder().encode(ChatMessage(role: "user", content: "你好"))) as! [String: Any]
+    #expect(plain["content"] as? String == "你好")
+}
+
+@Test func deepSeekRequestUsesVisionModelAndDisablesUnboundedThinking() throws {
+    let messages = [ChatMessage(role: "user", content: "你好")]
+    let request = AIChatRequest(model: "deepseek-chat", messages: messages, maxTokens: 16384, endpoint: URL(string: "https://api.deepseek.com/chat/completions")!)
+    let body = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as! [String: Any]
+    #expect(body["model"] as? String == "deepseek-flash")
+    #expect((body["thinking"] as? [String: String])?["type"] == "disabled")
+    #expect((body["response_format"] as? [String: String])?["type"] == "json_object")
+    let custom = AIChatRequest(model: "my-vision", messages: messages, maxTokens: 16384, endpoint: URL(string: "https://example.com/v1/chat/completions")!)
+    let customBody = try JSONSerialization.jsonObject(with: JSONEncoder().encode(custom)) as! [String: Any]
+    #expect(customBody["model"] as? String == "my-vision")
+    #expect(customBody["thinking"] == nil && customBody["response_format"] == nil)
+}
+
+@Test func remoteResponseHandlesTruncationAndMissingContentWithoutRawDecodingErrors() throws {
+    let plain = Data(#"{"choices":[{"message":{"content":"你好"},"finish_reason":"stop"}]}"#.utf8)
+    #expect(try AIChatResponse.text(from: plain) == "你好")
+    let truncated = Data(#"{"choices":[{"message":{"content":null},"finish_reason":"length"}]}"#.utf8)
+    #expect(throws: AITransportFailure.self) { _ = try AIChatResponse.text(from: truncated) }
+    let empty = Data(#"{"choices":[{"message":{"reasoning_content":"thinking"},"finish_reason":"stop"}]}"#.utf8)
+    #expect(throws: AppFailure.self) { _ = try AIChatResponse.text(from: empty) }
+    #expect(throws: AppFailure.self) { _ = try AIChatResponse.text(from: Data("{}".utf8)) }
+}

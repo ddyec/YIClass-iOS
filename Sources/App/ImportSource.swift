@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import UIKit
 import YIClassCore
 
-struct ImportPayload: Sendable { let text: String; var grid: PDFGridDocument? = nil }
+struct ImportPayload: Sendable { let text: String; var grid: PDFGridDocument? = nil; var images: [ChatImage] = [] }
 
 enum ImportSource {
     static func read(_ data: Data, type: UTType?) async throws -> ImportPayload {
@@ -26,7 +26,9 @@ enum ImportSource {
             }
             text = pages.joined(separator: "\n")
         } else if type?.conforms(to: .image) == true {
-            text = try await ImageTextRecognition.recognize(data)
+            let image = try await ImageAttachment.read(data)
+            let recognized = (try? await ImageTextRecognition.recognize(data)) ?? ""
+            return ImportPayload(text: ImageAttachment.plainText(recognized), images: [image])
         } else {
             guard let value = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16) else {
                 throw AppFailure("无法读取文本编码，请使用 UTF-8 文本或 CSV。")

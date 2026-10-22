@@ -39,12 +39,6 @@ enum APIKeyStore {
     }
 }
 
-struct ChatMessage: Codable, Sendable, Identifiable {
-    var role: String
-    var content: String
-    var id: String { role + content }
-}
-
 private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
@@ -95,32 +89,35 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                 throw AppFailure("请配置完整的 HTTPS Chat Completions 地址和模型名。")
             }
             guard !key.isEmpty else { throw AppFailure("请先在设置中保存 API Key。") }
-            struct Request: Encodable { var model: String; var messages: [ChatMessage]; var temperature = 0.2; var max_tokens: Int }
-            let body = Request(model: model, messages: messages, max_tokens: testing ? 32 : 6000)
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"; request.timeoutInterval = 60
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-            request.httpBody = try JSONEncoder().encode(body)
             let config = URLSessionConfiguration.ephemeral
-            config.timeoutIntervalForResource = 65
+            config.timeoutIntervalForResource = 190
             let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil)
             defer { session.invalidateAndCancel() }
-            let (data, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                throw AppFailure("AI 请求失败（HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)），请核对接口、额度及模型。")
+            for attempt in 0..<2 {
+                try Task.checkCancellation()
+                let budget = testing ? 64 : (attempt == 0 ? 16_384 : 32_768)
+                let body = AIChatRequest(model: model, messages: messages, maxTokens: budget, endpoint: url, testing: testing)
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"; request.timeoutInterval = 180
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+                request.httpBody = try JSONEncoder().encode(body)
+                guard (request.httpBody?.count ?? 0) <= 45_000_000 else { throw AppFailure("图片与对话合计过大，请开始新对话或减少图片。") }
+                let (data, response) = try await session.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                    struct ServiceError: Decodable { struct Detail: Decodable { var message: String? }; var error: Detail? }
+                    let detail = (try? JSONDecoder().decode(ServiceError.self, from: data))?.error?.message ?? "请核对接口、额度及模型。"
+                    let safeDetail = String(detail.replacingOccurrences(of: key, with: "[已隐藏]").prefix(350))
+                    let imageHint = messages.contains { !$0.images.isEmpty } ? " 请确认所选模型支持图片；DeepSeek 官方可选 deepseek-flash。" : ""
+                    throw AppFailure("AI 请求失败（HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)）：\(safeDetail)" + imageHint)
+                }
+                guard data.count <= 4_000_000 else { throw AppFailure("AI 返回内容过大。") }
+                do { return try AIChatResponse.text(from: data) }
+                catch AITransportFailure.truncated {
+                    if attempt == 1 || testing { throw AppFailure("AI 回答仍达到输出上限，未应用任何更改。请减少本次修改范围后重试。") }
+                }
             }
-            guard data.count <= 2_000_000 else { throw AppFailure("AI 返回内容过大。") }
-            struct Response: Decodable {
-                struct Choice: Decodable { struct Message: Decodable { var content: String? }; var message: Message; var finish_reason: String? }
-                var choices: [Choice]
-            }
-            let choice = try JSONDecoder().decode(Response.self, from: data).choices.first
-            guard choice?.finish_reason != "length" else { throw AppFailure("AI 输出被截断，请减少单次导入的页数后重试。") }
-            guard let content = choice?.message.content else {
-                throw AppFailure("AI 未返回有效内容。")
-            }
-            return content
+            throw AppFailure("AI 未完成回答，请重试。")
     }
 
 }
