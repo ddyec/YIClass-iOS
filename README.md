@@ -5,7 +5,7 @@
 ## 3.1 更新
 
 - **桌面与锁屏小组件**：下一节课、当天课程、开课倒计时。跟随当前选中的课表，课程、时间设置、导入、AI 应用、撤销后同步刷新。
-- **紧凑周视图**：顶部控件合并，行高按可用高度调整，上午／下午／晚上分段。默认 10 节尽量在一屏内显示；小屏、大字号或更多课节时仍可滚动，所有课程可点击。冲突并排显示。
+- **紧凑周／日视图**：日视图独立使用前一天／本日／后一天，点击日期展开原生日历。顶部控件合并，行高按可用高度调整，上午／下午／晚上分段。默认 10 节尽量在一屏内显示；小屏、大字号或更多课节时仍可滚动，所有课程可点击。冲突并排显示。
 - **统一课节时间**：默认 **4 + 4 + 2**，每段数量可调。每节开始与结束在同一行。修改开始时间保留该节时长并顺移后续课程；修改结束时间联动后续开始／结束。统一时长与课间立即联动，午休与晚间间隔保留。增减分段节数时同步调整全部课表的节次编号；正在使用的课节不能直接删除。
 - **完整导入**：设置 → AI 识别课表，支持截图、图片、PDF、TXT／CSV。PDF 保留星期列与跨页关系；可直接预览结构化课表，也可让已配置的 AI 继续整理。截图使用本机 Vision 识字并附带位置，交给 AI 恢复表格结构。识别源可检查、编辑，再生成方案；新建课表导入，不覆盖原有课表。
 - **不丢未排课课程**：没有固定星期、节次的网课、军训等保留名称、教师、地点和周次，在列表的“未排时间”中查看、补充安排。导出再导入也会保留。
@@ -25,7 +25,15 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 中选择成功的运行，下载 Artifacts：
+**3.1.0 (2) 已实际构建并校验**，源码 `87ea62a7541e76aac0dbaa6c5e5f9d379f3f8238`，[成功构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953)。
+
+| 产物 | 下载 |
+| --- | --- |
+| iPhone／iPad 未签名 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953/artifacts/12393851922) |
+| Mac 模拟器 App，arm64 + x86_64（含小组件） | [下载模拟器包](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953/artifacts/12393647501) |
+| 构建日志 | [下载日志](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953/artifacts/12393762234) |
+
+后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
 - `YIClass-iOS26-unsigned-ipa`：iPhone／iPad arm64 IPA，**未签名**，安装前需用自己的 Apple 签名身份和描述文件签名。
 - `YIClass-iOS26-simulator`：Mac 上的 iOS 26 模拟器 App，包含 arm64／x86_64。
