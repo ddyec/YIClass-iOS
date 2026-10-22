@@ -8,6 +8,7 @@ on:
       - 'YIClass.xcodeproj/**'
       - 'scripts/package-build.sh'
       - 'scripts/verify_build.py'
+      - 'scripts/prepare-icons.py'
       - '.github/workflows/build.yml'
 permissions:
   contents: read
@@ -25,6 +26,7 @@ jobs:
           xcode-version: '26.0'
       - name: Validate project and test core
         run: |
+          python3 scripts/prepare-icons.py
           python3 scripts/validate_project.py
           swift test
           bash scripts/test-pdf.sh

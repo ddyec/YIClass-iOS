@@ -73,6 +73,8 @@ else:
 assert info['CFBundleIdentifier'] == 'com.ddyec.YIClassNative'
 assert info['MinimumOSVersion'] == '26.0'
 assert info.get('NSSupportsLiveActivities') is True, 'Live Activities not enabled in packaged app'
+assert info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIconSlate', 'Wrong packaged app/notification icon'
+assert info['CFBundleIcons~ipad']['CFBundlePrimaryIcon']['CFBundleIconName'] == 'AppIconSlate', 'Wrong iPad app/notification icon'
 assert size > 100_000, 'Build artifact is unexpectedly small'
 manifest = {
     'platform': kind,
@@ -88,6 +90,7 @@ manifest = {
     'sha256': digest,
     'appGroup': 'group.com.ddyec.YIClassNative',
     'supportsLiveActivities': info['NSSupportsLiveActivities'],
+    'iconName': info['CFBundleIcons']['CFBundlePrimaryIcon']['CFBundleIconName'],
     'signing': 'ad-hoc signed with matching App Group entitlements; requires Apple-authorized re-signing and matching App Group profiles before iPhone installation' if kind == 'device' else 'simulator-only; no Apple developer certificate required',
 }
 Path(output).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')

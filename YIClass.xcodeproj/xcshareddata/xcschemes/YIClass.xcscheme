@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme LastUpgradeVersion="2600" version="1.7">
-  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries>
+  <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><PreActions><ExecutionAction ActionType="Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction"><ActionContent title="Prepare app and notification icons" scriptText="python3 &quot;$SRCROOT/scripts/prepare-icons.py&quot;" shellToInvoke="/bin/bash"><EnvironmentBuildable><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="4F6027D858B72CC70E5CC8E9" BuildableName="YIClass.app" BlueprintName="YIClass" ReferencedContainer="container:YIClass.xcodeproj"/></EnvironmentBuildable></ActionContent></ExecutionAction></PreActions><BuildActionEntries>
     <BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="4F6027D858B72CC70E5CC8E9" BuildableName="YIClass.app" BlueprintName="YIClass" ReferencedContainer="container:YIClass.xcodeproj"/></BuildActionEntry>
   </BuildActionEntries></BuildAction>
   <TestAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv="YES"><Testables>

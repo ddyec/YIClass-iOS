@@ -84,7 +84,7 @@ private struct LessonActivityContent: View {
                 ActivityCourseCard(lesson: state.window, solo: true, referenceDate: state.referenceDate,
                     enlarged: fullscreen && !island)
             }
-            if daily {
+            if daily && state.lessons.count > 1 {
                 HStack {
                     Link("查看课表", destination: URL(string: "yiclass://schedule")!)
                     Spacer()
@@ -119,15 +119,17 @@ private struct ActivityCourseCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: solo ? 6 : 4) {
             Text(lesson.name).font(.system(size: solo ? (enlarged ? 28 : 22) : 16, weight: .semibold))
-                .lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: solo ? nil : 40, alignment: .topLeading)
             if solo {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    CourseClock(lesson: lesson).font(.system(size: enlarged ? 22 : 18).monospacedDigit()).fixedSize()
-                    Spacer(minLength: 0)
-                    if !lesson.location.isEmpty {
-                        Text(lesson.location).font(.system(size: enlarged ? 18 : 15)).lineLimit(2)
-                    }
+                CourseClock(lesson: lesson)
+                    .font(.system(size: enlarged ? 22 : 18).monospacedDigit())
+                    .fixedSize(horizontal: true, vertical: false)
+                if !lesson.location.isEmpty {
+                    Text(lesson.location).font(.system(size: enlarged ? 18 : 15))
+                        .lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else {
                 CourseClock(lesson: lesson).font(.system(size: 13).monospacedDigit()).lineLimit(1)
@@ -136,11 +138,11 @@ private struct ActivityCourseCard: View {
             }
             CourseTimeProgress(lesson: lesson)
         }
-        .padding(.horizontal, solo ? 15 : 7).padding(.vertical, solo ? 12 : 5)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, solo ? 18 : 7).padding(.vertical, solo ? 14 : 5)
+        .frame(maxWidth: .infinity, minHeight: solo ? 140 : nil, alignment: .leading)
         .overlay {
             if solo {
-                RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.85), lineWidth: 3)
+                RoundedRectangle(cornerRadius: 16).strokeBorder(.white.opacity(0.85), lineWidth: 3)
             } else if lesson.start <= referenceDate {
                 RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.75), lineWidth: 2.8)
             }
@@ -167,5 +169,6 @@ private struct CourseTimeProgress: View {
             EmptyView()
         } currentValueLabel: { EmptyView() }
         .progressViewStyle(.linear).tint(.white)
+        .frame(height: 4)
     }
 }

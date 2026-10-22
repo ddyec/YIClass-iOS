@@ -8,3 +8,6 @@ xcuserdata/
 .swiftpm/
 build/
 dist/
+
+# Derived small notification/settings/home-screen icon renditions.
+Sources/App/Assets.xcassets/AppIconSlate.appiconset/
