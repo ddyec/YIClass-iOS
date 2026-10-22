@@ -50,7 +50,9 @@ import YIClassCore
                 let activity: Activity<LastLessonActivityAttributes>
                 if window.visibleFrom > Date() {
                     activity = try Activity.request(attributes: attributes, content: content, pushType: nil,
-                        style: .standard, alertConfiguration: nil, start: window.visibleFrom)
+                        style: .standard,
+                        alertConfiguration: AlertConfiguration(title: "最后一节课", body: "\(window.name)", sound: .default),
+                        start: window.visibleFrom)
                 } else {
                     activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
                 }
