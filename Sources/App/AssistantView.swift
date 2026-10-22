@@ -280,6 +280,7 @@ struct PlanReviewView: View {
     let onApply: () -> Void
     @State private var issue: String?
     @State private var removedConfirmation = false
+    @State private var semesterStart = Date()
     private var proposed: [Course] { plan.courses.map { $0.materialize() } }
     private var removed: [Course] { snapshot.table.courses.filter { old in !proposed.contains { $0.id == old.id } } }
     var body: some View {
@@ -287,6 +288,7 @@ struct PlanReviewView: View {
             List {
                 Section {
                     Text(plan.explanation)
+                    if importing { DatePicker("开学日期", selection: $semesterStart, displayedComponents: .date) }
                     Text(importing ? "导入为新课表，保留已有课表与统一时间。" : "应用到“\(snapshot.table.name)”。")
                         .font(.footnote).foregroundStyle(.secondary)
                     let conflicts = ScheduleEngine.conflictCount(courses: proposed)
@@ -319,6 +321,7 @@ struct PlanReviewView: View {
                 }
             }
             .navigationTitle(plan.title).navigationBarTitleDisplayMode(.inline)
+            .onAppear { semesterStart = snapshot.table.startDate }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("返回") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -337,7 +340,8 @@ struct PlanReviewView: View {
         do {
             if importing {
                 guard store.profile == snapshot.profile else { throw AppFailure("课节时间已变化，请重新识别。") }
-                let table = try plan.proposedTable(from: snapshot.table, profile: store.profile)
+                var table = try plan.proposedTable(from: snapshot.table, profile: store.profile)
+                table.startDate = semesterStart
                 try store.importTable(ImportPreview(table: table, suggestedProfile: nil), adoptTimes: false)
             } else { try store.apply(plan, snapshot: snapshot) }
             dismiss(); onApply()

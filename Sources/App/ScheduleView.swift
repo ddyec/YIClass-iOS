@@ -74,7 +74,13 @@ struct ScheduleView: View {
                     .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == 1)
                 Menu {
                     ForEach(1...store.table.totalWeeks, id: \.self) { value in Button("第 \(value) 周") { week = value } }
-                } label: { Text("第 \(week) 周").font(.headline).frame(maxWidth: .infinity) }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("第 \(week) 周").font(.headline)
+                        Text(ScheduleEngine.date(week: week, weekday: 1, table: store.table), format: .dateTime.month().day())
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.frame(maxWidth: .infinity)
+                }
                 Button("本周") { jumpToCurrentWeek() }.font(.subheadline)
                 Button("下一周", systemImage: "chevron.right") { changeWeek(1) }
                     .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == store.table.totalWeeks)

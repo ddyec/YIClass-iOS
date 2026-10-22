@@ -94,13 +94,16 @@ struct ImportReviewView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let preview: ImportPreview
+    @State private var importName = ""
+    @State private var startDate = Date()
     @State private var adoptTimes = false
     @State private var issue: String?
     var body: some View {
         NavigationStack {
             Form {
                 Section("课表预览") {
-                    LabeledContent("名称", value: preview.table.name)
+                    TextField("课表名称", text: $importName)
+                    DatePicker("开学日期", selection: $startDate, displayedComponents: .date)
                     LabeledContent("课程", value: "\(preview.table.courses.count) 门")
                     LabeledContent("学期", value: "\(preview.table.totalWeeks) 周")
                     if let warning = preview.warning { Text(warning).font(.footnote).foregroundStyle(.secondary) }
@@ -130,11 +133,16 @@ struct ImportReviewView: View {
                 Button("好", role: .cancel) { issue = nil }
             } message: { Text(issue ?? "") }
             .navigationTitle("确认导入").navigationBarTitleDisplayMode(.inline)
+            .onAppear { importName = preview.table.name; startDate = preview.table.startDate }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("导入") {
-                        do { try store.importTable(preview, adoptTimes: adoptTimes); dismiss() }
+                        do {
+                            var confirmed = preview
+                            confirmed.table.name = importName; confirmed.table.startDate = startDate
+                            try store.importTable(confirmed, adoptTimes: adoptTimes); dismiss()
+                        }
                         catch { issue = error.localizedDescription }
                     }
                 }
