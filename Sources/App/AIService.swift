@@ -72,15 +72,28 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             let response = try await session.respond(to: context + "\n对话：\n" + conversation)
             output = response.content
         case .remote:
+            output = try await remote(messages: [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages,
+                                      endpoint: endpoint, model: model, key: APIKeyStore.read())
+        }
+        try Task.checkCancellation()
+        return try AssistantReply.parse(output, table: table, profile: profile)
+    }
+    static func test(endpoint: String, model: String, key: String) async throws -> String {
+        let result = try await remote(messages: [ChatMessage(role: "user", content: "请只回复 OK")],
+                                      endpoint: endpoint, model: model, key: key, testing: true)
+        guard !result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AppFailure("接口返回空内容。") }
+        return "连接成功 · \(model)"
+    }
+    private static func remote(messages: [ChatMessage], endpoint: String, model: String, key: String,
+                               testing: Bool = false) async throws -> String {
             guard let components = URLComponents(string: endpoint), components.scheme == "https",
                   components.host != nil, components.user == nil, components.password == nil,
                   let url = components.url, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw AppFailure("请配置完整的 HTTPS Chat Completions 地址和模型名。")
             }
-            let key = try APIKeyStore.read()
             guard !key.isEmpty else { throw AppFailure("请先在设置中保存 API Key。") }
-            struct Request: Encodable { var model: String; var messages: [ChatMessage]; var temperature = 0.2; var max_tokens = 6000 }
-            let body = Request(model: model, messages: [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages)
+            struct Request: Encodable { var model: String; var messages: [ChatMessage]; var temperature = 0.2; var max_tokens: Int }
+            let body = Request(model: model, messages: messages, max_tokens: testing ? 32 : 6000)
             var request = URLRequest(url: url)
             request.httpMethod = "POST"; request.timeoutInterval = 60
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -102,11 +115,9 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             guard let content = try JSONDecoder().decode(Response.self, from: data).choices.first?.message.content else {
                 throw AppFailure("AI 未返回有效内容。")
             }
-            output = content
-        }
-        try Task.checkCancellation()
-        return try AssistantReply.parse(output, table: table, profile: profile)
+            return content
     }
+
 }
 
 enum ImageTextRecognition {
@@ -124,7 +135,14 @@ enum ImageTextRecognition {
             request.recognitionLanguages = ["zh-Hans", "en-US"]
             request.usesLanguageCorrection = false
             try VNImageRequestHandler(cgImage: image).perform([request])
-            let text = request.results?.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n") ?? ""
+            let text = request.results?.sorted { a, b in
+                if abs(a.boundingBox.midY - b.boundingBox.midY) > 0.015 { return a.boundingBox.midY > b.boundingBox.midY }
+                return a.boundingBox.minX < b.boundingBox.minX
+            }.compactMap { observation -> String? in
+                guard let text = observation.topCandidates(1).first?.string else { return nil }
+                let box = observation.boundingBox
+                return String(format: "[x=%.3f y=%.3f w=%.3f h=%.3f] %@", box.minX, 1 - box.maxY, box.width, box.height, text)
+            }.joined(separator: "\n") ?? ""
             guard !text.isEmpty else { throw AppFailure("没有识别到文字，请选择更清晰的课表截图。") }
             return text
         }.value

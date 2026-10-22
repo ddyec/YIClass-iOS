@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 import YIClassCore
 
 @MainActor @Observable final class AppStore {
@@ -42,6 +43,7 @@ import YIClassCore
                 let loaded = try JSONCoding.decoder().decode(AppData.self, from: Data(contentsOf: file))
                 try loaded.validate(); data = loaded
             }
+            syncWidgets()
         } catch {
             self.error = "本地数据读取失败，原文件已保留。\(error.localizedDescription)"; loadFailed = true
         }
@@ -54,7 +56,7 @@ import YIClassCore
             let preserved = file.deletingLastPathComponent().appending(path: "library-damaged-\(UUID()).json")
             try FileManager.default.copyItem(at: file, to: preserved)
             try JSONCoding.encoder().encode(restored).write(to: file, options: [.atomic, .completeFileProtection])
-            data = restored; loadFailed = false; error = nil
+            data = restored; loadFailed = false; error = nil; syncWidgets()
         } catch { self.error = "恢复失败：\(error.localizedDescription)" }
     }
     private func commit(_ next: AppData, undoable: Bool = false) throws {
@@ -68,7 +70,13 @@ import YIClassCore
         try encoded.write(to: file, options: [.atomic, .completeFileProtection])
         undoData = undoable ? data : nil
         data = next
+        syncWidgets()
     }
+    private func syncWidgets() {
+        do { try SharedLibrary.write(data); WidgetCenter.shared.reloadAllTimelines() }
+        catch { widgetSyncIssue = error.localizedDescription }
+    }
+    private(set) var widgetSyncIssue: String?
     func perform(_ operation: () throws -> Void) {
         do { try operation() } catch { self.error = error.localizedDescription }
     }

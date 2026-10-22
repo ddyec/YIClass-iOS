@@ -8,13 +8,14 @@ public struct CourseTransfer: Codable, Sendable {
     public var teacher: String?
     public var color: UInt32?
     public var schedules: [CourseSchedule]
+    public var unscheduledWeeks: [Int]?
     public init(course: Course) {
         id = course.id; name = course.name; location = course.location; teacher = course.teacher
-        color = course.color; schedules = course.schedules
+        color = course.color; schedules = course.schedules; unscheduledWeeks = course.unscheduledWeeks
     }
     public func materialize() -> Course {
         Course(id: id ?? UUID(), name: name, location: location ?? "", teacher: teacher ?? "",
-               color: color ?? 0xFF637EEA, schedules: schedules)
+               color: color ?? 0xFF637EEA, schedules: schedules, unscheduledWeeks: unscheduledWeeks)
     }
 }
 

@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 scripts/validate_project.py
           swift test
+          bash scripts/test-pdf.sh
       - name: Archive and package iPhone IPA
         run: bash scripts/package-build.sh device
       - name: Upload iPhone build

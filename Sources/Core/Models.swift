@@ -23,8 +23,59 @@ public struct PeriodTime: Codable, Equatable, Identifiable, Sendable {
 /// The only period-time configuration. Timetables deliberately have no copy.
 public struct TimeProfile: Codable, Equatable, Sendable {
     public var periods: [PeriodTime]
-    public init(periods: [PeriodTime]) { self.periods = periods }
-    public static let standard = TimeProfile(periods: [480, 535, 600, 655, 840, 895, 960, 1015, 1140, 1195, 1250, 1305]
+    public var sessionCounts: [Int]?
+    public init(periods: [PeriodTime], sessionCounts: [Int]? = nil) {
+        self.periods = periods; self.sessionCounts = sessionCounts
+    }
+    public var counts: [Int] {
+        if let sessionCounts, sessionCounts.count == 3, sessionCounts.allSatisfy({ $0 >= 0 }), sessionCounts.reduce(0, +) == periods.count { return sessionCounts }
+        return [periods.filter { $0.start < 720 }.count, periods.filter { $0.start >= 720 && $0.start < 1080 }.count,
+                periods.filter { $0.start >= 1080 }.count]
+    }
+    public mutating func moveStart(_ index: Int, to minutes: Int) throws {
+        var next = self
+        let delta = minutes - periods[index].start
+        for i in index..<periods.count { next.periods[i].start += delta; next.periods[i].end += delta }
+        try next.validate(); self = next
+    }
+    public mutating func moveEnd(_ index: Int, to minutes: Int) throws {
+        var next = self
+        let delta = minutes - periods[index].end
+        next.periods[index].end = minutes
+        for i in (index + 1)..<periods.count { next.periods[i].start += delta; next.periods[i].end += delta }
+        try next.validate(); self = next
+    }
+    public mutating func setDuration(_ duration: Int, gap: Int? = nil) throws {
+        var next = self
+        for i in periods.indices {
+            if i > 0 {
+                let oldGap = periods[i].start - periods[i - 1].end
+                let isBoundary = counts[0] == i || counts[0] + counts[1] == i
+                next.periods[i].start = next.periods[i - 1].end + (isBoundary ? oldGap : (gap ?? oldGap))
+            }
+            next.periods[i].end = next.periods[i].start + duration
+        }
+        try next.validate(); self = next
+    }
+    public mutating func resizeSessions(_ values: [Int], duration: Int, gap: Int) throws {
+        guard values.count == 3, values.allSatisfy({ (0...12).contains($0) }), (1...20).contains(values.reduce(0, +)) else {
+            throw AppFailure("每天应有 1–20 节课。")
+        }
+        let anchors = [480, 840, 1140]
+        var result: [PeriodTime] = []
+        var offset = 0
+        for group in 0..<3 {
+            let old = Array(periods.dropFirst(offset).prefix(counts[group])); offset += counts[group]
+            for index in 0..<values[group] {
+                let start = index < old.count ? old[index].start : (index == 0 ? anchors[group] : result.last!.end + gap)
+                let end = index < old.count ? old[index].end : start + duration
+                result.append(PeriodTime(period: result.count + 1, start: start, end: end))
+            }
+        }
+        let next = TimeProfile(periods: result, sessionCounts: values)
+        try next.validate(); self = next
+    }
+    public static let standard = TimeProfile(periods: [480, 535, 600, 655, 840, 895, 960, 1015, 1140, 1195]
         .enumerated().map { PeriodTime(period: $0.offset + 1, start: $0.element, end: $0.element + 45) })
     public func validate() throws {
         guard (1...20).contains(periods.count) else { throw AppFailure("每天应有 1–20 节课。") }
@@ -68,14 +119,19 @@ public struct Course: Codable, Equatable, Identifiable, Sendable {
     public var teacher: String
     public var color: UInt32
     public var schedules: [CourseSchedule]
+    public var unscheduledWeeks: [Int]?
     public init(id: UUID = UUID(), name: String, location: String = "", teacher: String = "",
-                color: UInt32 = 0xFF637EEA, schedules: [CourseSchedule]) {
+                color: UInt32 = 0xFF637EEA, schedules: [CourseSchedule], unscheduledWeeks: [Int]? = nil) {
         self.id = id; self.name = name; self.location = location; self.teacher = teacher
-        self.color = color; self.schedules = schedules
+        self.color = color; self.schedules = schedules; self.unscheduledWeeks = unscheduledWeeks
     }
     public func validate(profile: TimeProfile, totalWeeks: Int) throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
-              !schedules.isEmpty, schedules.count <= 100 else { throw AppFailure("课程名称或排课信息无效。") }
+              (!schedules.isEmpty || unscheduledWeeks != nil), schedules.count <= 100 else { throw AppFailure("课程名称或排课信息无效。") }
+        if let weeks = unscheduledWeeks {
+            guard schedules.isEmpty, !weeks.isEmpty, Set(weeks).count == weeks.count,
+                  weeks.allSatisfy({ (1...totalWeeks).contains($0) }) else { throw AppFailure("未排课课程的周次无效。") }
+        }
         for schedule in schedules {
             guard (1...7).contains(schedule.weekday), !schedule.periods.isEmpty, !schedule.weekPattern.isEmpty,
                   Set(schedule.periods).count == schedule.periods.count,

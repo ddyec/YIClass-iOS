@@ -21,6 +21,10 @@ struct ScheduleView: View {
                 AppBackdrop()
                 VStack(spacing: 12) {
                     controls.padding(.horizontal, 16)
+                    let unplaced = store.table.courses.filter { $0.unscheduledWeeks != nil }
+                    if !unplaced.isEmpty {
+                        Button("未排时间课程 \(unplaced.count) 门 · 列表中查看") { mode = .list }.font(.caption)
+                    }
                     if store.table.courses.isEmpty {
                         ContentUnavailableView {
                             Label("把这一周安排好", systemImage: "calendar.badge.plus")
@@ -102,6 +106,19 @@ struct ScheduleView: View {
                 Picker("星期", selection: $day) {
                     ForEach(1...7, id: \.self) { Text(weekdayNames[$0 - 1]).tag($0) }
                 }.pickerStyle(.menu)
+            }
+            let unplaced = store.table.courses.filter { $0.unscheduledWeeks != nil }
+            if !unplaced.isEmpty {
+                Section("未排时间") {
+                    ForEach(unplaced) { course in
+                        Button { selection = CourseSelection(course: course) } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(course.name).foregroundStyle(.primary)
+                                Text("第 \((course.unscheduledWeeks ?? []).map(String.init).joined(separator: ",")) 周 · \(course.location)").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
             }
             let blocks = ScheduleEngine.blocks(table: store.table, week: week)
             let days = mode == .day ? [day] : Array(1...7)

@@ -21,7 +21,7 @@ def add(name, content):
 def refs(values):
     return '(' + ', '.join(values) + ',)'
 
-app_files = sorted((ROOT / 'Sources/App').glob('*.swift'))
+app_files = sorted((ROOT / 'Sources/App').glob('*.swift')) + sorted((ROOT / 'Sources/Shared').glob('*.swift'))
 test_files = sorted((ROOT / 'Tests/UI').glob('*.swift'))
 app_refs, app_builds, test_refs, test_builds = [], [], [], []
 for files, file_refs, builds in [(app_files, app_refs, app_builds), (test_files, test_refs, test_builds)]:
@@ -31,15 +31,23 @@ for files, file_refs, builds in [(app_files, app_refs, app_builds), (test_files,
         file_refs.append(file_ref)
         builds.append(add('build:' + path, f'isa = PBXBuildFile; fileRef = {file_ref};'))
 
+widget_refs, widget_builds = [], []
+for file in sorted((ROOT / 'Sources/Widget').glob('*.swift')) + sorted((ROOT / 'Sources/Shared').glob('*.swift')):
+    path = str(file.relative_to(ROOT))
+    ref = add('widget:' + path, f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {quote(path)}; sourceTree = SOURCE_ROOT;')
+    widget_refs.append(ref)
+    widget_builds.append(add('widgetbuild:' + path, f'isa = PBXBuildFile; fileRef = {ref};'))
+widget_product = add('widgetproduct', 'isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = YIClassWidget.appex; sourceTree = BUILT_PRODUCTS_DIR;')
+widget_group = add('widgetgroup', f'isa = PBXGroup; children = {refs(widget_refs)}; name = Widget; sourceTree = "<group>";')
 assets = add('assets', 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Sources/App/Assets.xcassets; sourceTree = SOURCE_ROOT;')
 privacy = add('privacy', 'isa = PBXFileReference; lastKnownFileType = text.xml; path = Sources/App/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT;')
 resource_builds = [add('build:assets', f'isa = PBXBuildFile; fileRef = {assets};'), add('build:privacy', f'isa = PBXBuildFile; fileRef = {privacy};')]
 product = add('product', 'isa = PBXFileReference; explicitFileType = wrapper.application; path = YIClass.app; sourceTree = BUILT_PRODUCTS_DIR;')
 test_product = add('testproduct', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = YIClassUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
-products = add('products', f'isa = PBXGroup; children = {refs([product, test_product])}; name = Products; sourceTree = "<group>";')
+products = add('products', f'isa = PBXGroup; children = {refs([product, test_product, widget_product])}; name = Products; sourceTree = "<group>";')
 app_group = add('appgroup', f'isa = PBXGroup; children = {refs(app_refs + [assets, privacy])}; name = App; sourceTree = "<group>";')
 test_group = add('testgroup', f'isa = PBXGroup; children = {refs(test_refs)}; name = UITests; sourceTree = "<group>";')
-root_group = add('rootgroup', f'isa = PBXGroup; children = {refs([app_group, test_group, products])}; sourceTree = "<group>";')
+root_group = add('rootgroup', f'isa = PBXGroup; children = {refs([app_group, widget_group, test_group, products])}; sourceTree = "<group>";')
 
 package = add('package', 'isa = XCLocalSwiftPackageReference; relativePath = .;')
 core_product = add('coreproduct', f'isa = XCSwiftPackageProductDependency; package = {package}; productName = YIClassCore;')
@@ -50,6 +58,15 @@ resources = add('resources', f'isa = PBXResourcesBuildPhase; buildActionMask = 2
 frameworks = add('frameworks', f'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = {refs([core_build])}; runOnlyForDeploymentPostprocessing = 0;')
 test_sources = add('testsources', f'isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = {refs(test_builds)}; runOnlyForDeploymentPostprocessing = 0;')
 test_frameworks = add('testframeworks', 'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;')
+
+widget_core_product = add('widgetcoreproduct', f'isa = XCSwiftPackageProductDependency; package = {package}; productName = YIClassCore;')
+widget_core_build = add('widgetcorebuild', f'isa = PBXBuildFile; productRef = {widget_core_product};')
+widget_sources = add('widgetsources', f'isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = {refs(widget_builds)}; runOnlyForDeploymentPostprocessing = 0;')
+widget_frameworks = add('widgetframeworks', f'isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = {refs([widget_core_build])}; runOnlyForDeploymentPostprocessing = 0;')
+embed_build = add('embedwidgetbuild', f'isa = PBXBuildFile; fileRef = {widget_product}; settings = {{ ATTRIBUTES = (RemoveHeadersOnCopy,); }};')
+embed_phase = add('embedwidgets', f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = {refs([embed_build])}; name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0;')
+widget_proxy = add('widgetproxy', f'isa = PBXContainerItemProxy; containerPortal = {uid("project")}; proxyType = 1; remoteGlobalIDString = {uid("widgettarget")}; remoteInfo = YIClassWidget;')
+widget_dependency = add('widgetdependency', f'isa = PBXTargetDependency; target = {uid("widgettarget")}; targetProxy = {widget_proxy};')
 
 project_settings = {
     'CLANG_ENABLE_MODULES': 'YES', 'SDKROOT': 'iphoneos', 'IPHONEOS_DEPLOYMENT_TARGET': '26.0',
@@ -65,14 +82,25 @@ app_settings = {
     'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad': 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight',
     'TARGETED_DEVICE_FAMILY': '1,2', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator',
     'SUPPORTS_MACCATALYST': 'NO', 'SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD': 'NO',
-    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.0.0', 'CURRENT_PROJECT_VERSION': '1',
+    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.1.0', 'CURRENT_PROJECT_VERSION': '2',
     'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon', 'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME': 'AccentColor',
-    'SWIFT_EMIT_LOC_STRINGS': 'YES',
+    'SWIFT_EMIT_LOC_STRINGS': 'YES', 'CODE_SIGN_ENTITLEMENTS': 'Sources/App/YIClass.entitlements',
 }
 test_settings = {
     'PRODUCT_BUNDLE_IDENTIFIER': 'com.ddyec.YIClassNative.UITests', 'PRODUCT_NAME': 'YIClassUITests',
     'GENERATE_INFOPLIST_FILE': 'YES', 'TARGETED_DEVICE_FAMILY': '1,2', 'TEST_TARGET_NAME': 'YIClass',
     'CODE_SIGN_STYLE': 'Automatic',
+}
+
+widget_settings = {
+    'PRODUCT_BUNDLE_IDENTIFIER': 'com.ddyec.YIClassNative.Widget', 'PRODUCT_NAME': 'YIClassWidget',
+    'GENERATE_INFOPLIST_FILE': 'YES', 'INFOPLIST_FILE': 'Sources/Widget/Info.plist',
+    'INFOPLIST_KEY_CFBundleDisplayName': '课程安排', 'SKIP_INSTALL': 'YES',
+    'APPLICATION_EXTENSION_API_ONLY': 'YES', 'TARGETED_DEVICE_FAMILY': '1,2',
+    'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'SUPPORTS_MACCATALYST': 'NO',
+    'CODE_SIGN_STYLE': 'Automatic', 'CODE_SIGN_ENTITLEMENTS': 'Sources/Widget/YIClass.entitlements',
+    'MARKETING_VERSION': '3.1.0', 'CURRENT_PROJECT_VERSION': '2',
+    'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks',
 }
 
 def configuration_list(name, settings):
@@ -90,11 +118,13 @@ def configuration_list(name, settings):
 project_configs = configuration_list('project', project_settings)
 app_configs = configuration_list('app', app_settings)
 test_configs = configuration_list('test', test_settings)
-app_target = add('apptarget', f'isa = PBXNativeTarget; buildConfigurationList = {app_configs}; buildPhases = {refs([sources, frameworks, resources])}; buildRules = (); dependencies = (); name = YIClass; packageProductDependencies = {refs([core_product])}; productName = YIClass; productReference = {product}; productType = "com.apple.product-type.application";')
+widget_configs = configuration_list('widget', widget_settings)
+widget_target = add('widgettarget', f'isa = PBXNativeTarget; buildConfigurationList = {widget_configs}; buildPhases = {refs([widget_sources, widget_frameworks])}; buildRules = (); dependencies = (); name = YIClassWidget; packageProductDependencies = {refs([widget_core_product])}; productName = YIClassWidget; productReference = {widget_product}; productType = "com.apple.product-type.app-extension";')
+app_target = add('apptarget' , f'isa = PBXNativeTarget; buildConfigurationList = {app_configs}; buildPhases = {refs([sources, frameworks, resources, embed_phase])}; buildRules = (); dependencies = {refs([widget_dependency])}; name = YIClass; packageProductDependencies = {refs([core_product])}; productName = YIClass; productReference = {product}; productType = "com.apple.product-type.application";')
 proxy = add('testproxy', f'isa = PBXContainerItemProxy; containerPortal = {uid("project")}; proxyType = 1; remoteGlobalIDString = {app_target}; remoteInfo = YIClass;')
 dependency = add('testdependency', f'isa = PBXTargetDependency; target = {app_target}; targetProxy = {proxy};')
 test_target = add('testtarget', f'isa = PBXNativeTarget; buildConfigurationList = {test_configs}; buildPhases = {refs([test_sources, test_frameworks])}; buildRules = (); dependencies = {refs([dependency])}; name = YIClassUITests; productName = YIClassUITests; productReference = {test_product}; productType = "com.apple.product-type.bundle.ui-testing";')
-add('project', f'isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2600; TargetAttributes = {{ {test_target} = {{ TestTargetID = {app_target}; }}; }}; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = ("zh-Hans", en, Base); mainGroup = {root_group}; packageReferences = {refs([package])}; productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = {refs([app_target, test_target])};')
+add('project', f'isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2600; TargetAttributes = {{ {test_target} = {{ TestTargetID = {app_target}; }}; }}; }}; buildConfigurationList = {project_configs}; compatibilityVersion = "Xcode 14.0"; developmentRegion = zh-Hans; hasScannedForEncodings = 0; knownRegions = ("zh-Hans", en, Base); mainGroup = {root_group}; packageReferences = {refs([package])}; productRefGroup = {products}; projectDirPath = ""; projectRoot = ""; targets = {refs([app_target, widget_target, test_target])};')
 project_dir = ROOT / 'YIClass.xcodeproj'
 project_dir.mkdir(exist_ok=True)
 (project_dir / 'project.pbxproj').write_text('// !$*UTF8*$!\n{\n\tarchiveVersion = 1;\n\tclasses = {};\n\tobjectVersion = 60;\n\tobjects = {\n' + '\n'.join(objects) + f'\n\t}};\n\trootObject = {uid("project")};\n}}\n')

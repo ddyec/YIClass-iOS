@@ -19,6 +19,7 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     @State private var importing = false
+    @State private var aiImport = false
     @State private var exporting = false
     @State private var document = JSONDocument(data: Data())
     @State private var selection: ImportSelection?
@@ -26,30 +27,19 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    HStack(spacing: 16) {
-                        BrandMark()
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("YIClass").font(.title2.bold())
-                            Text("为每一周，留一点从容").font(.subheadline).foregroundStyle(.secondary)
-                            Text("Swift · iOS 26+").font(.caption).foregroundStyle(.tertiary)
-                        }
-                    }.padding(.vertical, 8)
-                }
                 Section("外观") {
                     Picker("显示模式", selection: $appearance) {
                         ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
                     }
-                    Text("默认跟随系统，夜间自动使用深色背景与适配后的课程卡片。")
-                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
                 } footer: {
-                    Text("所有课表共用课节时间。新建、切换、导入和 AI 方案均不会重置你的时间设置。学期开始日所在周按周一计为第 1 周。")
+                    Text("所有课表共用课节时间。")
                 }
-                Section("迁移与备份") {
+                Section("导入与备份") {
+                    Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
                     Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
                         do {
@@ -57,7 +47,11 @@ struct SettingsView: View {
                             exporting = true
                         } catch { store.error = error.localizedDescription }
                     }
-                    Text("支持旧版 Flutter 导出的 JSON。原 Isar 数据库不能直接读取；旧版文件缺少的自定义时间需要在这里补设一次。")
+                    Text("支持 YIClass JSON 课表。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                Section("小组件") {
+                    Text(store.widgetSyncIssue ?? "桌面与锁屏小组件显示当前课表，保存后自动同步。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("智能助手") { NavigationLink("AI 模式与接口配置") { AISettingsView() } }
@@ -72,7 +66,8 @@ struct SettingsView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                     Link("原项目与开源协议", destination: URL(string: "https://github.com/ddyec/YIClass")!)
                 }
-            }.navigationTitle("设置")
+            }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
+            .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
                 do {
                     let url = try result.get()
@@ -86,6 +81,7 @@ struct SettingsView: View {
             .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "YIClass-课表") { result in
                 if case .failure(let error) = result { store.error = error.localizedDescription }
             }
+            .sheet(isPresented: $aiImport) { NavigationStack { AssistantView(importMode: true).toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { aiImport = false } } } } }
             .sheet(item: $selection) { ImportReviewView(preview: $0.preview) }
             .confirmationDialog("删除“\(store.table.name)”？", isPresented: $deleting, titleVisibility: .visible) {
                 Button("删除课表", role: .destructive) { store.perform { try store.deleteTable(store.table.id) } }
@@ -116,7 +112,17 @@ struct ImportReviewView: View {
                     }
                 } footer: { Text("导入会新建一份课表。现有课程不会被覆盖。") }
                 Section("课程") {
-                    ForEach(preview.table.courses) { course in Text(course.name) }
+                    ForEach(preview.table.courses) { course in
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(course.name)
+                            Text([course.location, course.teacher].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary)
+                            ForEach(course.schedules.indices, id: \.self) { index in
+                                let schedule = course.schedules[index]
+                                Text("\(weekdayNames[schedule.weekday - 1]) · \(schedule.periods.map(String.init).joined(separator: ",")) 节 · 第 \(schedule.weekPattern.map(String.init).joined(separator: ",")) 周").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if let weeks = course.unscheduledWeeks { Text("未排时间 · 第 \(weeks.map(String.init).joined(separator: ",")) 周").font(.caption).foregroundStyle(.secondary) }
+                        }
+                    }
                 }
             }
             .navigationTitle("确认导入").navigationBarTitleDisplayMode(.inline)
@@ -138,47 +144,73 @@ struct TimeSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft = TimeProfile.standard
     @State private var duration = 45
+    @State private var gap = 10
+    @State private var issue: String?
+    private let sessions = ["上午", "下午", "晚上"]
     var body: some View {
         Form {
-            Section {
-                Text("这份时间配置对全部课表生效，也用于新建和导入。")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Stepper("统一时长：\(duration) 分钟", value: $duration, in: 10...120, step: 5)
-                Button("保留各节开始时间，统一时长") {
-                    for index in draft.periods.indices { draft.periods[index].end = draft.periods[index].start + duration }
+            Section("每日课节 · 共 \(draft.periods.count) 节") {
+                ForEach(0..<3, id: \.self) { group in
+                    Stepper("\(sessions[group])  \(draft.counts[group]) 节", value: countBinding(group), in: 0...12)
+                }
+                Stepper("每节 \(duration) 分钟", value: Binding(get: { duration }, set: { value in
+                    change { try draft.setDuration(value) }; duration = draft.periods.first.map { $0.end - $0.start } ?? 45
+                }), in: 10...120, step: 5)
+                Stepper("课间 \(gap) 分钟", value: Binding(get: { gap }, set: { value in
+                    change { try draft.setDuration(duration, gap: value) }; gap = typicalGap
+                }), in: 0...60, step: 5)
+            }
+            ForEach(0..<3, id: \.self) { group in
+                if draft.counts[group] > 0 {
+                    Section(sessions[group]) {
+                        ForEach(indices(group), id: \.self) { index in
+                            HStack(spacing: 4) {
+                                Text("\(index + 1)").font(.subheadline.monospacedDigit()).foregroundStyle(.secondary).frame(width: 24)
+                                DatePicker("第 \(index + 1) 节开始", selection: timeBinding(index, end: false), displayedComponents: .hourAndMinute).labelsHidden()
+                                Text("–").foregroundStyle(.tertiary)
+                                DatePicker("第 \(index + 1) 节结束", selection: timeBinding(index, end: true), displayedComponents: .hourAndMinute).labelsHidden()
+                            }.frame(maxWidth: .infinity)
+                        }
+                    }
                 }
             }
-            ForEach(draft.periods.indices, id: \.self) { index in
-                Section("第 \(index + 1) 节") {
-                    DatePicker("开始", selection: timeBinding(index, end: false), displayedComponents: .hourAndMinute)
-                    DatePicker("结束", selection: timeBinding(index, end: true), displayedComponents: .hourAndMinute)
-                }
-            }
-            Section {
-                Button("增加一节") {
-                    let start = (draft.periods.last?.end ?? 470) + 10
-                    draft.periods.append(PeriodTime(period: draft.periods.count + 1, start: start, end: start + 45))
-                }.disabled(draft.periods.count >= 20 || (draft.periods.last?.end ?? 0) + 55 >= 1440)
-                Button("移除最后一节", role: .destructive) { draft.periods.removeLast() }.disabled(draft.periods.count <= 1)
-            } footer: { Text("保存时会检查时间重叠，以及全部课表的节次引用。若有课程使用被移除的节次，请先调整课程。") }
+            Section { Text("修改时间会联动后续课节；增减节数会重新编号。保存后对所有课表生效。")
+                .font(.footnote).foregroundStyle(.secondary) }
         }
         .navigationTitle("统一课节时间").navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("保存") {
-                    do { try store.updateProfile(draft); dismiss() } catch { store.error = error.localizedDescription }
+                    do { try store.updateProfile(draft); dismiss() } catch { issue = error.localizedDescription }
                 }
             }
-        }.onAppear { draft = store.profile }
+        }.onAppear { draft = store.profile; draft.sessionCounts = draft.counts; duration = draft.periods.first.map { $0.end - $0.start } ?? 45; gap = typicalGap }
+        .alert("无法调整", isPresented: Binding(get: { issue != nil }, set: { if !$0 { issue = nil } })) {
+            Button("好", role: .cancel) { issue = nil }
+        } message: { Text(issue ?? "") }
+    }
+    private var typicalGap: Int { draft.periods.count > 1 ? max(0, draft.periods[1].start - draft.periods[0].end) : 10 }
+    private func indices(_ group: Int) -> Range<Int> {
+        let start = draft.counts.prefix(group).reduce(0, +)
+        return start..<(start + draft.counts[group])
+    }
+    private func change(_ operation: () throws -> Void) {
+        do { try operation() } catch { issue = error.localizedDescription }
+    }
+    private func countBinding(_ group: Int) -> Binding<Int> {
+        Binding(get: { draft.counts[group] }, set: { value in
+            var counts = draft.counts; counts[group] = value
+            change { try draft.resizeSessions(counts, duration: duration, gap: gap) }
+        })
     }
     private func timeBinding(_ index: Int, end: Bool) -> Binding<Date> {
         Binding {
             let minutes = end ? draft.periods[index].end : draft.periods[index].start
-            return Calendar.current.date(bySettingHour: min(23, minutes / 60), minute: minutes % 60, second: 0, of: Date())!
+            return Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date())!
         } set: { value in
             let parts = Calendar.current.dateComponents([.hour, .minute], from: value)
             let minutes = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
-            if end { draft.periods[index].end = minutes } else { draft.periods[index].start = minutes }
+            change { if end { try draft.moveEnd(index, to: minutes) } else { try draft.moveStart(index, to: minutes) } }
         }
     }
 }

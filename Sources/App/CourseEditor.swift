@@ -26,6 +26,12 @@ struct CourseEditor: View {
                         }
                     }.padding(.vertical, 4)
                 }
+                if let weeks = draft.unscheduledWeeks {
+                    Section("未排时间") {
+                        Text("第 \(weeks.map(String.init).joined(separator: ",")) 周")
+                        Text("补充上课安排后，会转为正常排课课程。").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
                 ForEach(draft.schedules.indices, id: \.self) { index in
                     Section {
                         Picker("星期", selection: $draft.schedules[index].weekday) {
@@ -45,6 +51,7 @@ struct CourseEditor: View {
                     } header: { Text("上课安排 \(index + 1)") }
                 }
                 Button("增加上课安排", systemImage: "plus") {
+                    draft.unscheduledWeeks = nil
                     draft.schedules.append(CourseSchedule(weekday: 1, periods: [1, 2].filter { $0 <= store.profile.periods.count },
                                                          weekPattern: Array(1...store.table.totalWeeks)))
                 }
@@ -64,7 +71,7 @@ struct CourseEditor: View {
                     Button("保存") {
                         do { try store.saveCourse(draft, tableID: tableID); dismiss() }
                         catch { store.error = error.localizedDescription }
-                    }.disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || draft.schedules.isEmpty)
+                    }.disabled(draft.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (draft.schedules.isEmpty && draft.unscheduledWeeks == nil))
                 }
             }
             .confirmationDialog("删除这门课程？", isPresented: $deleteConfirmation, titleVisibility: .visible) {

@@ -19,6 +19,12 @@ if kind == 'device':
         info = plistlib.loads(archive.read(prefix + 'Info.plist'))
         executable = archive.read(prefix + info['CFBundleExecutable'])
         names = archive.namelist()
+        extension = prefix + 'PlugIns/YIClassWidget.appex/'
+        widget_info = plistlib.loads(archive.read(extension + 'Info.plist'))
+        widget_binary = archive.read(extension + widget_info['CFBundleExecutable'])
+        assert struct.unpack_from('<II', widget_binary) == (0xFEEDFACF, 0x0100000C), 'Missing arm64 widget executable'
+        assert widget_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.widgetkit-extension'
+        assert widget_info['MinimumOSVersion'] == '26.0'
         assert prefix + 'Assets.car' in names, 'Missing app resources'
         assert prefix + 'PrivacyInfo.xcprivacy' in names, 'Missing privacy manifest'
         assert prefix + 'embedded.mobileprovision' not in names, 'Unexpected provisioning profile'
@@ -29,6 +35,8 @@ if kind == 'device':
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
 elif kind == 'simulator':
     info = plistlib.loads((target / 'Info.plist').read_bytes())
+    widget_info = plistlib.loads((target / 'PlugIns/YIClassWidget.appex/Info.plist').read_bytes())
+    assert widget_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.widgetkit-extension'
     binary = target / info['CFBundleExecutable']
     executable = binary.read_bytes()
     assert 'iPhoneSimulator' in info['CFBundleSupportedPlatforms'], 'Expected a simulator app'
@@ -49,6 +57,7 @@ manifest = {
     'build': info['CFBundleVersion'],
     'minimumOS': info['MinimumOSVersion'],
     'supportedPlatforms': info['CFBundleSupportedPlatforms'],
+    'widgetExtension': widget_info['CFBundleIdentifier'],
     'sourceCommit': os.environ.get('GITHUB_SHA', 'local'),
     'createdUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'sizeBytes': size,
