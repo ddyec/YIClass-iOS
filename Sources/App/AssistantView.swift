@@ -84,7 +84,9 @@ struct AssistantView: View {
                         if busy { HStack { ProgressView(); Text("正在整理…").foregroundStyle(.secondary); Spacer(); Button("取消") { cancel() } } }
                         Color.clear.frame(height: 1).id("end")
                     }.padding(18)
+                        .background { TabBarScrollConnection() }
                 }
+                .scrollBounceBehavior(.always, axes: .vertical)
                 .scrollDismissesKeyboard(.interactively)
                 .background { AppBackdrop() }
                 .safeAreaInset(edge: .top) {

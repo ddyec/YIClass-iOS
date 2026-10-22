@@ -24,11 +24,15 @@ struct ScheduleView: View {
                 VStack(spacing: 12) {
                     controls.padding(.horizontal, 16)
                     if store.table.courses.isEmpty {
-                        ContentUnavailableView {
+                        ScrollView {
+                            ContentUnavailableView {
                             Label(mode == .day ? "当天还没有课程" : "把这一周安排好", systemImage: "calendar.badge.plus")
                         } description: {
                             Text("添加课程，或在设置中导入课表。")
                         } actions: { Button("添加课程") { newCourse = true }.buttonStyle(.glassProminent) }
+                                .containerRelativeFrame(.vertical)
+                                .background { TabBarScrollConnection() }
+                        }.scrollBounceBehavior(.always, axes: .vertical)
                     } else if mode == .week {
                         WeekGrid(table: store.table, profile: store.profile, week: week) { selection = CourseSelection(course: $0) }
                     } else {
@@ -169,6 +173,8 @@ struct ScheduleView: View {
                 }
             }
         }.scrollContentBackground(.hidden)
+            .scrollBounceBehavior(.always, axes: .vertical)
+            .background { TabBarScrollConnection() }
     }
     private func timeLabel(_ block: CourseBlock) -> String {
         let times = store.profile.periods
@@ -233,7 +239,8 @@ struct WeekGrid: View {
                                 dayColumn(day, width: columnWidth, rowHeight: rowHeight)
                             }
                         }.padding(.bottom, 4)
-                    }
+                            .background { TabBarScrollConnection() }
+                    }.scrollBounceBehavior(.always, axes: .vertical)
                     if canCollapseEvening {
                         Button { showFullEvening.toggle() } label: {
                             Label(showFullEvening ? "收起晚间" : "晚间无课 · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
