@@ -172,11 +172,11 @@ struct TimeSettingsView: View {
                 HStack {
                     Picker("时长", selection: Binding(get: { duration }, set: { value in
                         change { try draft.setDuration(value) }; duration = draft.periods.first.map { $0.end - $0.start } ?? 45
-                    })) { ForEach(Array(stride(from: 10, through: 120, by: 5)), id: \.self) { Text("\($0) 分").tag($0) } }
+                    })) { ForEach(Array(Set(Array(stride(from: 10, through: 120, by: 5)) + [duration])).sorted(), id: \.self) { Text("\($0) 分").tag($0) } }
                     Divider().frame(height: 24)
                     Picker("课间", selection: Binding(get: { gap }, set: { value in
                         change { try draft.setDuration(duration, gap: value) }; gap = typicalGap
-                    })) { ForEach(Array(stride(from: 0, through: 60, by: 5)), id: \.self) { Text("\($0) 分").tag($0) } }
+                    })) { ForEach(Array(Set(Array(stride(from: 0, through: 60, by: 5)) + [gap])).sorted(), id: \.self) { Text("\($0) 分").tag($0) } }
                 }.pickerStyle(.menu)
             }
             Section("课节时间") {
@@ -212,7 +212,11 @@ struct TimeSettingsView: View {
             Button("好", role: .cancel) { issue = nil }
         } message: { Text(issue ?? "") }
     }
-    private var typicalGap: Int { draft.periods.count > 1 ? max(0, draft.periods[1].start - draft.periods[0].end) : 10 }
+    private var typicalGap: Int {
+        let boundaries = [draft.counts[0], draft.counts[0] + draft.counts[1]]
+        guard let index = draft.periods.indices.dropFirst().first(where: { !boundaries.contains($0) }) else { return 10 }
+        return max(0, draft.periods[index].start - draft.periods[index - 1].end)
+    }
     private func sessionName(_ index: Int) -> String {
         index < draft.counts[0] ? "上午" : (index < draft.counts[0] + draft.counts[1] ? "下午" : "晚上")
     }
