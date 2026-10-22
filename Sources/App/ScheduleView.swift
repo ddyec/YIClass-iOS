@@ -39,7 +39,7 @@ struct ScheduleView: View {
                 }.padding(.top, 8)
             }
             .navigationTitle(store.table.name)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
@@ -68,36 +68,20 @@ struct ScheduleView: View {
         }
     }
     private var controls: some View {
-        GlassEffectContainer {
-            GlassPanel {
-                VStack(spacing: 12) {
-                    HStack {
-                        Button("上一周", systemImage: "chevron.left") { changeWeek(-1) }
-                            .labelStyle(.iconOnly).frame(width: 44, height: 32).disabled(week == 1)
-                        Spacer()
-                        Menu {
-                            ForEach(1...store.table.totalWeeks, id: \.self) { value in
-                                Button("第 \(value) 周") { week = value }
-                            }
-                        } label: {
-                            VStack(spacing: 2) {
-                                Text("第 \(week) 周").font(.headline)
-                                Text(ScheduleEngine.date(week: week, weekday: 1, table: store.table), format: .dateTime.month().day())
-                                    .font(.caption).foregroundStyle(Color(.secondaryLabel))
-                            }
-                        }
-                        Spacer()
-                        Button("下一周", systemImage: "chevron.right") { changeWeek(1) }
-                            .labelStyle(.iconOnly).frame(width: 44, height: 32).disabled(week == store.table.totalWeeks)
-                    }
-                    HStack {
-                        Picker("显示方式", selection: $mode) {
-                            ForEach(ScheduleMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }.pickerStyle(.segmented)
-                        Button("本周") { jumpToCurrentWeek() }.font(.subheadline).buttonStyle(.glass)
-                    }
-                }
+        VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Button("上一周", systemImage: "chevron.left") { changeWeek(-1) }
+                    .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == 1)
+                Menu {
+                    ForEach(1...store.table.totalWeeks, id: \.self) { value in Button("第 \(value) 周") { week = value } }
+                } label: { Text("第 \(week) 周").font(.headline).frame(maxWidth: .infinity) }
+                Button("本周") { jumpToCurrentWeek() }.font(.subheadline)
+                Button("下一周", systemImage: "chevron.right") { changeWeek(1) }
+                    .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == store.table.totalWeeks)
             }
+            Picker("显示方式", selection: $mode) {
+                ForEach(ScheduleMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented)
         }
     }
     private var agenda: some View {
@@ -160,40 +144,48 @@ struct WeekGrid: View {
     let profile: TimeProfile
     let week: Int
     let onSelect: (Course) -> Void
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 64
-    @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 64
+    @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 42
+    @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 44
     private var days: Int { table.showWeekend ? 7 : 5 }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
 
     var body: some View {
         GeometryReader { geometry in
-            let columnWidth = max(minimumWidth, (geometry.size.width - 54) / CGFloat(days))
+            let columnWidth = max(minimumWidth, (geometry.size.width - 44) / CGFloat(days))
+            let rowHeight = max(minimumRowHeight, min(64, (geometry.size.height - 52 - 24) / CGFloat(profile.periods.count)))
             ScrollView(.horizontal) {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
-                        Text("节次").font(.caption2).foregroundStyle(.secondary).frame(width: 54)
+                        Text("节次").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
                         ForEach(1...days, id: \.self) { day in dateHeader(day).frame(width: columnWidth) }
-                    }.frame(height: 62)
+                    }.frame(height: 48)
                     ScrollView(.vertical) {
                         HStack(alignment: .top, spacing: 0) {
                             VStack(spacing: 0) {
                                 ForEach(profile.periods) { time in
+                                    if isSessionStart(time.period) { Color.clear.frame(height: 10) }
                                     VStack(spacing: 4) {
                                         Text("\(time.period)").font(.subheadline.weight(.semibold))
                                         Text(PeriodTime.clock(time.start)).font(.system(size: 10, design: .rounded)).monospacedDigit()
                                         Text(PeriodTime.clock(time.end)).font(.system(size: 10, design: .rounded)).foregroundStyle(.tertiary).monospacedDigit()
-                                    }.foregroundStyle(.secondary).frame(width: 54, height: rowHeight)
+                                    }.foregroundStyle(.secondary).frame(width: 44, height: rowHeight)
                                 }
                             }
                             ForEach(1...days, id: \.self) { day in
-                                dayColumn(day, width: columnWidth)
+                                dayColumn(day, width: columnWidth, rowHeight: rowHeight)
                             }
-                        }.padding(.bottom, 24)
+                        }.padding(.bottom, 4)
                     }
-                }.frame(width: 54 + columnWidth * CGFloat(days))
+                }.frame(width: 44 + columnWidth * CGFloat(days))
             }
             .scrollIndicators(.automatic)
         }
+    }
+    private func isSessionStart(_ period: Int) -> Bool {
+        period > 1 && (period == profile.counts[0] + 1 || period == profile.counts[0] + profile.counts[1] + 1)
+    }
+    private func yPosition(_ period: Int, rowHeight: CGFloat) -> CGFloat {
+        CGFloat(period - 1) * rowHeight + CGFloat((1...period).filter { isSessionStart($0) }.count) * 10
     }
     private func dateHeader(_ day: Int) -> some View {
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
@@ -206,13 +198,14 @@ struct WeekGrid: View {
                 .foregroundStyle(today ? Color.white : Color.primary)
         }.accessibilityElement(children: .combine)
     }
-    private func dayColumn(_ day: Int, width: CGFloat) -> some View {
+    private func dayColumn(_ day: Int, width: CGFloat, rowHeight: CGFloat) -> some View {
         let dayBlocks = blocks.filter { $0.weekday == day }
         let groups = ScheduleEngine.overlapGroups(dayBlocks)
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
         return ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                ForEach(profile.periods) { _ in
+                ForEach(profile.periods) { time in
+                    if isSessionStart(time.period) { Color.clear.frame(height: 10) }
                     Rectangle().fill(Color.primary.opacity(0.045)).frame(height: 0.5)
                         .frame(height: rowHeight, alignment: .top)
                 }
@@ -225,13 +218,13 @@ struct WeekGrid: View {
                         CourseTile(block: block, conflict: group.count > 1)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: max(1, laneWidth - 5), height: CGFloat(block.last - block.first + 1) * rowHeight - 6)
-                    .offset(x: CGFloat(lane) * laneWidth + 2, y: CGFloat(block.first - 1) * rowHeight + 3)
+                    .frame(width: max(1, laneWidth - 5), height: yPosition(block.last, rowHeight: rowHeight) - yPosition(block.first, rowHeight: rowHeight) + rowHeight - 4)
+                    .offset(x: CGFloat(lane) * laneWidth + 2, y: yPosition(block.first, rowHeight: rowHeight) + 2)
                     .accessibilityLabel("\(block.course.name)，\(weekdayNames[day - 1])，第 \(block.first) 到 \(block.last) 节，\(block.course.location)\(group.count > 1 ? "，有时间冲突" : "")")
                 }
             }
         }
-        .frame(width: width, height: CGFloat(profile.periods.count) * rowHeight)
+        .frame(width: width, height: yPosition(profile.periods.count, rowHeight: rowHeight) + rowHeight)
         .background(Calendar.current.isDateInToday(date) ? Color.indigo.opacity(0.035) : Color.clear)
     }
 }
@@ -241,18 +234,22 @@ private struct CourseTile: View {
     let conflict: Bool
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if conflict { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
-            Text(block.course.name).font(.caption.weight(.semibold)).lineLimit(4)
-            if !block.course.location.isEmpty { Text(block.course.location).font(.caption2).lineLimit(3).foregroundStyle(.secondary) }
-            Spacer(minLength: 0)
-            Text("\(block.first)–\(block.last) 节").font(.system(size: 10)).foregroundStyle(.secondary)
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 3) {
+                if conflict && geometry.size.height > 60 { Image(systemName: "exclamationmark.triangle.fill").font(.caption2).foregroundStyle(.orange) }
+                Text(block.course.name).font(.caption.weight(.semibold)).lineLimit(geometry.size.height > 85 ? 3 : 2)
+                if !block.course.location.isEmpty && geometry.size.height > 75 {
+                    Text(block.course.location).font(.caption2).lineLimit(2).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if geometry.size.height > 100 { Text("\(block.first)–\(block.last) 节").font(.system(size: 10)).foregroundStyle(.secondary) }
+            }
+            .padding(.horizontal, 4).padding(.vertical, 6)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
         }
-        .padding(.horizontal, 7).padding(.vertical, 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(argb: block.course.color).opacity(scheme == .dark ? 0.24 : 0.13), in: RoundedRectangle(cornerRadius: 13))
-        .overlay(alignment: .top) { Capsule().fill(Color(argb: block.course.color)).frame(height: 3).padding(.horizontal, 10) }
-        .overlay { RoundedRectangle(cornerRadius: 13).strokeBorder(Color(argb: block.course.color).opacity(0.13)) }
-        .contentShape(RoundedRectangle(cornerRadius: 13))
+        .background(Color(argb: block.course.color).opacity(scheme == .dark ? 0.3 : 0.16), in: RoundedRectangle(cornerRadius: 9))
+        .overlay(alignment: .top) { Capsule().fill(Color(argb: block.course.color)).frame(height: 3).padding(.horizontal, 6) }
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .contentShape(RoundedRectangle(cornerRadius: 9))
     }
 }

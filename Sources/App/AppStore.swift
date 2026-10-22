@@ -73,7 +73,7 @@ import YIClassCore
         syncWidgets()
     }
     private func syncWidgets() {
-        do { try SharedLibrary.write(data); WidgetCenter.shared.reloadAllTimelines() }
+        do { try SharedLibrary.write(data); widgetSyncIssue = nil; WidgetCenter.shared.reloadAllTimelines() }
         catch { widgetSyncIssue = error.localizedDescription }
     }
     private(set) var widgetSyncIssue: String?
@@ -98,7 +98,7 @@ import YIClassCore
         next.timetables[index] = table; try commit(next)
     }
     func updateProfile(_ profile: TimeProfile) throws {
-        var next = data; next.timeProfile = profile; try commit(next, undoable: true)
+        try commit(data.replacingTimeProfile(profile), undoable: true)
     }
     func saveCourse(_ course: Course, tableID: UUID) throws {
         guard table.id == tableID else { throw AppFailure("当前课表已切换，请重新打开课程。") }

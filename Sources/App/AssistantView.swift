@@ -9,6 +9,8 @@ struct AssistantView: View {
     @State private var sourceText = ""
     @State private var sourceGrid: PDFGridDocument?
     @State private var directImport: ImportPreview?
+    @State private var pendingImport: ImportPreview?
+    @State private var sourceIssue: String?
     @State private var sourceReview = false
     @State private var reading = false
     @State private var localError: String?
@@ -74,7 +76,9 @@ struct AssistantView: View {
                 reset()
                 messages = [ChatMessage(role: "assistant", content: importMode ? "课表已导入，可在课表页切换查看。" : "方案已应用。")]
             } }
-            .sheet(isPresented: $sourceReview) { sourceReviewView }
+            .sheet(isPresented: $sourceReview, onDismiss: {
+                if let pendingImport { directImport = pendingImport; self.pendingImport = nil }
+            }) { sourceReviewView }
             .sheet(isPresented: Binding(get: { directImport != nil }, set: { if !$0 { directImport = nil } })) {
                 if let directImport { ImportReviewView(preview: directImport) }
             }
@@ -227,15 +231,18 @@ struct AssistantView: View {
                             do {
                                 let table = try PDFTimetableImporter.parse(sourceGrid, template: store.table, profile: store.profile)
                                 sourceReview = false
-                                directImport = ImportPreview(table: table, suggestedProfile: nil)
-                            } catch { localError = error.localizedDescription }
+                                pendingImport = ImportPreview(table: table, suggestedProfile: nil)
+                            } catch { sourceIssue = error.localizedDescription }
                         }
                     } footer: { Text("已识别星期列；可直接预览，或交给 AI 整理。") }
                 }
                 Section("识别内容 · 可修正") { TextEditor(text: $sourceText).frame(minHeight: 280).onChange(of: sourceText) { _, _ in sourceGrid = nil } }
                 Section { Text(mode == .remote ? "识别时会将以上文字发送到已配置的 AI 接口。" : "使用设备端模型整理课表。")
                     .font(.footnote).foregroundStyle(.secondary) }
-            }.navigationTitle("识别课表").navigationBarTitleDisplayMode(.inline)
+            }.alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
+                Button("好", role: .cancel) { sourceIssue = nil }
+            } message: { Text(sourceIssue ?? "") }
+            .navigationTitle("识别课表").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("取消") { sourceReview = false } }
                     ToolbarItem(placement: .confirmationAction) {

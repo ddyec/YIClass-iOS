@@ -23,6 +23,9 @@ public struct ImportPreview: Sendable {
     public var table: Timetable
     public var suggestedProfile: TimeProfile?
     public var warning: String?
+    public init(table: Timetable, suggestedProfile: TimeProfile? = nil, warning: String? = nil) {
+        self.table = table; self.suggestedProfile = suggestedProfile; self.warning = warning
+    }
 }
 
 public enum TimetableTransfer {

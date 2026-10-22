@@ -78,6 +78,9 @@ public struct TimeProfile: Codable, Equatable, Sendable {
     public static let standard = TimeProfile(periods: [480, 535, 600, 655, 840, 895, 960, 1015, 1140, 1195]
         .enumerated().map { PeriodTime(period: $0.offset + 1, start: $0.element, end: $0.element + 45) })
     public func validate() throws {
+        if let sessionCounts {
+            guard sessionCounts.count == 3, sessionCounts.allSatisfy({ $0 >= 0 }), sessionCounts.reduce(0, +) == periods.count else { throw AppFailure("上午、下午、晚上的节数配置无效。") }
+        }
         guard (1...20).contains(periods.count) else { throw AppFailure("每天应有 1–20 节课。") }
         for (index, time) in periods.enumerated() {
             guard time.period == index + 1, time.start >= 0, time.end < 1440, time.start < time.end else {
@@ -181,6 +184,28 @@ public struct AppData: Codable, Equatable, Sendable {
     public static func fresh() -> AppData {
         let table = Timetable()
         return AppData(timetables: [table], selectedID: table.id)
+    }
+    public func replacingTimeProfile(_ profile: TimeProfile) throws -> AppData {
+        var next = self
+        let oldCounts = timeProfile.counts, newCounts = profile.counts
+        if oldCounts != newCounts {
+            var mapping: [Int: Int] = [:]
+            var oldOffset = 0, newOffset = 0
+            for group in 0..<3 {
+                for i in 0..<min(oldCounts[group], newCounts[group]) { mapping[oldOffset + i + 1] = newOffset + i + 1 }
+                oldOffset += oldCounts[group]; newOffset += newCounts[group]
+            }
+            for tableIndex in next.timetables.indices {
+                for courseIndex in next.timetables[tableIndex].courses.indices {
+                    for scheduleIndex in next.timetables[tableIndex].courses[courseIndex].schedules.indices {
+                        let old = next.timetables[tableIndex].courses[courseIndex].schedules[scheduleIndex].periods
+                        guard old.allSatisfy({ mapping[$0] != nil }) else { throw AppFailure("有课程使用了将删除的课节，请先调整这些课程。") }
+                        next.timetables[tableIndex].courses[courseIndex].schedules[scheduleIndex].periods = old.compactMap { mapping[$0] }
+                    }
+                }
+            }
+        }
+        next.timeProfile = profile; try next.validate(); return next
     }
     public func validate() throws {
         guard schemaVersion == 1 else { throw AppFailure("数据版本不受支持，请更新应用。") }

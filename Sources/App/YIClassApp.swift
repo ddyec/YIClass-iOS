@@ -29,12 +29,14 @@ import YIClassCore
 }
 
 struct RootView: View {
+    @State private var selected = 0
     var body: some View {
-        TabView {
-            Tab("课表", systemImage: "calendar") { ScheduleView() }
-            Tab("助手", systemImage: "sparkles") { AssistantView() }
-            Tab("设置", systemImage: "slider.horizontal.3") { SettingsView() }
+        TabView(selection: $selected) {
+            Tab("课表", systemImage: "calendar", value: 0) { ScheduleView() }
+            Tab("助手", systemImage: "sparkles", value: 1) { AssistantView() }
+            Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView() }
         }
+        .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
         .tabBarMinimizeBehavior(.onScrollDown)
     }
 }

@@ -234,3 +234,16 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     #expect(first.courses[0].unscheduledWeeks == [1,2,3])
     #expect(ScheduleEngine.blocks(table: first, week: 1).isEmpty)
 }
+
+@Test func resizingSessionsRemapsCoursePeriodsAndRejectsDeletingUsedPeriod() throws {
+    let table = Timetable(courses: [course("下午课", periods: [5,6]), course("晚课", periods: [9,10])])
+    let data = AppData(timetables: [table], selectedID: table.id)
+    var profile = data.timeProfile
+    try profile.resizeSessions([3,4,2], duration: 45, gap: 10)
+    let next = try data.replacingTimeProfile(profile)
+    #expect(next.timetables[0].courses[0].schedules[0].periods == [4,5])
+    #expect(next.timetables[0].courses[1].schedules[0].periods == [8,9])
+    try profile.resizeSessions([3,4,1], duration: 45, gap: 10)
+    #expect(throws: AppFailure.self) { _ = try data.replacingTimeProfile(profile) }
+    #expect(data.timeProfile == .standard)
+}
