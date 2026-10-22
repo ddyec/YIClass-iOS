@@ -82,14 +82,9 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
 - `YIClass-iOS26-resign-ipa`：iPhone／iPad arm64 IPA，包含保留 App Group 声明的临时签名，安装前仍需用自己的 Apple 签名身份和描述文件重签。
-- `YIClass-iOS26-simulator`：Mac 上的 iOS 26 模拟器 App，包含 arm64／x86_64。
 - `YIClass-build-logs`：完整构建日志。构建包带清单和 SHA-256 校验文件，Artifacts 保存 30 天。
 
-```bash
-tar -xzf YIClass-iOS26-simulator.tar.gz
-xcrun simctl install booted YIClass.app
-xcrun simctl launch booted com.ddyec.YIClassNative
-```
+按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
 ## Xcode 构建与签名
 
@@ -109,7 +104,6 @@ swift test
 bash scripts/test-pdf.sh       # macOS：真实 PDFKit 提取与完整导入核对
 bash scripts/test-store.sh     # 实际 JSON 文件保存、重启读取与撤销
 bash scripts/package-build.sh device
-bash scripts/package-build.sh simulator
 ```
 
 工程由 `scripts/generate_project.py` 确定性生成，新增源文件后需重新生成。`Import and layout review` 工作流在 iOS 模拟器里操作 PDF 预览、导入、紧凑设置与周视图，并保存实际截图。
