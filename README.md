@@ -4,6 +4,8 @@
 
 ## 3.1 更新
 
+3.1.7 改进锁屏小组件：长方形优先显示课名、完整时间段和教室，上课中标注状态，跨天标明日期；圆形显示简短课名，距上课或下课一小时内改为倒计时。课表周／日／列表和助手滚动接入系统底栏收起行为。新增本地上课提醒，首次启动请求系统通知权限，默认提前 10 分钟，可在设置关闭或调整为上课时／提前 5、15、30 分钟；按当前课表排程，修改、导入、切换与恢复后更新，避开停课日。最多安排最近 60 条未来提醒，回到前台补排，无需服务器。
+
 3.1.6 支持自定义视觉模型原图输入：JPEG／PNG／GIF／WebP 保留原始字节，以 `image_url` 和 `detail:high` 随用户消息发送；HEIC 等格式在原分辨率转换为 PNG。OCR 只作辅助，识别页可选“修改当前课表”或“导入新课表”，调课通知可调整当前课表。DeepSeek 官方预设更新为 `deepseek-flash`，旧官方 `deepseek-chat`／`deepseek-reasoner` 配置自动迁移；自定义主机的模型名保留。官方请求关闭默认思考、启用 JSON 输出，初始输出上限 16K，截断后自动提高至 32K 重试一次，未完整返回前不应用更改。普通聊天支持不带方案字段的回复，失败不会再把内部提示词或 OCR 坐标塞回输入框。
 
 右上角改为历史记录：保存最近 20 段对话、30 个课表更改前的恢复点，支持继续对话、新建对话、查看并恢复历史状态；恢复动作也会保留当前状态，重启后仍可回退。历史文字保存在本机应用目录，原图不长期归档。输入区内边距缩至 8 点、行间空隙收紧，发送按钮可见圆形 32 点，点击区域仍为 44 点。“截图／文件”可见图标与文字沿 44 点点击区的底部对齐，底部留 6 点，再加面板内边距，修正原先内容垂直居中导致位置偏上的问题。
@@ -39,15 +41,15 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.1.6 (8) iPhone 包已实际归档并校验**，源码 `b9abef17660cb3ebe7b9a95ab72ab8791268b82c`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39718210981)。
+**3.1.7 (9) iPhone 包已实际归档并校验**，源码 `29d9a1f774dd69233cd48e7b6e1b4c2fc7667851`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39719989423)。
 
 | 产物 | 下载 |
 | --- | --- |
-| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39718210981/artifacts/12400032139) |
+| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39719989423/artifacts/12401115439) |
 
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
-- `YIClass-iOS26-unsigned-ipa`：iPhone／iPad arm64 IPA，**未签名**，安装前需用自己的 Apple 签名身份和描述文件签名。
+- `YIClass-iOS26-resign-ipa`：iPhone／iPad arm64 IPA，包含保留 App Group 声明的临时签名，安装前仍需用自己的 Apple 签名身份和描述文件重签。
 - `YIClass-iOS26-simulator`：Mac 上的 iOS 26 模拟器 App，包含 arm64／x86_64。
 - `YIClass-build-logs`：完整构建日志。构建包带清单和 SHA-256 校验文件，Artifacts 保存 30 天。
 
