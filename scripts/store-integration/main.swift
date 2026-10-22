@@ -48,6 +48,13 @@ import UniformTypeIdentifiers
         catch is AppFailure { }
         let afterRejectedEdit = try Data(contentsOf: file)
         precondition(afterRejectedEdit == currentBytes)
+        let profileXML = try PropertyListSerialization.data(fromPropertyList: ["Entitlements": ["com.apple.security.application-groups": ["group.signer.shared", "group.signer.extra", "group.*", "group.signer.shared"]]], format: .xml, options: 0)
+        let signedProfile = Data([0x30, 0x82, 0x00, 0x00]) + profileXML + Data([0x00, 0xFF])
+        let discovered = SharedGroup.candidates(configured: "group.com.ddyec.YIClassNative", profile: signedProfile)
+        precondition(discovered == ["group.com.ddyec.YIClassNative", "group.signer.extra", "group.signer.shared"])
+        precondition(SharedGroup.candidates(configured: "$(UNEXPANDED)", profile: Data("bad profile".utf8)) == [SharedGroup.defaultIdentifier])
+        precondition(SharedGroup.candidates(configured: nil, profile: nil) == [SharedGroup.defaultIdentifier])
+        print("PASS: legacy provisioned App Group discovery extracts signer-replaced groups, deduplicates candidates, rejects wildcards, tolerates missing/malformed profiles")
         let sharedFile = directory.appendingPathComponent("widget-library.json")
         if case .success = SharedLibrary.readResult(from: nil) { fatalError("Missing group was accepted") }
         if case .success = SharedLibrary.readResult(from: sharedFile) { fatalError("Missing snapshot was accepted") }

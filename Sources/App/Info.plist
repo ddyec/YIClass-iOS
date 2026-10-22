@@ -18,5 +18,7 @@
 		<key>UIColorName</key>
 		<string>LaunchBackground</string>
 	</dict>
+	<key>YIClassAppGroup</key>
+	<string>group.com.ddyec.YIClassNative</string>
 </dict>
 </plist>
