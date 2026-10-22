@@ -30,13 +30,8 @@ enum PDFGridReader {
             var characters: [(Int, CGFloat, CGFloat, String)] = []
             source.enumerateSubstrings(in: NSRange(location: 0, length: source.length), options: .byComposedCharacterSequences) { value, range, _, _ in
                 guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      range.location < page.numberOfCharacters else { return }
-                // Avoid constructing a PDFSelection for every character on device.
-                var bounds = page.characterBounds(at: range.location)
-                for index in (range.location + 1)..<min(NSMaxRange(range), page.numberOfCharacters) {
-                    bounds = bounds.union(page.characterBounds(at: index))
-                }
-                let rect = canonical(bounds, page: page)
+                      let selection = page.selection(for: range) else { return }
+                let rect = canonical(selection.bounds(for: page), page: page)
                 guard rect.midY > top, rect.midY < bottom else { return }
                 let column = Int(floor((rect.midX - left) / spacing))
                 guard (0..<7).contains(column) else { return }
