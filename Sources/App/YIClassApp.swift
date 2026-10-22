@@ -45,11 +45,21 @@ struct RootView: View {
     @Environment(AppStore.self) private var store
     @State private var selected = 0
     @State private var assistantPresented = false
+    @State private var bottomNavigationHeight: CGFloat = 72
     var body: some View {
         TabView(selection: $selected) {
-            Tab("课表", systemImage: "calendar", value: 0) { ScheduleView().toolbar(.hidden, for: .tabBar) }
-            Tab("待办", systemImage: "checklist", value: 3) { TodoView().toolbar(.hidden, for: .tabBar) }
-            Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView().toolbar(.hidden, for: .tabBar) }
+            Tab("课表", systemImage: "calendar", value: 0) {
+                ScheduleView(bottomNavigationInset: bottomNavigationHeight)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+            Tab("待办", systemImage: "checklist", value: 3) {
+                TodoView().safeAreaPadding(.bottom, bottomNavigationHeight)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+            Tab("设置", systemImage: "slider.horizontal.3", value: 2) {
+                SettingsView().safeAreaPadding(.bottom, bottomNavigationHeight)
+                    .toolbar(.hidden, for: .tabBar)
+            }
         }
         .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
         .onReceive(NotificationCenter.default.publisher(for: .lessonReminderOpened)) { notification in
@@ -60,8 +70,13 @@ struct RootView: View {
             }
         }
         .toolbar(.hidden, for: .tabBar)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomNavigation.padding(.horizontal, 18).padding(.top, 8).padding(.bottom, 6)
+        .overlay(alignment: .bottom) {
+            // Keep the bar floating. Only scrolling content and the evening
+            // control account for its measured height; no navigation row.
+            bottomNavigation.padding(.horizontal, 18).padding(.top, 8)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    bottomNavigationHeight = $0
+                }
         }
         .sheet(isPresented: $assistantPresented) {
             AssistantView()
@@ -81,15 +96,17 @@ struct RootView: View {
                 .padding(5)
                 .glassEffect(.regular, in: .capsule)
                 Button { assistantPresented = true } label: {
-                    ProductLogo(size: 36)
+                    AssistantLogo(size: 36)
                         .frame(width: 64, height: 64)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .glassEffect(.regular.interactive(), in: .circle)
                 .accessibilityLabel("AI 助手")
+                .accessibilityIdentifier("ai-assistant-button")
             }
         }
+        .accessibilityIdentifier("bottom-navigation")
     }
     private func navigationItem(_ title: String, icon: String, value: Int) -> some View {
         Button { selected = value } label: {

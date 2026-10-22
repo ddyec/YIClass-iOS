@@ -6,6 +6,7 @@ private enum ScheduleMode: String, CaseIterable { case week = "周", day = "日"
 private struct CourseSelection: Identifiable { let course: Course; var id: UUID { course.id } }
 
 struct ScheduleView: View {
+    var bottomNavigationInset: CGFloat = 0
     @Environment(AppStore.self) private var store
     @State private var week = 1
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
@@ -33,8 +34,9 @@ struct ScheduleView: View {
                                 .containerRelativeFrame(.vertical)
                                 .background { TabBarScrollConnection() }
                         }.scrollBounceBehavior(.always, axes: .vertical)
+                            .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
                     } else if mode == .week {
-                        WeekGrid(table: store.table, profile: store.profile, week: week) { selection = CourseSelection(course: $0) }
+                        WeekGrid(table: store.table, profile: store.profile, week: week, bottomNavigationInset: bottomNavigationInset) { selection = CourseSelection(course: $0) }
                     } else {
                         agenda
                     }
@@ -173,6 +175,7 @@ struct ScheduleView: View {
                 }
             }
         }.scrollContentBackground(.hidden)
+            .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
             .scrollBounceBehavior(.always, axes: .vertical)
             .background { TabBarScrollConnection() }
     }
@@ -193,6 +196,7 @@ struct WeekGrid: View {
     let table: Timetable
     let profile: TimeProfile
     let week: Int
+    var bottomNavigationInset: CGFloat = 0
     let onSelect: (Course) -> Void
     @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 44
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 44
@@ -214,8 +218,9 @@ struct WeekGrid: View {
             let daytimeCount = min(visiblePeriods.count, max(1, profile.counts[0] + profile.counts[1]))
             let daytimeGaps = CGFloat(visiblePeriods.prefix(daytimeCount).filter { isSessionStart($0.period) }.count) * sessionGap
             let footerHeight: CGFloat = canCollapseEvening ? 44 : 0
+            let bottomScrollInset = bottomNavigationInset + footerHeight
             let eveningPeek: CGFloat = visiblePeriods.count > daytimeCount ? sessionGap + 16 : 0
-            let fittedHeight = (geometry.size.height - 72 - footerHeight - daytimeGaps - eveningPeek) / CGFloat(daytimeCount)
+            let fittedHeight = (geometry.size.height - 72 - bottomScrollInset - daytimeGaps - eveningPeek) / CGFloat(daytimeCount)
             let rowHeight = max(minimumRowHeight, min(64, fittedHeight))
             ScrollView(.horizontal) {
                 VStack(spacing: 0) {
@@ -241,15 +246,24 @@ struct WeekGrid: View {
                         }.padding(.bottom, 4)
                             .background { TabBarScrollConnection() }
                     }.scrollBounceBehavior(.always, axes: .vertical)
-                    if canCollapseEvening {
-                        Button { showFullEvening.toggle() } label: {
-                            Label(showFullEvening ? "收起晚间" : "晚间无课 · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
-                                .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-                        }.buttonStyle(.plain).foregroundStyle(.tint)
-                    }
-                }.frame(width: 44 + columnWidth * CGFloat(days))
+                        .contentMargins(.bottom, bottomScrollInset, for: .scrollContent)
+                        .accessibilityIdentifier("week-grid-scroll")
+                }.frame(width: 44 + columnWidth * CGFloat(days), height: geometry.size.height)
             }
             .scrollIndicators(.automatic)
+            .overlay(alignment: .bottom) {
+                if canCollapseEvening {
+                    Button { showFullEvening.toggle() } label: {
+                        Label(showFullEvening ? "收起晚间" : "晚间无课 · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
+                            .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain).foregroundStyle(.tint)
+                    .background(.regularMaterial, in: Capsule())
+                    .accessibilityIdentifier("evening-toggle")
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, bottomNavigationInset)
+                }
+            }
         }
         .onChange(of: week) { _, _ in showFullEvening = false }
         .onChange(of: table.id) { _, _ in showFullEvening = false }

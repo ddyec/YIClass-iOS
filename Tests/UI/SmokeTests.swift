@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor final class SmokeTests: XCTestCase {
     func testFirstLaunchAndSettingsNavigation() {
@@ -37,6 +38,48 @@ import XCTest
         XCTAssertTrue(app.navigationBars["秋季学期"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "高等数学")).firstMatch.exists)
         attach(app, name: "浅色-周视图")
+    }
+
+    func testEveningToggleStaysAboveFloatingNavigation() {
+        defer { XCUIDevice.shared.orientation = .portrait }
+        for appearance in ["light", "dark"] {
+            XCUIDevice.shared.orientation = .portrait
+            let app = XCUIApplication()
+            app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", appearance, "--ui-testing-demo"]
+            app.launch()
+            let toggle = app.buttons["evening-toggle"]
+            let assistant = app.buttons["ai-assistant-button"]
+            XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+            XCTAssertTrue(assistant.exists)
+
+            for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+                XCUIDevice.shared.orientation = orientation
+                XCTAssertTrue(toggle.isHittable)
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, assistant.frame.minY)
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, app.buttons["课表"].frame.minY)
+                toggle.tap()
+                XCTAssertTrue(toggle.label.contains("收起晚间"))
+
+                let grid = app.scrollViews["week-grid-scroll"]
+                let lastPeriod = app.staticTexts["20:40"]
+                for _ in 0..<5 {
+                    if lastPeriod.exists && lastPeriod.frame.maxY <= toggle.frame.minY { break }
+                    grid.swipeUp()
+                }
+                XCTAssertTrue(lastPeriod.isHittable)
+                XCTAssertLessThanOrEqual(lastPeriod.frame.maxY, toggle.frame.minY, "最后一节应能滚动到晚间条上方")
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, assistant.frame.minY)
+                attach(app, name: "\(appearance)-晚间展开-\(orientation.rawValue)")
+                toggle.tap()
+                XCTAssertTrue(toggle.label.contains("展开"))
+                XCTAssertTrue(toggle.isHittable)
+            }
+            assistant.tap()
+            XCTAssertTrue(app.buttons["关闭助手"].waitForExistence(timeout: 5))
+            app.buttons["关闭助手"].tap()
+            XCTAssertTrue(toggle.isHittable)
+            app.terminate()
+        }
     }
 
     private func attach(_ app: XCUIApplication, name: String) {
