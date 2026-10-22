@@ -5,6 +5,7 @@ import YIClassCore
 
 struct AssistantView: View {
     var importMode = false
+    var todoMode = false
     @Environment(\.dismiss) private var dismiss
     @State private var importTable: Timetable?
     @State private var sourceText = ""
@@ -62,11 +63,26 @@ struct AssistantView: View {
                                 Text(message.content).font(.subheadline).textSelection(.enabled)
                             }
                                 .padding(14).frame(maxWidth: .infinity, alignment: message.role == "user" ? .trailing : .leading)
-                                .background(message.role == "user" ? Color.indigo.opacity(0.1) : Color(.secondarySystemGroupedBackground),
+                                .background(message.role == "user" ? Color.accentColor.opacity(0.1) : Color(.secondarySystemGroupedBackground),
                                             in: RoundedRectangle(cornerRadius: 18))
                         }
                         if let reply {
                             questionChoices(reply)
+                            if !reply.todos.isEmpty && reply.questions.isEmpty && !planningImport {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(reply.todos.indices, id: \.self) { index in
+                                        Text(reply.todos[index].title)
+                                        Text(reply.todos[index].deadline ?? "未设截止时间").font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Button("添加这些待办") {
+                                        do {
+                                            let receipt = try store.addTodos(reply.todos)
+                                            messages.append(ChatMessage(role: "assistant", content: receipt))
+                                            self.reply = nil; persistConversation()
+                                        } catch { localError = error.localizedDescription }
+                                    }.buttonStyle(.glassProminent)
+                                }
+                            }
                             ForEach(reply.plans) { plan in
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(plan.title).font(.headline)
@@ -147,7 +163,10 @@ struct AssistantView: View {
                 Button("关闭", role: .cancel) { localError = nil }
             } message: { Text(localError ?? "") }
             .task {
-                if messages.isEmpty { planningImport = importMode; sourceChangesCurrent = !importMode }
+                if messages.isEmpty {
+                    planningImport = importMode; sourceChangesCurrent = !importMode
+                    if todoMode { input = "帮我添加待办：" }
+                }
                 if let url = URL(string: endpoint) { model = AIChatRequest.resolvedModel(model, endpoint: url) }
                 #if DEBUG
                 if importMode, let encoded = ProcessInfo.processInfo.environment["YICLASS_UI_PDF"], let bytes = Data(base64Encoded: encoded) {
@@ -359,7 +378,12 @@ struct AssistantView: View {
                 guard token == requestID else { return }
                 try captured.check(current: planningImport ? (importTable ?? store.table) : store.table, profile: store.profile)
                 // Keep the full structured answer in model history, but display human-readable text only.
-                if result.applyDirectly == true && !planningImport, let plan = result.plans.first {
+                if planningImport && !result.todos.isEmpty { throw AppFailure("当前正在导入课表，请在待办页或普通助手对话中添加待办。") }
+                if result.applyDirectly == true && !planningImport && !result.todos.isEmpty {
+                    result.message = try store.addTodos(result.todos)
+                    reply = nil; snapshot = nil
+                    messages.append(ChatMessage(role: "assistant", content: result.message))
+                } else if result.applyDirectly == true && !planningImport, let plan = result.plans.first {
                     let receipt = try plan.appliedSummary(from: captured.table, profile: captured.profile)
                     try store.apply(plan, snapshot: captured)
                     result.message = receipt
@@ -506,7 +530,7 @@ struct PlanReviewView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(course.name).font(.headline)
                             Text(old == nil ? "新增" : (old == course ? "保留" : "已调整"))
-                                .font(.caption).foregroundStyle(old == course ? Color.secondary : Color.indigo)
+                                .font(.caption).foregroundStyle(old == course ? Color.secondary : Color.accentColor)
                             if let weeks = course.unscheduledWeeks {
                                 Text("未排时间 · 第 \(weeks.map(String.init).joined(separator: ",")) 周").font(.caption).foregroundStyle(.secondary)
                             }

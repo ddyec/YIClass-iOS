@@ -50,13 +50,15 @@ public struct AssistantReply: Codable, Sendable {
     public var applyDirectly: Bool?
     public var questions: [Clarification]
     public var plans: [AssistantPlan]
-    private enum CodingKeys: String, CodingKey { case message, applyDirectly, questions, plans }
+    public var todos: [AssistantTodo]
+    private enum CodingKeys: String, CodingKey { case message, applyDirectly, questions, plans, todos }
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         message = try container.decode(String.self, forKey: .message)
         applyDirectly = try container.decodeIfPresent(Bool.self, forKey: .applyDirectly)
         questions = try container.decodeIfPresent([Clarification].self, forKey: .questions) ?? []
         plans = try container.decodeIfPresent([AssistantPlan].self, forKey: .plans) ?? []
+        todos = try container.decodeIfPresent([AssistantTodo].self, forKey: .todos) ?? []
     }
     public static func parse(_ text: String, table: Timetable, profile: TimeProfile) throws -> AssistantReply {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -85,8 +87,10 @@ public struct AssistantReply: Codable, Sendable {
         guard !reply.message.isEmpty, reply.questions.count <= 3, reply.plans.count <= 3,
               Set(reply.questions.map(\.title)).count == reply.questions.count,
               Set(reply.plans.map(\.title)).count == reply.plans.count else { throw AppFailure("助手方案格式不正确，请补充说明后重试。") }
+        guard reply.todos.count <= 100, reply.todos.isEmpty || reply.plans.isEmpty else { throw AppFailure("请将待办与课表修改分开提交，每次最多 100 条待办。") }
+        for todo in reply.todos { _ = try todo.materialize() }
         if reply.applyDirectly == true {
-            guard reply.questions.isEmpty, reply.plans.count == 1 else { throw AppFailure("直接修改必须给出唯一且完整的课表结果。") }
+            guard reply.questions.isEmpty, (reply.plans.count == 1 || !reply.todos.isEmpty) else { throw AppFailure("直接修改必须给出唯一且完整的课表结果。") }
         }
         for question in reply.questions {
             guard !question.title.isEmpty, (2...4).contains(question.options.count),
@@ -113,7 +117,7 @@ public struct PlanSnapshot: Equatable, Sendable {
 
 public enum AssistantPrompt {
     public static let instructions = """
-    你是 YIClass 课表助手。用户授权你直接修改当前课表的 JSON 课程数据，不需要为明确的修改反复确认。
+    你是 YIClass 课表与待办助手。用户授权你直接修改当前课表的 JSON 课程数据，不需要为明确的修改反复确认。
     明确要求增加、删除、调课、取消某次课时，返回一个完整的修改结果 plan，并设置 applyDirectly:true。应用会原子保存 JSON，且可以撤销。
     用户只是询问建议、比较方案时，applyDirectly:false，给出 1–3 个简洁候选。不把建议擅自当成修改命令。
     支持日常省略和模糊称呼，结合现有课表识别“英语课”等简称。地点、教师允许空字符串，缺失地点不追问。
@@ -130,11 +134,12 @@ public enum AssistantPrompt {
     执行前数据与日期课程清单是唯一事实来源；历史 assistant 的声称可能有误或尚未应用，不可用历史方案覆盖当前数据。查某日有无课必须检查全天所有节次及停课标记；未排时间不等于没有该课程。修改明确时不要只回一段“已修改”而不返回可执行方案；应用成功后由本地核对并说明结果。
     用户提供调课通知时，结合当前学期确定通知中的具体日期，调整源日期的课程到目标日期，仅修改涉及的那几周，保留其他周、课程 UUID、教师和地点。通知明确说原目标日课程另行安排但没有给出日期时，保留为未排时间，不猜测补课日。
     支持 function calling 的接口：涉及日期查课或调课，先调用 get_schedule_dates 查询所有源日与目标日；需要完整课程周次时调用 get_course_records。系统返回的 tool JSON 为权威数据，不把自己的推测当工具结果。拿到结果后再返回最终方案。工具只读，不代表已保存；不要在查询后声称已执行。无工具的设备端模式使用本次权威日期清单。
+    用户要求记待办、作业、报告、报名等任务时，使用 todos 数组，不要把待办当成课程。理解自然语言，不要求用户写 JSON 或固定模板。每条格式：{"title":"交实验报告","notes":"","deadline":"含时区的 ISO 8601，例如 2026-10-23T23:59:00+08:00","importance":"high"}。importance 可选 low/normal/high，未说明默认 normal，不随意把每件事标为高。明确要求添加就 applyDirectly:true，由本地保存后报告；仅建议时 false。deadline 未知为 null，不编造；只给日期未给时刻则按设备时区当天 23:59，并在 message 说明。相对日期依据设备时间解析，与学期范围无关。关键日期歧义才用 questions 简短追问，不声称已保存。每次最多 100 条；同批先解决所有关键歧义再保存，避免追问时重复导入。todos 只新增，不支持修改或删除现有待办，不要声称已完成这些操作；引导在待办页编辑。待办与课表修改分开回答，不在同一回复同时返回非空 todos 和 plans。待办回复示意：{"message":"添加报告待办，截止当晚 23:59","applyDirectly":true,"questions":[],"plans":[],"todos":[{"title":"交报告","deadline":"2026-10-23T23:59:00+08:00","importance":"normal"}]}。截止日期示例不能作为真实用户日期。
     最终回答只输出 JSON，不要 Markdown，格式：
     {"message":"简短说明做了什么","applyDirectly":true,"questions":[],
     "plans":[{"title":"调整课表","explanation":"变化说明","courses":[{"name":"课程","location":"","teacher":"","schedules":[{"weekday":1,"periods":[1,2],"weekPattern":[1,2]}]}]}]}
     日期调课最终格式：{"message":"日期调课方案","applyDirectly":true,"questions":[],"plans":[{"title":"按通知调课","explanation":"全天课程一起调整","dateMoves":[{"from":"2026-09-29","to":"2026-10-25","targetOriginal":"unschedule"}]}]}。日期方案不要同时输出 courses；courseIDs 省略代表全天，不是仅上午。不要把示例日期当作用户实际日期。
-    questions 与 plans 无内容时返回 []。applyDirectly:true 时必须没有问题、且恰好有一个完整 plan。
+    questions 与 plans 无内容时返回 []。applyDirectly:true 时必须没有问题，且有一个完整 plan 或非空 todos。
     """
     public static func context(table: Timetable, profile: TimeProfile, now: Date = Date(), calendar: Calendar = .current, focusText: String = "") throws -> String {
         let data = try TimetableTransfer.encode(table: table, profile: profile)

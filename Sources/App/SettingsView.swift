@@ -36,6 +36,7 @@ struct SettingsView: View {
                     Picker("显示模式", selection: $appearance) {
                         ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
                     }
+                    NavigationLink("自由配色") { ThemeSettingsView() }
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
                     NavigationLink("AI 模式与接口配置") { AISettingsView() }

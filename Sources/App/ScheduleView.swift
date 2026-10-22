@@ -273,7 +273,7 @@ struct WeekGrid: View {
             Text(weekdayNames[day - 1]).font(.caption).foregroundStyle(.secondary)
             Text("\(Calendar.current.component(.day, from: date))").font(.subheadline.weight(.semibold))
                 .frame(width: 30, height: 30)
-                .background(today ? Color.indigo : Color.clear, in: Circle())
+                .background(today ? Color.accentColor : Color.clear, in: Circle())
                 .foregroundStyle(today ? Color.white : Color.primary)
         }.padding(.vertical, 6).accessibilityElement(children: .combine)
     }
@@ -304,7 +304,7 @@ struct WeekGrid: View {
             }
         }
         .frame(width: width, height: yPosition(visiblePeriods.count, rowHeight: rowHeight) + rowHeight)
-        .background(Calendar.current.isDateInToday(date) ? Color.indigo.opacity(0.035) : Color.clear)
+        .background(Calendar.current.isDateInToday(date) ? Color.accentColor.opacity(0.035) : Color.clear)
     }
 }
 

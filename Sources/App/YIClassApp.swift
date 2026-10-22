@@ -4,6 +4,7 @@ import YIClassCore
 @main struct YIClassApp: App {
     @State private var store = AppStore()
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("theme.accent") private var accent = 0xFF637EEA
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     var body: some Scene {
         WindowGroup {
@@ -31,7 +32,7 @@ import YIClassCore
                 if phase == .active { store.syncWidgets() }
             }
             .environment(store)
-            .tint(.indigo)
+            .tint(Color(argb: UInt32(clamping: accent)))
             .preferredColorScheme((AppearanceMode(rawValue: appearance) ?? .system).colorScheme)
             .alert("操作未完成", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
                 Button("好", role: .cancel) { store.error = nil }
@@ -47,6 +48,7 @@ struct RootView: View {
         TabView(selection: $selected) {
             Tab("课表", systemImage: "calendar", value: 0) { ScheduleView() }
             Tab("助手", systemImage: "sparkles", value: 1) { AssistantView() }
+            Tab("待办", systemImage: "checklist", value: 3) { TodoView() }
             Tab("设置", systemImage: "slider.horizontal.3", value: 2) { SettingsView() }
         }
         .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
