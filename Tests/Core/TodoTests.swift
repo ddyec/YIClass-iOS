@@ -16,7 +16,7 @@ private var todoCalendar: Calendar {
     let migrated = try JSONCoding.decoder().decode(AppData.self, from: JSONSerialization.data(withJSONObject: object))
     #expect(migrated.todos.isEmpty)
     #expect(migrated.timetables == library.timetables)
-    library.todos = [TodoItem(title: "报告", deadline: todoDate("2026-10-23T23:59:00+08:00"), importance: .high)]
+    library.todos = [TodoItem(title: "报告", deadline: todoDate("2026-10-23T23:59:00+08:00"), importance: .high, createdAt: todoDate("2026-10-22T09:00:00Z"))]
     let restored = try JSONCoding.decoder().decode(AppData.self, from: JSONCoding.encoder().encode(library))
     #expect(restored == library)
     try restored.validate()
