@@ -169,5 +169,9 @@ private func gridTable() throws -> Timetable {
     #expect(after.isTomorrow && after.lessons.isEmpty && after.emptyMessage == "明天没有课程")
     let dates = WidgetSchedule.displayTimelineDates(data: data, from: start.addingTimeInterval(16 * 3600), until: start.addingTimeInterval(30 * 3600), calendar: utcCalendar)
     #expect(dates.contains(cutoff))
-    #expect(!dates.contains(start.addingTimeInterval(Double(TimeProfile.standard.periods.last!.end * 60))))
+    // The old cutoff can still be a five-minute progress tick. Verify the
+    // displayed day rather than assuming every timeline entry changes days.
+    let oldCutoff = start.addingTimeInterval(Double(TimeProfile.standard.periods.last!.end * 60))
+    let unchanged = WidgetSchedule.daySchedule(data: data, at: oldCutoff, calendar: utcCalendar)
+    #expect(!unchanged.isTomorrow && unchanged.lessons.map(\.course.name) == ["晚课"])
 }
