@@ -207,6 +207,9 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     let url = Bundle.module.url(forResource: "timetable-grid-columns", withExtension: "json", subdirectory: "Fixtures")!
     let grid = try JSONDecoder().decode(PDFGridDocument.self, from: Data(contentsOf: url))
     let table = try PDFTimetableImporter.parse(grid, template: Timetable(), profile: .standard)
+    let expectedURL = Bundle.module.url(forResource: "timetable-grid-expected", withExtension: "json", subdirectory: "Fixtures")!
+    let expected = try JSONDecoder().decode([PDFExpectedRow].self, from: Data(contentsOf: expectedURL)).sorted { $0.key < $1.key }
+    #expect(PDFExpectedRow.rows(table) == expected)
     #expect(Set(table.courses.filter { !$0.schedules.isEmpty }.map(\.name)).count == 12)
     #expect(table.courses.flatMap(\.schedules).count == 21)
     #expect(table.courses.filter { $0.unscheduledWeeks != nil }.count == 5)

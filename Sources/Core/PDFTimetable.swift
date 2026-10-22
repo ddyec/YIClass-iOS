@@ -48,7 +48,7 @@ public enum PDFTimetableImporter {
                 let schedule = CourseSchedule(weekday: day + 1, periods: Array(first...last), weekPattern: weeks)
                 if let i = courses.firstIndex(where: { $0.name == name && $0.location == location && $0.teacher == teacher }) {
                     courses[i].schedules.append(schedule)
-                } else { courses.append(Course(name: name, location: location, teacher: teacher, schedules: [schedule])) }
+                } else { courses.append(Course(name: name, location: location, teacher: teacher, color: Course.suggestedColor(for: name), schedules: [schedule])) }
             }
         }
         guard !courses.isEmpty else { throw AppFailure("未找到可识别的 PDF 课程。") }

@@ -128,6 +128,11 @@ public struct Course: Codable, Equatable, Identifiable, Sendable {
         self.id = id; self.name = name; self.location = location; self.teacher = teacher
         self.color = color; self.schedules = schedules; self.unscheduledWeeks = unscheduledWeeks
     }
+    public static func suggestedColor(for name: String) -> UInt32 {
+        let palette: [UInt32] = [0xFF637EEA, 0xFF298F84, 0xFFB77938, 0xFFAE65A3, 0xFFD36D71, 0xFF658AAB]
+        let hash = name.utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+        return palette[Int(hash % UInt64(palette.count))]
+    }
     public func validate(profile: TimeProfile, totalWeeks: Int) throws {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (!schedules.isEmpty || unscheduledWeeks != nil), schedules.count <= 100 else { throw AppFailure("课程名称或排课信息无效。") }

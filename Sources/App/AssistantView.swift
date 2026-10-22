@@ -236,6 +236,7 @@ struct AssistantView: View {
                         }
                     } footer: { Text("已识别星期列；可直接预览，或交给 AI 整理。") }
                 }
+                if sourceText.count > 18_000 { Text("内容超过 18,000 字，请分批导入，避免漏课。").font(.footnote).foregroundStyle(.orange) }
                 Section("识别内容 · 可修正") { TextEditor(text: $sourceText).frame(minHeight: 280).onChange(of: sourceText) { _, _ in sourceGrid = nil } }
                 Section { Text(mode == .remote ? "识别时会将以上文字发送到已配置的 AI 接口。" : "使用设备端模型整理课表。")
                     .font(.footnote).foregroundStyle(.secondary) }

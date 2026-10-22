@@ -109,10 +109,12 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             }
             guard data.count <= 2_000_000 else { throw AppFailure("AI 返回内容过大。") }
             struct Response: Decodable {
-                struct Choice: Decodable { struct Message: Decodable { var content: String }; var message: Message }
+                struct Choice: Decodable { struct Message: Decodable { var content: String? }; var message: Message; var finish_reason: String? }
                 var choices: [Choice]
             }
-            guard let content = try JSONDecoder().decode(Response.self, from: data).choices.first?.message.content else {
+            let choice = try JSONDecoder().decode(Response.self, from: data).choices.first
+            guard choice?.finish_reason != "length" else { throw AppFailure("AI 输出被截断，请减少单次导入的页数后重试。") }
+            guard let content = choice?.message.content else {
                 throw AppFailure("AI 未返回有效内容。")
             }
             return content

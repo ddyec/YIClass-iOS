@@ -5,6 +5,13 @@ import YIClassCore
 let path = CommandLine.arguments[1]
 guard let pdf = PDFDocument(url: URL(fileURLWithPath: path)), let grid = PDFGridReader.read(pdf) else { fatalError("PDF columns were not detected") }
 let table = try PDFTimetableImporter.parse(grid, template: Timetable(), profile: .standard)
+let expected = try JSONDecoder().decode([PDFExpectedRow].self, from: Data(contentsOf: URL(fileURLWithPath: "Tests/Core/Fixtures/timetable-grid-expected.json"))).sorted { $0.key < $1.key }
+let actual = PDFExpectedRow.rows(table)
+if actual != expected {
+    for row in actual where !expected.contains(row) { print("Unexpected:", row) }
+    for row in expected where !actual.contains(row) { print("Missing:", row) }
+    fatalError("PDF contents did not exactly match the manually audited 26 records")
+}
 let scheduled = table.courses.filter { !$0.schedules.isEmpty }
 let unscheduled = table.courses.filter { $0.unscheduledWeeks != nil }
 let arrangements = scheduled.flatMap(\.schedules)

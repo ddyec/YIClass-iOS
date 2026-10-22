@@ -15,7 +15,7 @@ public struct CourseTransfer: Codable, Sendable {
     }
     public func materialize() -> Course {
         Course(id: id ?? UUID(), name: name, location: location ?? "", teacher: teacher ?? "",
-               color: color ?? 0xFF637EEA, schedules: schedules, unscheduledWeeks: unscheduledWeeks)
+               color: color ?? Course.suggestedColor(for: name), schedules: schedules, unscheduledWeeks: unscheduledWeeks)
     }
 }
 

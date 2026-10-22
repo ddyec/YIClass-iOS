@@ -95,6 +95,7 @@ struct ImportReviewView: View {
     @Environment(\.dismiss) private var dismiss
     let preview: ImportPreview
     @State private var adoptTimes = false
+    @State private var issue: String?
     var body: some View {
         NavigationStack {
             Form {
@@ -125,13 +126,16 @@ struct ImportReviewView: View {
                     }
                 }
             }
+            .alert("无法导入", isPresented: Binding(get: { issue != nil }, set: { if !$0 { issue = nil } })) {
+                Button("好", role: .cancel) { issue = nil }
+            } message: { Text(issue ?? "") }
             .navigationTitle("确认导入").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("导入") {
                         do { try store.importTable(preview, adoptTimes: adoptTimes); dismiss() }
-                        catch { store.error = error.localizedDescription }
+                        catch { issue = error.localizedDescription }
                     }
                 }
             }
