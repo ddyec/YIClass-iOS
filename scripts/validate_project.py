@@ -29,6 +29,15 @@ for file in ROOT.glob('**/*.json'):
 with (ROOT / 'Sources/App/PrivacyInfo.xcprivacy').open('rb') as stream:
     privacy = plistlib.load(stream)
 assert privacy['NSPrivacyTracking'] is False
+for folder in ['App', 'Widget']:
+    entitlement = plistlib.loads((ROOT / f'Sources/{folder}/YIClass.entitlements').read_bytes())
+    assert entitlement['com.apple.security.application-groups'] == ['group.com.ddyec.YIClassNative']
+widget_info = plistlib.loads((ROOT / 'Sources/Widget/Info.plist').read_bytes())
+assert widget_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.widgetkit-extension'
+assert 'Embed App Extensions' in text and 'com.apple.product-type.app-extension' in text
+for folder in ['Widget', 'Shared']:
+    for file in (ROOT / f'Sources/{folder}').glob('*.swift'):
+        assert str(file.relative_to(ROOT)) in text, f'Missing widget/shared source: {file}'
 scheme = ET.parse(ROOT / 'YIClass.xcodeproj/xcshareddata/xcschemes/YIClass.xcscheme')
 assert scheme.find('.//TestableReference') is not None
 png = (ROOT / 'Sources/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png').read_bytes()

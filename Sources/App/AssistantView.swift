@@ -145,7 +145,7 @@ struct AssistantView: View {
                     store.perform { try store.undo() }
                 }.font(.subheadline)
             }
-            if messages.isEmpty {
+            if messages.isEmpty && !importMode {
                 Button("试试：我想每周安排两次自习，怎么选时间？") {
                     input = "我想每周安排两次自习，怎么选时间？"
                 }.font(.subheadline)

@@ -86,6 +86,9 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
     }
     private static func remote(messages: [ChatMessage], endpoint: String, model: String, key: String,
                                testing: Bool = false) async throws -> String {
+            let endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+            let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
             guard let components = URLComponents(string: endpoint), components.scheme == "https",
                   components.host != nil, components.user == nil, components.password == nil,
                   let url = components.url, !model.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
