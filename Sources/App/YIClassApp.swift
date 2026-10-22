@@ -73,9 +73,6 @@ struct RootView: View {
                 }
             }
             .toolbar(.hidden, for: .tabBar)
-            // The hidden system tab bar must not reserve a second bottom safe area.
-            // The custom floating bar supplies its own home-indicator clearance.
-            .ignoresSafeArea(.container, edges: .bottom)
             .environment(\.minimizeFloatingNavigation, { minimized in
                 withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) {
                     navigationMinimized = minimized
@@ -91,6 +88,9 @@ struct RootView: View {
                         bottomNavigationHeight = $0
                     }
             }
+            // Apply to the content AND overlay so the custom bar reaches the
+            // screen bottom, with home clearance measured by the outer reader.
+            .ignoresSafeArea(.container, edges: .bottom)
             .sheet(isPresented: $assistantPresented) {
                 AssistantView()
                     .presentationDetents([.large])
