@@ -150,7 +150,7 @@ private func gridTable() throws -> Timetable {
     #expect(decoded["messages"]?[0].tool_calls?.first?.id == "date_call")
     #expect(decoded["messages"]?[1].tool_call_id == "date_call")
     let object = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
-    #expect((object["tools"] as? [Any])?.count == 2)
+    #expect((object["tools"] as? [Any])?.count == 3)
     #expect(object["tool_choice"] as? String == "required")
     #expect(AssistantTools.needsLookup("29号下午不是还有课吗"))
     #expect(!AssistantTools.needsLookup("你好"))
