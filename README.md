@@ -53,6 +53,7 @@ open YIClass.xcodeproj
 python3 scripts/validate_project.py
 swift test
 bash scripts/test-pdf.sh       # macOS：真实 PDFKit 提取与完整导入核对
+bash scripts/test-store.sh     # 实际 JSON 文件保存、重启读取与撤销
 bash scripts/package-build.sh device
 bash scripts/package-build.sh simulator
 ```

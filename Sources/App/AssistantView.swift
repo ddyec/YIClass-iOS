@@ -235,7 +235,15 @@ struct AssistantView: View {
             if token == requestID { busy = false; requestTask = nil }
         }
     }
-    private func cancel() { requestID = UUID(); requestTask?.cancel(); requestTask = nil; busy = false }
+    private func cancel() {
+        requestID = UUID(); requestTask?.cancel(); requestTask = nil
+        if busy, modelHistory.last?.role == "user" {
+            let canceled = modelHistory.removeLast().content
+            if messages.last?.role == "user", messages.last?.content == canceled { messages.removeLast() }
+            input = canceled
+        }
+        busy = false
+    }
     private func invalidatePlans() { cancel(); reply = nil; snapshot = nil; selectedPlan = nil; selections = [:] }
     private func reset() { invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil }
     private var sourceReviewView: some View {
