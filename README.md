@@ -4,7 +4,7 @@
 
 ## 3.1 更新
 
-3.1.1 修复文件导入选择流程：使用原生文件选择器复制文档，关闭选择器后再读取并打开预览；后台协调读取文件提供器中的文档，读取期间显示进度，错误直接提示。PDF 类型也会按文件头识别。设置中的 JSON 导入使用同一路径。实际 Files 点击行为待用户实机验收。
+3.1.2 修复选中文件后无后续处理的衔接：使用 UIKit 负责选择器的展示、关闭与文件回传，读取不再依赖 SwiftUI fullScreenCover 的 onDismiss。助手顶部固定显示文件名及读取／解析阶段，可以取消；90 秒未完成会提示超时，取消后丢弃迟到结果。PDF 解析明确在后台执行。输入区、键盘工具栏和识别文本编辑器提供收起键盘按钮，对话页支持拖动收起，发送及打开文件选择器时自动结束输入。实际 Files 点击和键盘行为待用户实机验收。
 
 - **桌面与锁屏小组件**：下一节课、当天课程、开课倒计时。跟随当前选中的课表，课程、时间设置、导入、AI 应用、撤销后同步刷新。
 - **紧凑周／日视图**：日视图独立使用前一天／本日／后一天，点击日期展开原生日历。顶部控件合并，行高按可用高度调整，上午／下午／晚上分段。默认 10 节尽量在一屏内显示；小屏、大字号或更多课节时仍可滚动，所有课程可点击。冲突并排显示。
@@ -27,11 +27,11 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.1.1 (3) iPhone 包已实际归档并校验**，源码 `c5e9716b5657cd5809355f8469422e94a662708a`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39704828963)。
+**3.1.2 (4) iPhone 包已实际归档并校验**，源码 `9f9119c0bda20f9f4feef7597f764f8884463b39`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39706440964)。
 
 | 产物 | 下载 |
 | --- | --- |
-| iPhone／iPad 未签名 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39704828963/artifacts/12393864999) |
+| iPhone／iPad 未签名 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39706440964/artifacts/12395412262) |
 
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
