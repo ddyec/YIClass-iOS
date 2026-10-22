@@ -10,6 +10,25 @@ import struct
 import sys
 import zipfile
 
+def embedded_entitlements(binary):
+    # arm64 Mach-O LC_CODE_SIGNATURE → embedded-signature SuperBlob → XML entitlements.
+    command_count = struct.unpack_from('<I', binary, 16)[0]
+    cursor = 32
+    for _ in range(command_count):
+        command, size = struct.unpack_from('<II', binary, cursor)
+        if command == 0x1D:
+            offset, length = struct.unpack_from('<II', binary, cursor + 8)
+            signature = binary[offset:offset + length]
+            magic, _, count = struct.unpack_from('>III', signature)
+            assert magic == 0xFADE0CC0, 'Expected embedded signature'
+            for index in range(count):
+                _, blob_offset = struct.unpack_from('>II', signature, 12 + index * 8)
+                blob_magic, blob_length = struct.unpack_from('>II', signature, blob_offset)
+                if blob_magic == 0xFADE7171:
+                    return plistlib.loads(signature[blob_offset + 8:blob_offset + blob_length])
+        cursor += size
+    raise AssertionError('Missing signed App Group entitlements')
+
 kind, target, output = sys.argv[1:]
 target = Path(target)
 if kind == 'device':
@@ -28,7 +47,11 @@ if kind == 'device':
         assert prefix + 'Assets.car' in names, 'Missing app resources'
         assert prefix + 'PrivacyInfo.xcprivacy' in names, 'Missing privacy manifest'
         assert prefix + 'embedded.mobileprovision' not in names, 'Unexpected provisioning profile'
-        assert not any(name.startswith(prefix + '_CodeSignature/') for name in names), 'Expected unsigned IPA'
+        for bundle, binary in [(prefix, executable), (extension, widget_binary)]:
+            groups = embedded_entitlements(binary)['com.apple.security.application-groups']
+            assert groups == ['group.com.ddyec.YIClassNative'], 'Signed App Group mismatch'
+            assert plistlib.loads(archive.read(bundle + 'AppGroup.entitlements'))['com.apple.security.application-groups'] == groups
+            assert bundle + '_CodeSignature/CodeResources' in names, 'Missing resource signature'
     assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS'], 'IPA contains a simulator build'
     assert struct.unpack_from('<II', executable) == (0xFEEDFACF, 0x0100000C), 'Expected an arm64 Mach-O executable'
     size = target.stat().st_size
@@ -62,7 +85,8 @@ manifest = {
     'createdUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     'sizeBytes': size,
     'sha256': digest,
-    'signing': 'unsigned; requires your own Apple signing identity before iPhone installation' if kind == 'device' else 'simulator-only; no Apple developer certificate required',
+    'appGroup': 'group.com.ddyec.YIClassNative',
+    'signing': 'ad-hoc signed with matching App Group entitlements; requires Apple-authorized re-signing and matching App Group profiles before iPhone installation' if kind == 'device' else 'simulator-only; no Apple developer certificate required',
 }
 Path(output).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n')
 print(json.dumps(manifest, ensure_ascii=False))

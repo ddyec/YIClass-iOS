@@ -12,12 +12,21 @@ case "${1:-}" in
       archive 2>&1 | tee dist/device-build.log
     mkdir -p build/device-package/Payload
     ditto build/YIClass.xcarchive/Products/Applications/YIClass.app build/device-package/Payload/YIClass.app
+    # Keep the real entitlement declarations in both bundles and their ad-hoc
+    # signatures so re-signing tools can retain them. No Apple identity is used.
+    APP_BUNDLE=build/device-package/Payload/YIClass.app
+    WIDGET_BUNDLE="$APP_BUNDLE/PlugIns/YIClassWidget.appex"
+    cp Sources/App/YIClass.entitlements "$APP_BUNDLE/AppGroup.entitlements"
+    cp Sources/Widget/YIClass.entitlements "$WIDGET_BUNDLE/AppGroup.entitlements"
+    codesign --force --sign - --entitlements "$WIDGET_BUNDLE/AppGroup.entitlements" --generate-entitlement-der "$WIDGET_BUNDLE"
+    codesign --force --sign - --entitlements "$APP_BUNDLE/AppGroup.entitlements" --generate-entitlement-der "$APP_BUNDLE"
+    codesign --verify --deep --strict "$APP_BUNDLE"
     (
       cd build/device-package
-      ditto -c -k --keepParent Payload ../../dist/YIClass-iOS26-unsigned.ipa
+      ditto -c -k --keepParent Payload ../../dist/YIClass-iOS26-resign.ipa
     )
-    python3 scripts/verify_build.py device dist/YIClass-iOS26-unsigned.ipa dist/device-manifest.json
-    (cd dist && shasum -a 256 YIClass-iOS26-unsigned.ipa device-manifest.json > device-SHA256SUMS.txt)
+    python3 scripts/verify_build.py device dist/YIClass-iOS26-resign.ipa dist/device-manifest.json
+    (cd dist && shasum -a 256 YIClass-iOS26-resign.ipa device-manifest.json > device-SHA256SUMS.txt)
     ;;
   simulator)
     xcodebuild -project YIClass.xcodeproj -scheme YIClass \

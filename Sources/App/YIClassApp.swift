@@ -3,6 +3,7 @@ import YIClassCore
 
 @main struct YIClassApp: App {
     @State private var store = AppStore()
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     var body: some Scene {
         WindowGroup {
@@ -17,6 +18,9 @@ import YIClassCore
                         ShareLink("导出原文件", item: store.damagedFile)
                     }
                 } else { RootView() }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { store.syncWidgets() }
             }
             .environment(store)
             .tint(.indigo)

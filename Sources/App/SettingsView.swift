@@ -47,8 +47,10 @@ struct SettingsView: View {
                     }
                 }
                 if reading { ProgressView("正在读取课表…") }
-                if let issue = store.widgetSyncIssue {
-                    Section("小组件同步") { Text(issue).font(.footnote).foregroundStyle(.secondary) }
+                Section("小组件") {
+                    Button("同步课表到小组件", systemImage: "arrow.triangle.2.circlepath") { store.syncWidgets() }
+                    if let date = store.widgetLastSync { LabeledContent("最近同步") { Text(date, style: .time) } }
+                    if let issue = store.widgetSyncIssue { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
                 if store.undoData != nil {
                     Section { Button("撤销最近一次方案、导入或删除", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }

@@ -7,26 +7,31 @@ struct LessonEntry: TimelineEntry {
     let tableName: String
     let lessons: [ScheduledLesson]
     let configured: Bool
+    let syncIssue: String?
     var next: ScheduledLesson? { lessons.first { $0.end > date } }
 }
 
 struct LessonProvider: TimelineProvider {
     func placeholder(in context: Context) -> LessonEntry {
-        LessonEntry(date: Date(), tableName: "我的课表", lessons: [], configured: false)
+        LessonEntry(date: Date(), tableName: "我的课表", lessons: [], configured: false, syncIssue: nil)
     }
     func getSnapshot(in context: Context, completion: @escaping (LessonEntry) -> Void) {
-        completion(entry(at: Date(), data: SharedLibrary.read()))
+        completion(entry(at: Date(), result: SharedLibrary.readResult()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<LessonEntry>) -> Void) {
-        let now = Date(), data = SharedLibrary.read()
+        let now = Date(), result = SharedLibrary.readResult()
+        let data = try? result.get()
         let lessons = data.map { WidgetSchedule.lessons(data: $0, from: now) } ?? []
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
         let dates = Set([now] + lessons.flatMap { [$0.start, $0.end] }.filter { $0 > now && $0 < horizon })
-        completion(Timeline(entries: dates.sorted().map { entry(at: $0, data: data) }, policy: .after(horizon)))
+        completion(Timeline(entries: dates.sorted().map { entry(at: $0, result: result) }, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
     }
-    private func entry(at date: Date, data: AppData?) -> LessonEntry {
-        LessonEntry(date: date, tableName: data?.timetables.first { $0.id == data?.selectedID }?.name ?? "YIClass",
-                    lessons: data.map { WidgetSchedule.lessons(data: $0, from: date) } ?? [], configured: data != nil)
+    private func entry(at date: Date, result: Result<AppData, AppFailure>) -> LessonEntry {
+        let data = try? result.get()
+        let issue: String?
+        if case .failure(let error) = result { issue = error.localizedDescription } else { issue = nil }
+        return LessonEntry(date: date, tableName: data?.timetables.first { $0.id == data?.selectedID }?.name ?? "YIClass",
+                    lessons: data.map { WidgetSchedule.lessons(data: $0, from: date) } ?? [], configured: data != nil, syncIssue: issue)
     }
 }
 
@@ -54,7 +59,7 @@ struct LessonWidgetView: View {
                         Text(next.start > entry.date ? "即将上课" : "正在上课").font(.caption)
                         Text(next.start, style: .time).font(.caption).monospacedDigit()
                     }
-                } else { Text(entry.configured ? "接下来暂无课程" : "打开 YIClass 同步课表") }
+                } else { Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
             default:
                 home
             }
@@ -84,7 +89,7 @@ struct LessonWidgetView: View {
                 }
             } else {
                 Spacer(minLength: 0)
-                Text(entry.configured ? "接下来暂无课程" : "打开 YIClass 同步课表").font(.headline)
+                Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")).font(.headline)
             }
             Spacer(minLength: 0)
         }

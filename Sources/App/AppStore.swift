@@ -74,10 +74,12 @@ import YIClassCore
         data = next
         syncWidgets()
     }
-    private func syncWidgets() {
-        do { try SharedLibrary.write(data); widgetSyncIssue = nil; WidgetCenter.shared.reloadAllTimelines() }
-        catch { widgetSyncIssue = error.localizedDescription }
+    func syncWidgets() {
+        guard !loadFailed else { return }
+        do { try SharedLibrary.write(data); widgetSyncIssue = nil; widgetLastSync = Date(); WidgetCenter.shared.reloadAllTimelines() }
+        catch { widgetSyncIssue = error.localizedDescription; widgetLastSync = nil }
     }
+    private(set) var widgetLastSync: Date?
     private(set) var widgetSyncIssue: String?
     func perform(_ operation: () throws -> Void) {
         do { try operation() } catch { self.error = error.localizedDescription }

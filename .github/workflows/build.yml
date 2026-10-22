@@ -34,9 +34,9 @@ jobs:
       - name: Upload iPhone build
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-iOS26-unsigned-ipa
+          name: YIClass-iOS26-resign-ipa
           path: |
-            dist/YIClass-iOS26-unsigned.ipa
+            dist/YIClass-iOS26-resign.ipa
             dist/device-manifest.json
             dist/device-SHA256SUMS.txt
           if-no-files-found: error
