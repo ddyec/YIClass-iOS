@@ -61,7 +61,7 @@ struct SettingsView: View {
                 }
                 Section("导入与备份") {
                     Button { aiImport = true } label: {
-                        HStack { ProductLogo(size: 20); Text("AI 识别课表") }
+                        HStack { AssistantLogo(size: 20); Text("AI 识别课表") }
                     }.accessibilityLabel("AI 识别课表")
                     Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }.disabled(reading)
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
