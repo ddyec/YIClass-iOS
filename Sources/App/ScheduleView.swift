@@ -188,24 +188,35 @@ struct WeekGrid: View {
     @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 48
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 44
     @ScaledMetric(relativeTo: .body) private var sessionGap: CGFloat = 20
+    @State private var showFullEvening = false
     private var days: Int { table.showWeekend ? 7 : 5 }
+    private var automaticPeriodCount: Int {
+        let daytime = profile.counts[0] + profile.counts[1]
+        let lastCourse = blocks.map(\.last).max() ?? 0
+        return min(profile.periods.count, max(1, daytime, lastCourse))
+    }
+    private var canCollapseEvening: Bool { automaticPeriodCount < profile.periods.count }
+    private var visiblePeriods: [PeriodTime] {
+        Array(profile.periods.prefix(showFullEvening ? profile.periods.count : automaticPeriodCount))
+    }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
 
     var body: some View {
         GeometryReader { geometry in
             let columnWidth = max(minimumWidth, (geometry.size.width - 44) / CGFloat(days))
-            let sectionGaps = CGFloat(profile.periods.filter { isSessionStart($0.period) }.count) * sessionGap
-            let rowHeight = max(minimumRowHeight, min(68, (geometry.size.height - 52 - sectionGaps) / CGFloat(profile.periods.count)))
+            let sectionGaps = CGFloat(visiblePeriods.filter { isSessionStart($0.period) }.count) * sessionGap
+            let footerHeight: CGFloat = canCollapseEvening ? 44 : 0
+            let rowHeight = max(minimumRowHeight, min(80, (geometry.size.height - 72 - footerHeight - sectionGaps) / CGFloat(visiblePeriods.count)))
             ScrollView(.horizontal) {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
                         Text("节次").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
                         ForEach(1...days, id: \.self) { day in dateHeader(day).frame(width: columnWidth) }
-                    }.frame(height: 48)
+                    }.frame(height: 68)
                     ScrollView(.vertical) {
                         HStack(alignment: .top, spacing: 0) {
                             VStack(spacing: 0) {
-                                ForEach(profile.periods) { time in
+                                ForEach(visiblePeriods) { time in
                                     if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
                                     VStack(spacing: 2) {
                                         Text("\(time.period)").font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -219,10 +230,18 @@ struct WeekGrid: View {
                             }
                         }.padding(.bottom, 4)
                     }
+                    if canCollapseEvening {
+                        Button { showFullEvening.toggle() } label: {
+                            Label(showFullEvening ? "收起空闲晚间" : "展开晚间课节", systemImage: showFullEvening ? "chevron.up" : "moon")
+                                .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+                        }.buttonStyle(.plain).foregroundStyle(.tint)
+                    }
                 }.frame(width: 44 + columnWidth * CGFloat(days))
             }
             .scrollIndicators(.automatic)
         }
+        .onChange(of: week) { _, _ in showFullEvening = false }
+        .onChange(of: table.id) { _, _ in showFullEvening = false }
     }
     private func isSessionStart(_ period: Int) -> Bool {
         period > 1 && (period == profile.counts[0] + 1 || period == profile.counts[0] + profile.counts[1] + 1)
@@ -233,13 +252,13 @@ struct WeekGrid: View {
     private func dateHeader(_ day: Int) -> some View {
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
         let today = Calendar.current.isDateInToday(date)
-        return VStack(spacing: 5) {
+        return VStack(spacing: 10) {
             Text(weekdayNames[day - 1]).font(.caption).foregroundStyle(.secondary)
             Text("\(Calendar.current.component(.day, from: date))").font(.subheadline.weight(.semibold))
                 .frame(width: 30, height: 30)
                 .background(today ? Color.indigo : Color.clear, in: Circle())
                 .foregroundStyle(today ? Color.white : Color.primary)
-        }.accessibilityElement(children: .combine)
+        }.padding(.vertical, 6).accessibilityElement(children: .combine)
     }
     private func dayColumn(_ day: Int, width: CGFloat, rowHeight: CGFloat) -> some View {
         let dayBlocks = blocks.filter { $0.weekday == day }
@@ -247,7 +266,7 @@ struct WeekGrid: View {
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
         return ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
-                ForEach(profile.periods) { time in
+                ForEach(visiblePeriods) { time in
                     if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
                     Rectangle().fill(Color.primary.opacity(0.045)).frame(height: 0.5)
                         .frame(height: rowHeight, alignment: .top)
@@ -267,7 +286,7 @@ struct WeekGrid: View {
                 }
             }
         }
-        .frame(width: width, height: yPosition(profile.periods.count, rowHeight: rowHeight) + rowHeight)
+        .frame(width: width, height: yPosition(visiblePeriods.count, rowHeight: rowHeight) + rowHeight)
         .background(Calendar.current.isDateInToday(date) ? Color.indigo.opacity(0.035) : Color.clear)
     }
 }
