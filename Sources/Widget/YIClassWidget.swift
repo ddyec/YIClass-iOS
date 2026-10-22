@@ -118,35 +118,47 @@ struct LessonWidgetView: View {
                 .stroke(.primary, style: StrokeStyle(lineWidth: single ? 3.2 : 2.8, lineCap: .round))
         }
     }
-    private func singleLockContent(_ lesson: ScheduledLesson, large: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(lesson.course.name).font(.system(size: large ? 19 : 14, weight: .semibold))
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(2)
-            HStack(spacing: 2) {
-                Text(clockRange(lesson)).monospacedDigit()
-                if entry.showsTomorrow { Spacer(minLength: 1); Text("明天") }
-            }.font(.system(size: large ? 14 : 11)).lineLimit(1).minimumScaleFactor(0.85)
-            if !lesson.course.location.isEmpty {
-                Text(lesson.course.location).font(.system(size: large ? 12 : 10))
-                    .lineLimit(1).minimumScaleFactor(0.8)
-            } else {
-                HStack(spacing: 3) {
-                    Text(lesson.start <= entry.date ? "距下课" : "距上课")
-                    Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
-                }.font(.system(size: large ? 12 : 10)).lineLimit(1)
-            }
-        }
-    }
     private func rectangular(_ lesson: ScheduledLesson) -> some View {
-        ViewThatFits(in: .vertical) {
-            singleLockContent(lesson, large: true)
-            singleLockContent(lesson, large: false)
+        GeometryReader { geometry in
+            let compact = geometry.size.height < 70
+            let solo = entry.lessons.count == 1
+            let titleSize: CGFloat = solo ? (compact ? 17 : 19) : (compact ? 13 : 15)
+            let titleHeight: CGFloat = solo ? (compact ? 21 : 24) : (compact ? 32 : 36)
+            let timeSize: CGFloat = solo ? (compact ? 12 : 14) : (compact ? 10 : 12)
+            let timeHeight: CGFloat = solo ? (compact ? 15 : 17) : (compact ? 12 : 15)
+            let roomSize: CGFloat = solo ? (compact ? 11 : 12) : (compact ? 9 : 11)
+            let roomHeight: CGFloat = solo ? (compact ? 14 : 15) : (compact ? 11 : 14)
+            // Metrics depend only on the shared display mode and system size.
+            // Every card reserves identical title/time/location rows, regardless
+            // of course-name length, period count, weeks, or lesson duration.
+            VStack(alignment: .leading, spacing: solo ? 3 : 1) {
+                Text(lesson.course.name).font(.system(size: titleSize, weight: .semibold))
+                    .lineLimit(solo ? 1 : 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: titleHeight, alignment: .topLeading)
+                HStack(spacing: 2) {
+                    Text(clockRange(lesson)).monospacedDigit()
+                    if entry.showsTomorrow { Spacer(minLength: 1); Text("明天") }
+                }.font(.system(size: timeSize)).lineLimit(1)
+                    .frame(height: timeHeight, alignment: .leading)
+                Group {
+                    if !lesson.course.location.isEmpty {
+                        Text(lesson.course.location)
+                    } else {
+                        HStack(spacing: 3) {
+                            Text(lesson.start <= entry.date ? "距下课" : "距上课")
+                            Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
+                        }
+                    }
+                }.font(.system(size: roomSize)).lineLimit(1)
+                    .frame(height: roomHeight, alignment: .leading)
+            }
+            .padding(.horizontal, 5)
+            .frame(width: max(1, geometry.size.width - 4), height: max(1, geometry.size.height - 4), alignment: .leading)
+            .overlay { courseOutline(lesson, single: solo) }
+            .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
+            .padding(2)
         }
-        .padding(.horizontal, 5).padding(.vertical, 4)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .overlay { courseOutline(lesson, single: entry.lessons.count == 1) }
-        .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
-        .padding(2)
         .accessibilityLabel("\(lesson.course.name)，\(lesson.start <= entry.date ? "上课中" : "待上课")，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
     }
     private func singleHomeLesson(_ lesson: ScheduledLesson) -> some View {
