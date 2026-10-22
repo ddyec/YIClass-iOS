@@ -1,6 +1,6 @@
 # 验证记录
 
-日期：2026-10-22。版本：3.1.0 (2)，iOS／iPadOS 26+。
+日期：2026-10-22。版本：3.1.1 (3)，iOS／iPadOS 26+。
 
 ## 自动化范围
 
@@ -13,11 +13,22 @@
 5. Release 设备归档，生成未签名 IPA。检查真实 arm64 主程序、`PlugIns/YIClassWidget.appex`、WidgetKit 扩展标识、最低系统与资源。
 6. 构建通用模拟器 App，检查小组件随主程序嵌入，打包并生成清单／校验和。
 
-[构建运行 39702832953](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953) 全部成功，源码 `87ea62a7541e76aac0dbaa6c5e5f9d379f3f8238`。23 项核心测试、真实 PDFKit 的 26 条记录全字段比对、实际 AppStore 文件测试、设备归档和通用模拟器构建均通过。
+此前 3.1.0 (2)：[构建运行 39702832953](https://github.com/ddyec/YIClass-iOS/actions/runs/39702832953) 全部成功，源码 `87ea62a7541e76aac0dbaa6c5e5f9d379f3f8238`。23 项核心测试、真实 PDFKit 的 26 条记录全字段比对、实际 AppStore 文件测试、设备归档和通用模拟器构建均通过。
 
 已下载两个产物再次核对校验和。IPA 为 611,335 字节，SHA-256：`b8fcb3c30fa393c7ff1a80af9f57a5ab2e169e597bdd2fcf58126fd7b6fd0512`。包含真实 arm64 主程序与 `YIClassWidget.appex`；未签名、没有描述文件。模拟器主程序与小组件都验证为 arm64 + x86_64，保留可执行权限。
 
 PDF 样本的身份处理与逐项验收说明见 [PDF-IMPORT.md](PDF-IMPORT.md)。脱敏前后课程字符和位置一致；没有将原始学生姓名或学号提交到仓库。
+
+## 3.1.1 文件选择修正
+
+[构建运行 39704828963](https://github.com/ddyec/YIClass-iOS/actions/runs/39704828963)，源码 `c5e9716b5657cd5809355f8469422e94a662708a`。核心测试、真实 PDFKit 全量导入核对、实际 JSON 文件集成检查和设备 Release 归档均通过。新增协调文件读取检查：原 PDF 字节完整、通用扩展名的 PDF 文件头识别、空文件和超限文件拒绝。
+
+已下载并检查 3.1.1 (3) IPA，622,795 字节，SHA-256：`e8e8c4f66d25f3ddec8c5955c78ecbd4a181c616dcc00d8dafffc91b40a2ff0f`。包含真实 arm64 主程序及小组件扩展，iOS 26 起用，未签名。
+
+
+将 SwiftUI fileImporter 替换为 UIDocumentPickerViewController 的导入副本模式。文件选择回调只保存 URL 并关闭选择器，onDismiss 后才协调读取和呈现预览，避免嵌套弹层衔接问题。文件提供器 I/O 在后台执行，读取时保留安全作用域，限制文件大小并提示空文件或读取错误。PDF 使用文件头识别，避免文件提供器把类型报告为通用数据时进入文本路径。
+
+这是针对用户反馈的实现修正，当前环境没有实际设备，不能声称重现或确认该 Files 位置的点击问题已经消失；此次不运行模拟器 UI 测试，由用户安装后验收。
 
 ## 界面验收状态
 
