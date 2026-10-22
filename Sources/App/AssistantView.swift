@@ -137,7 +137,7 @@ struct AssistantView: View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.indigo.gradient)
             Text(importMode ? "AI 导入课表" : "一起找到合适的安排").font(.title2.bold())
-            Text(importMode ? "选择截图、PDF 或文本，识别后预览导入。" : "说说你的想法，选好方案再应用。")
+            Text(importMode ? "选择截图、PDF 或文本，识别后预览导入。" : "直接说要怎么改，改完可以撤销。")
                 .font(.subheadline).foregroundStyle(.secondary)
             NavigationLink("\(mode.rawValue) · 配置", destination: AISettingsView()).font(.caption)
             if store.undoData != nil {
@@ -214,8 +214,14 @@ struct AssistantView: View {
                 guard token == requestID else { return }
                 try captured.check(current: importMode ? (importTable ?? store.table) : store.table, profile: store.profile)
                 // Keep the full structured answer in model history, but display human-readable text only.
-                reply = result
-                messages.append(ChatMessage(role: "assistant", content: result.message))
+                if result.applyDirectly == true && !importMode, let plan = result.plans.first {
+                    try store.apply(plan, snapshot: captured)
+                    reply = nil; snapshot = nil
+                    messages.append(ChatMessage(role: "assistant", content: "已更新课表。" + result.message))
+                } else {
+                    reply = result
+                    messages.append(ChatMessage(role: "assistant", content: result.message))
+                }
                 let structured = try JSONEncoder().encode(result)
                 modelHistory.append(ChatMessage(role: "assistant", content: String(decoding: structured, as: UTF8.self)))
             } catch is CancellationError { }

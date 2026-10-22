@@ -250,3 +250,30 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     #expect(throws: AppFailure.self) { _ = try data.replacingTimeProfile(profile) }
     #expect(data.timeProfile == .standard)
 }
+
+@Test func assistantReceivesDeviceLocalTodayTomorrowAndSemesterWeek() throws {
+    var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+    let start = calendar.date(from: DateComponents(year: 2026, month: 8, day: 31))!
+    let now = calendar.date(from: DateComponents(year: 2026, month: 10, day: 22, hour: 8, minute: 15))!
+    let context = try AssistantPrompt.context(table: Timetable(startDate: start), profile: .standard, now: now, calendar: calendar)
+    #expect(context.contains("2026-10-22 08:15（周四）"))
+    #expect(context.contains("Asia/Shanghai"))
+    #expect(context.contains("今天为第 8 周"))
+    #expect(context.contains("2026-10-23=第8周/星期5"))
+    #expect(context.contains("2026-10-26=第9周/星期1"))
+}
+
+@Test func directAIChangeAllowsEmptyLocationAndPersistsWithoutPreview() throws {
+    let json = #"{"message":"今天的英语课已取消，其他周保留。","applyDirectly":true,"questions":[],"plans":[{"title":"取消今天","explanation":"只移除第8周","courses":[{"name":"英语","location":"","teacher":"","schedules":[{"weekday":4,"periods":[1,2],"weekPattern":[7,9]}]}]}]}"#
+    let table = Timetable(courses: [course("英语", day: 4, weeks: [7,8,9])])
+    let reply = try AssistantReply.parse(json, table: table, profile: .standard)
+    #expect(reply.applyDirectly == true)
+    let changed = try reply.plans[0].proposedTable(from: table, profile: .standard)
+    #expect(changed.courses[0].location.isEmpty)
+    #expect(changed.courses[0].schedules[0].weekPattern == [7,9])
+    let data = AppData(timetables: [changed], selectedID: changed.id)
+    let restored = try JSONCoding.decoder().decode(AppData.self, from: JSONCoding.encoder().encode(data))
+    #expect(restored == data)
+    let invalid = #"{"message":"含糊","applyDirectly":true,"questions":[{"title":"哪门课","options":["A","B"]}],"plans":[]}"#
+    #expect(throws: AppFailure.self) { _ = try AssistantReply.parse(invalid, table: table, profile: .standard) }
+}
