@@ -46,11 +46,6 @@ struct ScheduleView: View {
                                 Label(table.name, systemImage: table.id == store.table.id ? "checkmark" : "calendar")
                             }
                         }
-                        let unplacedCount = store.table.courses.filter { $0.unscheduledWeeks != nil }.count
-                        if unplacedCount > 0 {
-                            Divider()
-                            Button("未排时间课程（\(unplacedCount)）", systemImage: "tray") { mode = .list }
-                        }
                         Divider()
                         Button("新建课表", systemImage: "plus") { newTable = true }
                     } label: { Image(systemName: "square.stack").accessibilityLabel("切换课表") }
@@ -130,18 +125,6 @@ struct ScheduleView: View {
     private var agenda: some View {
         List {
             let unplaced = store.table.courses.filter { $0.unscheduledWeeks != nil }
-            if mode == .list && !unplaced.isEmpty {
-                Section("未排时间") {
-                    ForEach(unplaced) { course in
-                        Button { selection = CourseSelection(course: course) } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(course.name).foregroundStyle(Color.primary)
-                                Text("第 \((course.unscheduledWeeks ?? []).map(String.init).joined(separator: ",")) 周 · \(course.location)").font(.caption).foregroundStyle(Color.secondary)
-                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                        }.buttonStyle(.plain)
-                    }
-                }
-            }
             let shownWeek = mode == .day ? ScheduleEngine.week(on: selectedDate, table: store.table) : week
             let selectedDay = (Calendar.current.component(.weekday, from: selectedDate) + 5) % 7 + 1
             let blocks = ScheduleEngine.blocks(table: store.table, week: shownWeek)
@@ -167,6 +150,23 @@ struct ScheduleView: View {
                         }.buttonStyle(.plain)
                     }
                 } header: { Text(weekdayNames[weekday - 1]) }
+            }
+            if mode == .list && !unplaced.isEmpty {
+                Section {
+                    DisclosureGroup {
+                        ForEach(unplaced) { course in
+                            Button { selection = CourseSelection(course: course) } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(course.name).foregroundStyle(Color.primary)
+                                    Text("第 \((course.unscheduledWeeks ?? []).map(String.init).joined(separator: ",")) 周 · \(course.location)")
+                                        .font(.caption).foregroundStyle(Color.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                            }.buttonStyle(.plain)
+                        }
+                    } label: {
+                        Text("其他课程").font(.subheadline).foregroundStyle(Color.secondary)
+                    }
+                }
             }
         }.scrollContentBackground(.hidden)
     }
