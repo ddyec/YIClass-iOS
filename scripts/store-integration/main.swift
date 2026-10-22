@@ -1,10 +1,24 @@
 import Foundation
 import YIClassCore
+import UniformTypeIdentifiers
 
 @main struct StoreCheck {
-    @MainActor static func main() throws {
+    @MainActor static func main() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("yi-store-test-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let pdfBytes = try Data(contentsOf: URL(fileURLWithPath: "Tests/Fixtures/timetable-grid.pdf"))
+        let providerCopy = directory.appendingPathComponent("provider-document.bin")
+        try pdfBytes.write(to: providerCopy)
+        let imported = try await DocumentFileReader.read(providerCopy, maximumBytes: 20_000_000)
+        precondition(imported.data == pdfBytes && imported.type == .pdf)
+        do { _ = try await DocumentFileReader.read(providerCopy, maximumBytes: 10); fatalError("Oversize file accepted") }
+        catch is AppFailure { }
+        let empty = directory.appendingPathComponent("empty.pdf")
+        try Data().write(to: empty)
+        do { _ = try await DocumentFileReader.read(empty, maximumBytes: 20_000_000); fatalError("Empty file accepted") }
+        catch is AppFailure { }
+        print("PASS: coordinated document read preserves PDF bytes, detects PDF with generic extension, rejects empty and oversized files")
         let file = directory.appendingPathComponent("library.json")
         let store = AppStore(storageURL: file)
         let english = Course(name: "英语", location: "", teacher: "", schedules: [CourseSchedule(weekday: 4, periods: [1,2], weekPattern: [7,8,9])])

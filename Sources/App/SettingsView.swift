@@ -19,6 +19,8 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     @State private var importing = false
+    @State private var pendingFileURL: URL?
+    @State private var reading = false
     @State private var aiImport = false
     @State private var exporting = false
     @State private var document = JSONDocument(data: Data())
@@ -37,7 +39,7 @@ struct SettingsView: View {
                 }
                 Section("导入与备份") {
                     Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
-                    Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }
+                    Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { pendingFileURL = nil; importing = true }.disabled(reading)
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
                         do {
                             document = JSONDocument(data: try TimetableTransfer.encode(table: store.table, profile: store.profile))
@@ -45,6 +47,7 @@ struct SettingsView: View {
                         } catch { store.error = error.localizedDescription }
                     }
                 }
+                if reading { ProgressView("正在读取课表…") }
                 if let issue = store.widgetSyncIssue {
                     Section("小组件同步") { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
@@ -61,15 +64,11 @@ struct SettingsView: View {
                 }
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
-            .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
-                do {
-                    let url = try result.get()
-                    let access = url.startAccessingSecurityScopedResource()
-                    defer { if access { url.stopAccessingSecurityScopedResource() } }
-                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size <= 10_000_000 else { throw AppFailure("课表文件不能超过 10 MB。") }
-                    selection = ImportSelection(preview: try TimetableTransfer.decode(Data(contentsOf: url)))
-                } catch { store.error = error.localizedDescription }
+            .fullScreenCover(isPresented: $importing, onDismiss: importChosenFile) {
+                DocumentImportPicker(contentTypes: [.json]) { url in
+                    pendingFileURL = url
+                    importing = false
+                }.ignoresSafeArea()
             }
             .fileExporter(isPresented: $exporting, document: document, contentType: .json, defaultFilename: "YIClass-课表") { result in
                 if case .failure(let error) = result { store.error = error.localizedDescription }
@@ -81,6 +80,19 @@ struct SettingsView: View {
             }
         }
     }
+    private func importChosenFile() {
+        guard let url = pendingFileURL else { return }
+        pendingFileURL = nil
+        reading = true
+        Task {
+            do {
+                let file = try await DocumentFileReader.read(url, maximumBytes: 10_000_000)
+                selection = ImportSelection(preview: try TimetableTransfer.decode(file.data))
+            } catch { store.error = error.localizedDescription }
+            reading = false
+        }
+    }
+
 }
 
 struct ImportReviewView: View {

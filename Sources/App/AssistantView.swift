@@ -31,6 +31,7 @@ struct AssistantView: View {
     @State private var selectedPlan: PlanSelection?
     @State private var photo: PhotosPickerItem?
     @State private var importing = false
+    @State private var pendingFileURL: URL?
     private var mode: AssistantMode { AssistantMode(rawValue: modeName) ?? .onDevice }
 
     var body: some View {
@@ -112,25 +113,26 @@ struct AssistantView: View {
                     photo = nil; reading = false
                 }
             }
-            .fileImporter(isPresented: $importing, allowedContentTypes: [.plainText, .commaSeparatedText, .pdf, .image]) { result in
-                do {
-                    let url = try result.get(); let access = url.startAccessingSecurityScopedResource()
-                    defer { if access { url.stopAccessingSecurityScopedResource() } }
-                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size <= 20_000_000 else { throw AppFailure("文件不能超过 20 MB。") }
-                    let bytes = try Data(contentsOf: url)
-                    let type = try url.resourceValues(forKeys: [.contentTypeKey]).contentType
-                    reading = true
-                    Task {
-                        do {
-                            let payload = try await ImportSource.read(bytes, type: type)
-                            sourceText = payload.text; sourceGrid = payload.grid
-                            sourceReview = true
-                        } catch { localError = error.localizedDescription }
-                        reading = false
-                    }
-                } catch { localError = error.localizedDescription }
+            .fullScreenCover(isPresented: $importing, onDismiss: importChosenFile) {
+                DocumentImportPicker(contentTypes: [.pdf, .image, .text, .commaSeparatedText]) { url in
+                    pendingFileURL = url
+                    importing = false
+                }.ignoresSafeArea()
             }
+        }
+    }
+    private func importChosenFile() {
+        guard let url = pendingFileURL else { return }
+        pendingFileURL = nil
+        reading = true
+        Task {
+            do {
+                let file = try await DocumentFileReader.read(url, maximumBytes: 20_000_000)
+                let payload = try await ImportSource.read(file.data, type: file.type)
+                sourceText = payload.text; sourceGrid = payload.grid
+                sourceReview = true
+            } catch { localError = error.localizedDescription }
+            reading = false
         }
     }
     private var intro: some View {
@@ -182,11 +184,11 @@ struct AssistantView: View {
                     .padding(.horizontal, 4).disabled(busy)
                 HStack {
                     PhotosPicker(selection: $photo, matching: .images) { Label("课表截图", systemImage: "photo") }.disabled(busy || reading)
-                    Button("导入文件", systemImage: "doc") { importing = true }.disabled(busy || reading)
+                    Button("导入文件", systemImage: "doc") { pendingFileURL = nil; importing = true }.disabled(busy || reading)
                     Spacer()
                     Button("发送", systemImage: "arrow.up") { send(input) }
                         .labelStyle(.iconOnly).buttonStyle(.glassProminent)
-                        .disabled(busy || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }.font(.caption)
             }
         }.padding(.horizontal, 16).padding(.bottom, 8)
