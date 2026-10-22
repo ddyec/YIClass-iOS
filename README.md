@@ -4,6 +4,8 @@
 
 ## 3.1 更新
 
+3.1.13 扩大末课宽幅卡片与描边空间：保持 22 点课名字号及两行换行，卡片最小高度 140 点，左右留白 18 点、上下 14 点，时间和地点分行；3 点描边向内绘制，进度条高度固定 4 点。长课名不再与时间／教室抢同一行，全天模式仅剩一课时隐藏额外操作行，保留阅读空间。通知图标从已批准的灰蓝书页原图显式生成 20 点 @2x／@3x 等各尺寸，使用新的 AppIconSlate 资源名，并在归档中核对 iPhone／iPad 图标引用。已投递通知可能保留系统缓存，新通知的实际图标仍需真机确认。
+
 3.1.12 保留标准锁屏组件作为基础，两门课用两个完整长方形左右并排；仅剩最后一门课时，使用真正横向铺满系统实时活动区域的宽幅卡片。卡片透明，无装饰图标，22 点课名、18 点时间、15 点地点、3 点描边与原生时间进度条。系统不允许实时活动或请求失败时保留普通组件，桌面组件不受影响。设置 → 小组件可关闭“锁屏实时活动”，或选择“仅末课宽幅／当前与后续课程”。新增独立“灵动岛课程信息”开关；关闭后岛内内容置空，但系统仍可能保留活动占位，完全不占岛须关闭实时活动并保留普通锁屏组件。
 
 实时活动的位置由 iOS 安排，不会改变时间下方标准组件格子的大小。每次打开 App 或修改课表，使用 iOS 26 本地排程准备今天与明天的末课，无需推送服务器。系统定时开始接口要求提供提示配置。受单条实时活动最长 8 小时限制，过早的末课预览先保留普通组件，在结束前不超过 7 小时 59 分钟进入宽幅模式。下课过期内容置空，回到 App 时清除活动；系统可能仍保留空活动区域，不保证后台精确到秒删除。
@@ -63,11 +65,11 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.1.12 (14) iPhone 包已实际归档并校验**，源码 `fdd70350f93e47080ef85d61f00abe59b636bd5f`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39737285816)。
+**3.1.13 (15) iPhone 包已实际归档并校验**，源码 `089c02b89c415f498693333d4ad6afcb5dde586d`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39745484870)。
 
 | 产物 | 下载 |
 | --- | --- |
-| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39737285816/artifacts/12407971096) |
+| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39745484870/artifacts/12410913218) |
 
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
@@ -83,7 +85,7 @@ xcrun simctl launch booted com.ddyec.YIClassNative
 
 ## Xcode 构建与签名
 
-需要 Xcode 26+、iOS 26 SDK，无第三方依赖。
+需要 Xcode 26+、iOS 26 SDK，无第三方依赖。Scheme 在构建前自动用系统 sips 从已提交的 1024 像素原图生成完整通知／设置／桌面图标；CI 同样执行 `python3 scripts/prepare-icons.py`。
 
 ```bash
 open YIClass.xcodeproj
