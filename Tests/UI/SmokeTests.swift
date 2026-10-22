@@ -69,6 +69,8 @@ extension SmokeTests {
         app.tabBars.buttons["课表"].tap()
         XCTAssertTrue(app.navigationBars["导入课表"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "普通化学II")).firstMatch.exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "实验室安全通识教育")).firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["20:40"].isHittable, "第 10 节结束时间应在默认字号的一屏中可见")
         attach(app, name: "PDF-第8周-一屏高度")
         app.buttons["列表"].tap()
         XCTAssertTrue(app.staticTexts["未排时间"].waitForExistence(timeout: 5))

@@ -1,22 +1,35 @@
 # YIClass iOS
 
-面向 **iOS / iPadOS 26.0 及以上**的 Swift 6、SwiftUI 原生重写。工程中没有 Flutter、Dart、WebView UI 或跨端兼容层。基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) 的 `c8f857828c236706afa745b7aea6435f9a428396` 版本重新实现，沿用原图标与 Logo。
+面向 **iOS / iPadOS 26+** 的 Swift 6、SwiftUI 原生课表，使用系统 Liquid Glass、WidgetKit 与深色模式。独立于旧 Flutter 仓库，沿用原图标与 Apache 2.0 协议。
 
-这是原生首版源码，已通过 **Xcode 26 / iOS 26 SDK 应用构建和 15 项核心测试**。早期模拟器运行中，浅色周视图与时间设置导航测试通过；**完整 UI 回归仍未通过**，托管模拟器发生启动进度超时、BackBoard 等待及后续测试启动超时。深色适配已实现，深色截图、真机签名安装和设备端 AI 尚未验收，不能视为正式发布版。结果见 [验证记录](docs/VALIDATION.md)。
+## 3.1 更新
 
-## 下载构建包
+- **桌面与锁屏小组件**：下一节课、当天课程、开课倒计时。跟随当前选中的课表，课程、时间设置、导入、AI 应用、撤销后同步刷新。
+- **紧凑周视图**：顶部控件合并，行高按可用高度调整，上午／下午／晚上分段。默认 10 节尽量在一屏内显示；小屏、大字号或更多课节时仍可滚动，所有课程可点击。冲突并排显示。
+- **统一课节时间**：默认 **4 + 4 + 2**，每段数量可调。每节开始与结束在同一行。修改开始时间保留该节时长并顺移后续课程；修改结束时间联动后续开始／结束。统一时长与课间立即联动，午休与晚间间隔保留。增减分段节数时同步调整全部课表的节次编号；正在使用的课节不能直接删除。
+- **完整导入**：设置 → AI 识别课表，支持截图、图片、PDF、TXT／CSV。PDF 保留星期列与跨页关系；可直接预览结构化课表，也可让已配置的 AI 继续整理。截图使用本机 Vision 识字并附带位置，交给 AI 恢复表格结构。识别源可检查、编辑，再生成方案；新建课表导入，不覆盖原有课表。
+- **不丢未排课课程**：没有固定星期、节次的网课、军训等保留名称、教师、地点和周次，在列表的“未排时间”中查看、补充安排。导出再导入也会保留。
+- **AI 配置精简**：DeepSeek 快捷设置、用当前未保存配置测试 API。自定义模式不显示／查询设备端兼容性；设备模型状态仅在进入对应配置或主动切换时检查。API Key 存入钥匙串。
+- **AI 对话**：关键不确定项给选择；用户授权推荐时直接提出有说明的候选方案。先预览后应用，校验节次／周次／冲突及过期状态。截断的模型输出明确报错，禁止部分应用。
+- 设置页减少卡片留白和说明。默认跟随系统深色，支持浅色／深色切换，启动背景也有深色资源。
 
-**Release 构建及打包已实际完成**：[成功的打包工作流](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840)，版本 `3.0.0 (1)`，最低系统 `26.0`，对应源码 `8a68125bbd56034a0e1ee2342488148b76c40b89`。
+## 导入这类教务 PDF
 
-| 构建 | 下载 | 使用条件 |
-| --- | --- | --- |
-| iPhone / iPad IPA，arm64 | [下载 IPA 构建包](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390323114) | 未签名，需用自己的 Apple 签名身份及有效描述文件重新签名，才能安装到设备。不能直接点击 IPA 安装。 |
-| Mac 上的 iOS 模拟器 App，arm64 + x86_64 | [下载模拟器构建包](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390199991) | 需要 Xcode 26+ 和 iOS 26+ 模拟器，无需开发者证书。 |
-| 构建日志 | [下载日志](https://github.com/ddyec/YIClass-iOS/actions/runs/39695780840/artifacts/12390364701) | 包含设备归档与模拟器编译的完整日志。 |
+已将用户提供的两页 PDF 制成回归样本，移除学生姓名与学号；核对脱敏前后课程字符与位置一致。验收逐项比对 **21 条排课安排 + 5 门未排时间课程** 的课程名、教师、地点、星期、节次和周次，包含跨页、单双周、周末及同一课程不同教室。
 
-GitHub Artifacts 下载需要登录，保存 30 天。下载的 ZIP 内包含实际 IPA 或 `tar.gz`、构建清单及 SHA-256 校验文件。
+PDF 未提供明确的学期第一周日期。预览中需要确认“开学日期”，默认继承当前学期；不能凭打印日期推断。所有导入默认沿用统一课节时间。
 
-模拟器包解压后，在启动的 iOS 26+ 模拟器中安装：
+结构化 PDF 可在本机完成导入。AI 路径使用用户选定的本机模型或自定义接口；实际模型可能误读，因此所有结果必须预览。图片、扫描 PDF 的文字和布局识别也受原文件清晰度影响。不直接解析 XLSX 或教务网页脚本。
+
+测试方法与实际结果见 [验证记录](docs/VALIDATION.md)。构建通过、PDF 导入通过与真实 AI 服务实测是不同检查，未执行的项不会标为通过。
+
+## 下载构建
+
+在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 中选择成功的运行，下载 Artifacts：
+
+- `YIClass-iOS26-unsigned-ipa`：iPhone／iPad arm64 IPA，**未签名**，安装前需用自己的 Apple 签名身份和描述文件签名。
+- `YIClass-iOS26-simulator`：Mac 上的 iOS 26 模拟器 App，包含 arm64／x86_64。
+- `YIClass-build-logs`：完整构建日志。构建包带清单和 SHA-256 校验文件，Artifacts 保存 30 天。
 
 ```bash
 tar -xzf YIClass-iOS26-simulator.tar.gz
@@ -24,102 +37,49 @@ xcrun simctl install booted YIClass.app
 xcrun simctl launch booted com.ddyec.YIClassNative
 ```
 
-后续可在 Actions → **Downloadable iOS builds** → Run workflow 重新生成。此工作流独立归档、打包和上传，不等待 UI 测试启动。构建产物成功不代表此前未通过的完整 UI 回归已经通过。
+## Xcode 构建与签名
 
-## 本次实现
-
-- 原生 TabView、NavigationStack、表单、文件选择与文件导出；悬浮周次控制使用 iOS 26 `GlassEffectContainer` / `glassEffect`，系统标签栏和工具栏采用原生外观。课程内容保持清晰的实色层次。响应减少透明度、减少动态效果与动态字号。
-- 默认跟随系统深色模式，可在设置中切换“跟随系统 / 浅色 / 深色”。周视图、课程卡片、助手、设置与表单均使用随系统变化的背景和文字颜色。
-- 重做周视图：日期与当前日标识、轻网格、连堂圆角卡片、时间轴、周次切换；保留日视图与列表视图。窄屏会横向滚动，避免周末和大字号时文字被压到不可读。
-- 冲突课程全部可见，按重叠组并排排列；不连续节次拆分为多张卡片，单 / 双周按实际周次显示。
-- 课程增删改、多条排课、周次选择、配色、多课表切换、学期起点、总周数、周末显示与停课日期。
-- 统一课节时间：所有课表共享一份 `TimeProfile`；新建、切换、导入、AI 方案不会替换用户配置。保存会校验重叠、跨日时间与所有现有课程的节次引用。
-- 新建空课表继承当前学期的开学日期、周数、周末选项和停课日期；不同学期仍可分别修改学期设置。
-- 旧版 JSON 导入与原生 JSON 导出，先预览后导入。新版导出包含课节时间；选择采用文件时间时会明确提示它将影响所有课表。默认保持已有时间。
-- 对话助手：模糊描述 → 选择追问选项 / 自由补充 → 1–3 个候选方案 → 查看全部课程与变更 → 应用。支持 Apple Intelligence 本机模型，或自定义 OpenAI 兼容 Chat Completions 接口。
-- 截图通过 Vision 在本机识字，结果可编辑后再发送；支持粘贴文本及 UTF-8 TXT / CSV。截图 OCR 不会保留完整二维表格语义，需核对生成结果。不直接解析 XLSX 工作簿。
-- AI 结果经结构与范围校验，应用前核对课表和时间是否变化；删除课程单独提示，方案、导入、删除和时间设置可撤销一次。对话只保存在当前进程内。
-- 本地原子保存与上一版备份；加载失败不覆盖原文件，支持分享损坏文件、恢复上次备份。API Key 存入设备钥匙串，不进入课表导出。
-
-## 为什么旧版会重置时间
-
-在基线源码中：
-
-1. `lib/views/settings_view/time_settings_page.dart` 只修改当前课表的 `settings.classTimes`。
-2. `lib/services/timetable/factory_service.dart` 创建新课表时从常量生成默认时间。
-3. `lib/services/file_service.dart` 的 `_settingsToMap` 不导出 `classTimes`，`fromMap` 又忽略输入时间并重新生成默认值。
-
-原生版的 `Timetable` 不再存储 `classTimes`，避免两套时间配置漂移。课表只引用节次，显示时从全局时间表解析。导入文件若课程节次超出当前配置，会报错并要求先完善时间设置，不会偷偷补上默认时间。
-
-## 用 Xcode 打开
-
-需要 **Xcode 26+、iOS 26 SDK**。无需 CocoaPods、XcodeGen 或第三方 Swift 包。
+需要 Xcode 26+、iOS 26 SDK，无第三方依赖。
 
 ```bash
 open YIClass.xcodeproj
 ```
 
-选择 `YIClass` scheme 和 iOS 26+ 模拟器运行。真机运行时，在 Signing & Capabilities 选择你自己的 Team，并根据需要更改 Bundle Identifier。应用默认标识为 `com.ddyec.YIClassNative`，与 Flutter 旧版隔离安装。
+选择 `YIClass` scheme。真机签名需要为 **YIClass 与 YIClassWidget 两个目标**配置自己的 Team、Bundle Identifier，并在两个目标启用同一个 App Group。默认共享组为 `group.com.ddyec.YIClassNative`，如需更改，同时修改两个 entitlements 与 `Sources/Shared/SharedLibrary.swift`。重新签名时必须保留小组件扩展和 App Group 权限，否则主程序与小组件无法共享数据。
 
-代码组织：
+本地完整课表仍保存在应用支持目录，WidgetKit 使用同一数据的共享快照；共享快照原子写入，在设备首次解锁后可供锁屏小组件读取。共享容器不可用时，设置会显示实际同步错误。
+
+```bash
+python3 scripts/validate_project.py
+swift test
+bash scripts/test-pdf.sh       # macOS：真实 PDFKit 提取与完整导入核对
+bash scripts/package-build.sh device
+bash scripts/package-build.sh simulator
+```
+
+工程由 `scripts/generate_project.py` 确定性生成，新增源文件后需重新生成。`Import and layout review` 工作流在 iOS 模拟器里操作 PDF 预览、导入、紧凑设置与周视图，并保存实际截图。
+
+## 数据与 AI
+
+所有课表共享一个 `TimeProfile`，新建继承当前学期，切换、普通导入、AI 方案均不会回退默认时间。旧 JSON 如果没有时间字段，缺失的信息无法恢复；补设一次后会持续沿用。导出包含统一时间；只有主动采用文件内时间才会更新全局设置。
+
+数据采用原子保存与上一版备份，加载损坏数据时保留原文件并提供恢复。支持课程、日／周／列表、多课表、停课日、单双周、一次撤销。原 Isar 数据库不能直接读取。
+
+“设置 → AI 模式与接口配置”可选择 Apple Intelligence 或 HTTPS OpenAI 兼容接口。DeepSeek 快捷配置为 `https://api.deepseek.com/chat/completions` / `deepseek-chat`。测试 API 仅发送连接检查，不上传课表；识别或对话时，会把相关资料和课表发送到所选远程服务。没有自动云端回退；请求拒绝重定向。Claude／Gemini 原生协议不在本版范围内。设备端需要兼容的机型、地区、语言和已下载模型；iOS 26 本身不保证可用。
+
+## 代码与边界
 
 ```text
-Sources/Core/     模型、日期与排课、导入导出、AI 方案验证（独立 Swift 包）
-Sources/App/      SwiftUI 应用、文件持久化、Vision、Foundation Models、Keychain
-Tests/Core/       数据与行为回归测试
-Tests/UI/         iOS 原生界面冒烟测试与截图附件
-scripts/          工程生成、结构检查与构建脚本
-YIClass.xcodeproj 已提交的 Xcode 工程和共享 scheme
+Sources/Core/    模型、统一时间、排课、PDF 解析、导入导出、AI 校验
+Sources/App/     SwiftUI、PDFKit、Vision、Foundation Models、Keychain
+Sources/Widget/  WidgetKit 桌面与锁屏扩展
+Sources/Shared/  主程序与小组件共享数据
+Tests/Core/     核心回归与人工核对的 PDF 期望数据
+Tests/UI/       原生操作与截图
+Tests/Fixtures/ 移除学生身份信息的原 PDF 样本
+scripts/        工程生成、PDF 实测、产物校验与构建
 ```
 
-工程成员变化后运行 `python3 scripts/generate_project.py`。生成器仅依赖 Python 标准库；生成结果可重复。
+真机签名安装、TestFlight、实际 Apple Intelligence 与自定义 AI 服务需要对应设备／凭证验收。旧版教务脚本仓库、直接网页导入与本地上课通知尚未迁移，不声称与旧版所有功能等价。
 
-## 验证
-
-```bash
-bash scripts/check.sh
-# Mac 上进一步执行：
-xcodebuild -project YIClass.xcodeproj -scheme YIClass \
-  -destination 'platform=iOS Simulator,id=<你的模拟器 UUID>' \
-  CODE_SIGNING_ALLOWED=NO test
-```
-
-`check.sh` 先检查工程与资源，再执行 `swift test`，在 Mac 上继续构建模拟器 App。GitHub Actions 工作流使用 Xcode 26，执行相同步骤和 UI 冒烟测试，分别保存 `ios-ui-results`（测试结果）与 `ios-screenshots`（界面截图）附件。
-
-托管模拟器出现过首次启动进度请求超时；CI 使用单模拟器运行，并通过 Xcode 对失败测试最多重试一次。原始失败与重试记录保留在 `.xcresult`，持续失败仍使工作流失败。这项设置不代表真机冷启动性能已经验收。
-
-本次已完成：Linux / macOS 上的 15 项 Swift 核心回归测试；Xcode 26.0.1 应用与 UI 测试目标编译；工程结构、资源、隐私清单与协议检查。最新完整 UI 运行因测试启动超时失败，不能宣称 CI 全绿。详细边界见 [docs/VALIDATION.md](docs/VALIDATION.md)。
-
-以下是已实际运行的原生统一时间设置页面，来自 iPhone 17 Pro / iOS 26.0.1 模拟器；不是设计稿：
-
-<img src="docs/screenshots/time-settings.png" alt="原生统一课节时间设置" width="300">
-
-## AI 使用
-
-“设置 → AI 模式与接口配置”选择处理方式。设备端使用 Foundation Models，需要支持 Apple Intelligence 的设备、地区、语言、开关及已下载模型；iOS 26 本身不保证可用。较大课表或较长对话可能超过设备端模型上下文，需缩短输入或选择自定义服务。模型输出错误时只报错，不应用。
-
-远程模式输入完整 HTTPS Chat Completions 地址、模型名及 Key。支持 OpenAI / DeepSeek 等的兼容接口；Claude、Gemini 原生请求协议不在本版范围内。只有用户点击发送才上传当前课表和对话，不会自动回退至云端。远程请求禁用重定向，避免 Key 随重定向发送到其他地址。
-
-## 从 Flutter 迁移
-
-先从旧应用导出 JSON，再在原生应用的设置中导入。旧版 iOS 导出方法本身尚未实现；如果你只有旧版 iOS 的 Isar 数据库，没有 JSON 文件，本工程不能直接迁移该数据库，需要先从旧应用增加导出或另行转换。
-
-旧版 JSON 未保存自定义课节时间，文件中不存在的信息无法恢复。请在原生版统一时间中补设一次，此后新建和导入均会沿用。
-
-本版优先覆盖课程管理、原生界面、时间一致性与对话方案。旧 Flutter 的教务网站脚本仓库、直接网页导入、课程本地通知尚未迁入，不能声称与旧版全部功能等价。没有接入统计 SDK、广告或开发者服务器。隐私清单标记了用户主动使用自定义 AI 时可能发送的用户内容；实际远程服务的留存政策由用户选择的供应商决定。
-
-## 新仓库状态
-
-本目录与旧项目分离，旧仓库未作修改。GitHub 连接创建仓库时返回 `Resource not accessible by integration (createRepository)`；用户随后手动创建了 [ddyec/YIClass-iOS](https://github.com/ddyec/YIClass-iOS)，该仓库用作本次原生重写的远程仓库。
-
-源码已推送到该仓库的 `main` 分支。后续可直接从新仓库克隆：
-
-```bash
-git clone https://github.com/ddyec/YIClass-iOS.git
-cd YIClass-iOS
-open YIClass.xcodeproj
-```
-
-## 开源协议
-
-Apache License 2.0。保留原项目 `Copyright 2025 wykwey`、原始图标与 Logo。见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
+基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) `c8f857828c236706afa745b7aea6435f9a428396` 重写，原仓库未修改。Apache License 2.0，保留 `Copyright 2025 wykwey`、原始图标与 Logo，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
