@@ -356,6 +356,7 @@ struct PlanReviewView: View {
                 guard store.profile == snapshot.profile else { throw AppFailure("课节时间已变化，请重新识别。") }
                 var table = try plan.proposedTable(from: snapshot.table, profile: store.profile)
                 table.startDate = semesterStart
+                if table.courses.flatMap(\.schedules).contains(where: { $0.weekday >= 6 }) { table.showWeekend = true }
                 try store.importTable(ImportPreview(table: table, suggestedProfile: nil), adoptTimes: false)
             } else { try store.apply(plan, snapshot: snapshot) }
             dismiss(); onApply()

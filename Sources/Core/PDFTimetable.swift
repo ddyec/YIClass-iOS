@@ -65,6 +65,7 @@ public enum PDFTimetableImporter {
         }
         var result = template.emptyCopy(name: "导入课表")
         result.courses = courses
+        if courses.flatMap(\.schedules).contains(where: { $0.weekday >= 6 }) { result.showWeekend = true }
         try result.validate(profile: profile)
         return result
     }

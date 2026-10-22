@@ -28,7 +28,7 @@ struct ScheduleView: View {
                     }
                     if store.table.courses.isEmpty {
                         ContentUnavailableView {
-                            Label("把这一周安排好", systemImage: "calendar.badge.plus")
+                            Label(mode == .day ? "当天还没有课程" : "把这一周安排好", systemImage: "calendar.badge.plus")
                         } description: {
                             Text("添加课程，或在设置中导入课表。")
                         } actions: { Button("添加课程") { newCourse = true }.buttonStyle(.glassProminent) }
@@ -154,8 +154,10 @@ struct ScheduleView: View {
                                 RoundedRectangle(cornerRadius: 3).fill(Color(argb: block.course.color)).frame(width: 4)
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(block.course.name).font(.headline).foregroundStyle(.primary)
-                                    Text([block.course.location, block.course.teacher].filter { !$0.isEmpty }.joined(separator: " · "))
-                                        .font(.subheadline).foregroundStyle(.secondary)
+                                    if !block.course.location.isEmpty || !block.course.teacher.isEmpty {
+                                        Text([block.course.location, block.course.teacher].filter { !$0.isEmpty }.joined(separator: " · "))
+                                            .font(.subheadline).foregroundStyle(.secondary)
+                                    }
                                     Text(timeLabel(block)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                                 }
                             }

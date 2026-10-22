@@ -206,7 +206,8 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
 @Test func suppliedPDFColumnFixturePreservesAllCoursesAndWeeks() throws {
     let url = Bundle.module.url(forResource: "timetable-grid-columns", withExtension: "json", subdirectory: "Fixtures")!
     let grid = try JSONDecoder().decode(PDFGridDocument.self, from: Data(contentsOf: url))
-    let table = try PDFTimetableImporter.parse(grid, template: Timetable(), profile: .standard)
+    let table = try PDFTimetableImporter.parse(grid, template: Timetable(showWeekend: false), profile: .standard)
+    #expect(table.showWeekend)
     let expectedURL = Bundle.module.url(forResource: "timetable-grid-expected", withExtension: "json", subdirectory: "Fixtures")!
     let expected = try JSONDecoder().decode([PDFExpectedRow].self, from: Data(contentsOf: expectedURL)).sorted { $0.key < $1.key }
     #expect(PDFExpectedRow.rows(table) == expected)
