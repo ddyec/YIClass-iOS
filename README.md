@@ -1,8 +1,14 @@
 # YIClass iOS
 
-面向 **iOS / iPadOS 26+** 的 Swift 6、SwiftUI 原生课表，使用系统 Liquid Glass、WidgetKit 与深色模式。独立于旧 Flutter 仓库，沿用原图标与 Apache 2.0 协议。
+面向 **iOS / iPadOS 26+** 的 Swift 6、SwiftUI 原生课表，使用系统 Liquid Glass、WidgetKit 与深色模式。独立于旧 Flutter 仓库，重新设计书页课表图标，沿用 Apache 2.0 协议。
 
 ## 3.1 更新
+
+3.1.12 保留标准锁屏组件作为基础，两门课用两个完整长方形左右并排；仅剩最后一门课时，使用真正横向铺满系统实时活动区域的宽幅卡片。卡片透明，无装饰图标，22 点课名、18 点时间、15 点地点、3 点描边与原生时间进度条。系统不允许实时活动或请求失败时保留普通组件，桌面组件不受影响。设置 → 小组件可关闭“锁屏实时活动”，或选择“仅末课宽幅／当前与后续课程”。新增独立“灵动岛课程信息”开关；关闭后岛内内容置空，但系统仍可能保留活动占位，完全不占岛须关闭实时活动并保留普通锁屏组件。
+
+实时活动的位置由 iOS 安排，不会改变时间下方标准组件格子的大小。每次打开 App 或修改课表，使用 iOS 26 本地排程准备今天与明天的末课，无需推送服务器。系统定时开始接口要求提供提示配置。受单条实时活动最长 8 小时限制，过早的末课预览先保留普通组件，在结束前不超过 7 小时 59 分钟进入宽幅模式。下课过期内容置空，回到 App 时清除活动；系统可能仍保留空活动区域，不保证后台精确到秒删除。
+
+实时活动覆盖锁屏、灵动岛展开／紧凑／最小状态、待机显示及系统转发的小尺寸活动。多课同一宽幅区域左右等宽显示，单课铺满宽度；窄区域保留课名与时间，大区域显示教室。全天课程模式提供卡片内“刷新课程”，直接重新读取共享 JSON，不打开 App，也不凭旧索引跳过课程。后台没有 APNs 服务时，ActivityKit 不提供普通组件那样的课程时间线；下课后若快照已过期，显示刷新入口，避免仍显示已结束课程。前台自动更新；末课仍使用 iOS 26 预先排程。默认“仅末课宽幅”，普通组件继续按系统时间线切课。参考 [Apple ActivityKit 生命周期与更新机制](https://developer.apple.com/documentation/activitykit/displaying-live-data-with-live-activities) 和 [各展示区域规范](https://developer.apple.com/design/human-interface-guidelines/live-activities)。新 App 图标使用本轮生成的低饱和灰蓝底色、白色书页与课程卡片图形，替换旧图标。
 
 3.1.11 修正单个锁屏组件内挤入两门课的问题：删除半宽双列布局，原“课程安排”和“后续课程”分别用一个完整长方形显示一门课。安装后保留原组件，再从锁屏编辑中添加一个长方形“后续课程”，两块才会占满一行；App 不能自动添加第二块或将单个组件扩大成整行。设置 → 小组件新增折叠的并排说明。参考 [Apple 的组件尺寸与规格](https://developer.apple.com/design/human-interface-guidelines/widgets) 和 [添加锁屏组件步骤](https://support.apple.com/en-mide/118610)。
 
@@ -57,11 +63,11 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.1.11 (13) iPhone 包已实际归档并校验**，源码 `287b9e26456db3b6dbfdda73bcf4afea41e9927c`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39732988461)。
+**3.1.12 (14) iPhone 包已实际归档并校验**，源码 `fdd70350f93e47080ef85d61f00abe59b636bd5f`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39737285816)。
 
 | 产物 | 下载 |
 | --- | --- |
-| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39732988461/artifacts/12405373308) |
+| iPhone／iPad 待重签 IPA（含小组件） | [下载安装包](https://github.com/ddyec/YIClass-iOS/actions/runs/39737285816/artifacts/12407971096) |
 
 后续可在 [Downloadable iOS builds](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建：
 
@@ -121,4 +127,4 @@ scripts/        工程生成、PDF 实测、产物校验与构建
 
 真机签名安装、TestFlight、实际 Apple Intelligence 与自定义 AI 服务需要对应设备／凭证验收。旧版教务脚本仓库、直接网页导入与本地上课通知尚未迁移，不声称与旧版所有功能等价。
 
-基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) `c8f857828c236706afa745b7aea6435f9a428396` 重写，原仓库未修改。Apache License 2.0，保留 `Copyright 2025 wykwey`、原始图标与 Logo，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
+基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) `c8f857828c236706afa745b7aea6435f9a428396` 重写，原仓库未修改。Apache License 2.0，保留 `Copyright 2025 wykwey`；3.1.12 起使用新设计的书页课表图标，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
