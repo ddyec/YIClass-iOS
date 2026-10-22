@@ -89,6 +89,9 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                 throw AppFailure("请配置完整的 HTTPS Chat Completions 地址和模型名。")
             }
             guard !key.isEmpty else { throw AppFailure("请先在设置中保存 API Key。") }
+            guard messages.flatMap(\.images).reduce(0, { $0 + $1.data.count }) <= 30_000_000 else {
+                throw AppFailure("本轮对话的原图合计过大，请开始新对话后重试。")
+            }
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForResource = 190
             let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil)

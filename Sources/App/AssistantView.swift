@@ -307,9 +307,10 @@ struct AssistantView: View {
                     }
                     Button { send(input, images: pendingImages) } label: {
                         Image(systemName: "arrow.up").font(.body.weight(.semibold))
-                            .frame(width: 44, height: 44).contentShape(Circle())
+                            .frame(width: 32, height: 32)
                             .foregroundStyle(.white)
                             .background(.indigo, in: Circle())
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain)
                         .opacity(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.35 : 1)
                         .accessibilityLabel("发送")
@@ -399,7 +400,9 @@ struct AssistantView: View {
     }
     private func reset() {
         persistConversation(); invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil
+        cancelImport(); photo = nil
         conversationID = UUID(); planningImport = importMode; pendingImages = []; retrySubmission = nil
+        sourceImages = []; sourceText = ""; sourceGrid = nil
     }
     private var sourceReviewView: some View {
         NavigationStack {
@@ -411,7 +414,7 @@ struct AssistantView: View {
                 if let image = sourceImages.first, let preview = UIImage(data: image.data) {
                     Section("原图") { Image(uiImage: preview).resizable().scaledToFit().frame(maxHeight: 220).frame(maxWidth: .infinity) }
                 }
-                if let sourceGrid, sourceText == sourceGrid.source {
+                if !sourceChangesCurrent, let sourceGrid, sourceText == sourceGrid.source {
                     Section {
                         Button("直接预览结构化课表") {
                             do {
@@ -437,7 +440,7 @@ struct AssistantView: View {
                     }
                     ToolbarItem(placement: .cancellationAction) { Button("取消") { sourceFocused = false; sourceReview = false } }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("识别并生成") {
+                        Button(sourceChangesCurrent ? "调整课表" : "识别并生成") {
                             let purpose = sourceChangesCurrent
                                 ? "请按附件中的通知或课程资料修改当前课表。明确的调课直接返回可应用的完整结果，保留其他日期课程。只有无法确定的关键目标才给选项询问。"
                                 : "请将附件中的完整课表整理成新课表的导入方案。"
