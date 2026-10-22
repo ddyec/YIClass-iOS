@@ -35,6 +35,9 @@ for folder in ['App', 'Widget']:
 widget_info = plistlib.loads((ROOT / 'Sources/Widget/Info.plist').read_bytes())
 assert widget_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.widgetkit-extension'
 assert 'Embed App Extensions' in text and 'com.apple.product-type.app-extension' in text
+app_info = plistlib.loads((ROOT / 'Sources/App/Info.plist').read_bytes())
+assert app_info.get('NSSupportsLiveActivities') is True, 'Missing Live Activities capability'
+assert 'LastLessonLiveActivity.swift' in text and 'LastLessonActivityAttributes.swift' in text
 for folder in ['Widget', 'Shared']:
     for file in (ROOT / f'Sources/{folder}').glob('*.swift'):
         assert str(file.relative_to(ROOT)) in text, f'Missing widget/shared source: {file}'

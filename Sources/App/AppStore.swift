@@ -122,6 +122,7 @@ import YIClassCore
         guard !loadFailed else { return }
         #if os(iOS)
         LessonReminderManager.shared.refresh(data: data)
+        LastLessonActivityManager.shared.refresh(data: data)
         #endif
         do { try SharedLibrary.write(data); widgetSyncIssue = nil; widgetLastSync = Date(); WidgetCenter.shared.reloadAllTimelines() }
         catch { widgetSyncIssue = error.localizedDescription; widgetLastSync = nil }

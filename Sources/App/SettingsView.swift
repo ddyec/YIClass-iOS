@@ -20,6 +20,7 @@ struct SettingsView: View {
     @Environment(AppStore.self) private var store
     @AppStorage("appearance") private var appearance = AppearanceMode.system.rawValue
     @State private var reminders = LessonReminderManager.shared
+    @State private var wideLesson = LastLessonActivityManager.shared
     @Environment(\.openURL) private var openURL
     @State private var importing = false
     @State private var reading = false
@@ -69,6 +70,12 @@ struct SettingsView: View {
                 }
                 if reading { ProgressView("正在读取课表…") }
                 Section("小组件") {
+                    Toggle("末课使用锁屏宽幅卡片", isOn: Binding(get: { wideLesson.enabled }, set: {
+                        wideLesson.setEnabled($0, data: store.data)
+                    }))
+                    if let issue = wideLesson.issue {
+                        Text(issue).font(.footnote).foregroundStyle(.secondary)
+                    }
                     DisclosureGroup("锁屏并排显示两门课") {
                         Text("长按锁屏 → 自定 → 锁定屏幕 → 添加小组件。")
                             .font(.footnote).foregroundStyle(.secondary)
