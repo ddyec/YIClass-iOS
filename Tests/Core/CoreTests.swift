@@ -338,6 +338,7 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     var table = Timetable(startDate: monday, holidays: [calendar.date(byAdding: .day, value: 7, to: monday)!], courses: [english])
     let other = Timetable(startDate: monday, courses: [course("其他课表", day: 1, weeks: [1,2,3])])
     var data = AppData(timetables: [other, table], selectedID: table.id)
+    try data.timeProfile.moveStart(0, to: 510)
     let reminders = LessonReminderPlanner.reminders(data: data, now: now, calendar: calendar)
     #expect(reminders.count == 2)
     #expect(reminders[0].tableID == table.id && reminders[0].courseID == english.id)
@@ -362,6 +363,6 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     #expect(old.count == 60 && Set(old.map(\.id)).count == 60)
     try data.timeProfile.moveStart(0, to: 540)
     let changed = LessonReminderPlanner.reminders(data: data, now: monday, calendar: calendar)
-    #expect(changed[0].date.timeIntervalSince(old[0].date) == 1800)
+    #expect(changed[0].date.timeIntervalSince(old[0].date) == 3600)
     #expect(changed[0].id != old[0].id)
 }
