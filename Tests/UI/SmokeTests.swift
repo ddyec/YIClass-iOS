@@ -76,5 +76,19 @@ extension SmokeTests {
         XCTAssertTrue(app.staticTexts["未排时间"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "军事技能")).firstMatch.exists)
         attach(app, name: "PDF-未排时间课程")
+        app.buttons["日"].tap()
+        XCTAssertTrue(app.buttons["本日"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["前一天"].exists && app.buttons["后一天"].exists)
+        let calendar = app.buttons["day-calendar"]
+        let today = calendar.label
+        app.buttons["后一天"].tap()
+        XCTAssertNotEqual(calendar.label, today)
+        app.buttons["前一天"].tap()
+        XCTAssertEqual(calendar.label, today)
+        calendar.tap()
+        XCTAssertTrue(app.navigationBars["选择日期"].waitForExistence(timeout: 5))
+        attach(app, name: "日视图-日期日历")
+        app.buttons["完成"].tap()
+        attach(app, name: "日视图-本日导航")
     }
 }

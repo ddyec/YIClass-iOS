@@ -33,6 +33,7 @@ struct SettingsView: View {
                     }
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
+                    NavigationLink("AI 模式与接口配置") { AISettingsView() }
                 }
                 Section("导入与备份") {
                     Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
@@ -47,7 +48,6 @@ struct SettingsView: View {
                 if let issue = store.widgetSyncIssue {
                     Section("小组件同步") { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
-                Section("智能助手") { NavigationLink("AI 模式与接口配置") { AISettingsView() } }
                 if store.undoData != nil {
                     Section { Button("撤销最近一次方案、导入或删除", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
                 }
@@ -179,19 +179,20 @@ struct TimeSettingsView: View {
                     })) { ForEach(Array(stride(from: 0, through: 60, by: 5)), id: \.self) { Text("\($0) 分").tag($0) } }
                 }.pickerStyle(.menu)
             }
-            ForEach(0..<3, id: \.self) { group in
-                if draft.counts[group] > 0 {
-                    Section(sessions[group]) {
-                        ForEach(indices(group), id: \.self) { index in
-                            HStack(spacing: 4) {
-                                Text("\(index + 1)").font(.subheadline.monospacedDigit()).foregroundStyle(.secondary).frame(width: 24)
-                                DatePicker("第 \(index + 1) 节开始", selection: timeBinding(index, end: false), displayedComponents: .hourAndMinute).labelsHidden()
-                                Text("–").foregroundStyle(.tertiary)
-                                DatePicker("第 \(index + 1) 节结束", selection: timeBinding(index, end: true), displayedComponents: .hourAndMinute).labelsHidden()
-                            }.frame(maxWidth: .infinity)
-                                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-                        }
-                    }
+            Section("课节时间") {
+                ForEach(draft.periods.indices, id: \.self) { index in
+                    HStack(spacing: 4) {
+                        VStack(spacing: 1) {
+                            Text("\(index + 1)").font(.subheadline.monospacedDigit())
+                            if index == 0 || index == draft.counts[0] || index == draft.counts[0] + draft.counts[1] {
+                                Text(sessionName(index)).font(.caption2)
+                            }
+                        }.foregroundStyle(.secondary).frame(width: 36)
+                        DatePicker("第 \(index + 1) 节开始", selection: timeBinding(index, end: false), displayedComponents: .hourAndMinute).labelsHidden().frame(maxWidth: .infinity)
+                        Text("–").foregroundStyle(.tertiary)
+                        DatePicker("第 \(index + 1) 节结束", selection: timeBinding(index, end: true), displayedComponents: .hourAndMinute).labelsHidden().frame(maxWidth: .infinity)
+                    }.frame(maxWidth: .infinity)
+                        .listRowInsets(EdgeInsets(top: 2, leading: 12, bottom: 2, trailing: 12))
                 }
             }
             Section { Text("修改时间会联动后续课节；增减节数会重新编号。保存后对所有课表生效。")
@@ -212,9 +213,8 @@ struct TimeSettingsView: View {
         } message: { Text(issue ?? "") }
     }
     private var typicalGap: Int { draft.periods.count > 1 ? max(0, draft.periods[1].start - draft.periods[0].end) : 10 }
-    private func indices(_ group: Int) -> Range<Int> {
-        let start = draft.counts.prefix(group).reduce(0, +)
-        return start..<(start + draft.counts[group])
+    private func sessionName(_ index: Int) -> String {
+        index < draft.counts[0] ? "上午" : (index < draft.counts[0] + draft.counts[1] ? "下午" : "晚上")
     }
     private func change(_ operation: () throws -> Void) {
         do { try operation() } catch { issue = error.localizedDescription }

@@ -7,7 +7,8 @@ private struct CourseSelection: Identifiable { let course: Course; var id: UUID 
 struct ScheduleView: View {
     @Environment(AppStore.self) private var store
     @State private var week = 1
-    @State private var day = (Calendar.current.component(.weekday, from: Date()) + 5) % 7 + 1
+    @State private var selectedDate = Calendar.current.startOfDay(for: Date())
+    @State private var choosingDate = false
     @State private var mode = ScheduleMode.week
     @State private var selection: CourseSelection?
     @State private var newCourse = false
@@ -29,7 +30,7 @@ struct ScheduleView: View {
                         ContentUnavailableView {
                             Label("把这一周安排好", systemImage: "calendar.badge.plus")
                         } description: {
-                            Text("添加第一门课，或在设置中导入旧版 JSON 课表。")
+                            Text("添加课程，或在设置中导入课表。")
                         } actions: { Button("添加课程") { newCourse = true }.buttonStyle(.glassProminent) }
                     } else if mode == .week {
                         WeekGrid(table: store.table, profile: store.profile, week: week) { selection = CourseSelection(course: $0) }
@@ -55,6 +56,7 @@ struct ScheduleView: View {
                     Button("添加课程", systemImage: "plus") { newCourse = true }
                 }
             }
+            .sheet(isPresented: $choosingDate) { dateCalendar }
             .sheet(isPresented: $newCourse) { CourseEditor(tableID: store.table.id, course: nil) }
             .sheet(item: $selection) { CourseEditor(tableID: store.table.id, course: $0.course) }
             .alert("新建课表", isPresented: $newTable) {
@@ -65,11 +67,19 @@ struct ScheduleView: View {
             .onAppear { jumpToCurrentWeek() }
             .onChange(of: store.table.id) { _, _ in jumpToCurrentWeek() }
             .onChange(of: store.table.totalWeeks) { _, value in week = min(week, value) }
+            .onChange(of: mode) { old, value in
+                if value == .day {
+                    let weekday = (Calendar.current.component(.weekday, from: selectedDate) + 5) % 7 + 1
+                    selectedDate = ScheduleEngine.date(week: week, weekday: weekday, table: store.table)
+                } else if old == .day {
+                    week = max(1, min(store.table.totalWeeks, ScheduleEngine.week(on: selectedDate, table: store.table)))
+                }
+            }
         }
     }
     private var controls: some View {
         VStack(spacing: 8) {
-            HStack(spacing: 10) {
+            if mode == .day { dayControls } else { HStack(spacing: 10) {
                 Button("上一周", systemImage: "chevron.left") { changeWeek(-1) }
                     .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == 1)
                 Menu {
@@ -84,21 +94,40 @@ struct ScheduleView: View {
                 Button("本周") { jumpToCurrentWeek() }.font(.subheadline)
                 Button("下一周", systemImage: "chevron.right") { changeWeek(1) }
                     .labelStyle(.iconOnly).frame(width: 40, height: 36).disabled(week == store.table.totalWeeks)
-            }
+            } }
             Picker("显示方式", selection: $mode) {
                 ForEach(ScheduleMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
         }
     }
+    private var dayControls: some View {
+        HStack(spacing: 10) {
+            Button("前一天", systemImage: "chevron.left") { moveDay(-1) }
+                .labelStyle(.iconOnly).frame(width: 40, height: 36)
+            Button { choosingDate = true } label: {
+                Text(selectedDate, format: .dateTime.month().day().weekday())
+                    .font(.headline).frame(maxWidth: .infinity)
+            }.accessibilityIdentifier("day-calendar")
+            Button("本日") { selectedDate = Calendar.current.startOfDay(for: Date()) }.font(.subheadline)
+            Button("后一天", systemImage: "chevron.right") { moveDay(1) }
+                .labelStyle(.iconOnly).frame(width: 40, height: 36)
+        }
+    }
+    private var dateCalendar: some View {
+        NavigationStack {
+            DatePicker("选择日期", selection: $selectedDate, displayedComponents: .date)
+                .datePickerStyle(.graphical).padding()
+                .navigationTitle("选择日期").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { choosingDate = false } } }
+        }.presentationDetents([.medium, .large])
+    }
+    private func moveDay(_ offset: Int) {
+        if let date = Calendar.current.date(byAdding: .day, value: offset, to: selectedDate) { selectedDate = date }
+    }
     private var agenda: some View {
         List {
-            if mode == .day {
-                Picker("星期", selection: $day) {
-                    ForEach(1...7, id: \.self) { Text(weekdayNames[$0 - 1]).tag($0) }
-                }.pickerStyle(.menu)
-            }
             let unplaced = store.table.courses.filter { $0.unscheduledWeeks != nil }
-            if !unplaced.isEmpty {
+            if mode == .list && !unplaced.isEmpty {
                 Section("未排时间") {
                     ForEach(unplaced) { course in
                         Button { selection = CourseSelection(course: course) } label: {
@@ -110,12 +139,15 @@ struct ScheduleView: View {
                     }
                 }
             }
-            let blocks = ScheduleEngine.blocks(table: store.table, week: week)
-            let days = mode == .day ? [day] : Array(1...7)
+            let shownWeek = mode == .day ? ScheduleEngine.week(on: selectedDate, table: store.table) : week
+            let selectedDay = (Calendar.current.component(.weekday, from: selectedDate) + 5) % 7 + 1
+            let blocks = ScheduleEngine.blocks(table: store.table, week: shownWeek)
+            let days = mode == .day ? [selectedDay] : Array(1...7).filter { day in blocks.contains { $0.weekday == day } }
+            if mode != .day && blocks.isEmpty { Text("本周暂无课程").foregroundStyle(.secondary) }
             ForEach(days, id: \.self) { weekday in
                 Section {
                     let courses = blocks.filter { $0.weekday == weekday }
-                    if courses.isEmpty { Text("没有课程，留点时间给自己").foregroundStyle(.secondary) }
+                    if courses.isEmpty { Text("当天暂无课程").foregroundStyle(.secondary) }
                     ForEach(courses) { block in
                         Button { selection = CourseSelection(course: block.course) } label: {
                             HStack(spacing: 12) {
@@ -141,6 +173,7 @@ struct ScheduleView: View {
         withAnimation(reduceMotion ? nil : .smooth(duration: 0.2)) { week = max(1, min(store.table.totalWeeks, week + offset)) }
     }
     private func jumpToCurrentWeek() {
+        selectedDate = Calendar.current.startOfDay(for: Date())
         week = max(1, min(store.table.totalWeeks, ScheduleEngine.week(on: Date(), table: store.table)))
     }
 }
