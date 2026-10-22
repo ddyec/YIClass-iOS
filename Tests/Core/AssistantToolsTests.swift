@@ -126,17 +126,48 @@ private func gridTable() throws -> Timetable {
     #expect(Set(dates).count == dates.count && dates == dates.sorted())
 }
 
-@Test func rectangularCompletedLessonFadesBrieflyWithoutHidingAnOngoingClass() throws {
+@Test func finishedLessonsDisappearImmediatelyAndOngoingLessonsStayFirst() throws {
     let start = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar).addingTimeInterval(14 * 3600)
     let first = ScheduledLesson(course: Course(name: "刚下课", schedules: []), start: start, end: start.addingTimeInterval(6000))
     let next = ScheduledLesson(course: Course(name: "下一节", schedules: []), start: start.addingTimeInterval(7200), end: start.addingTimeInterval(13200))
-    let later = ScheduledLesson(course: Course(name: "再下一节", schedules: []), start: start.addingTimeInterval(14400), end: start.addingTimeInterval(18000))
-    let all = [first, next, later]
-    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end, completionGrace: 180).map(\.course.name) == ["刚下课", "下一节"])
-    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end.addingTimeInterval(180), completionGrace: 180).map(\.course.name) == ["下一节", "再下一节"])
-    #expect(WidgetSchedule.lockScreenLessons(all, at: first.end).map(\.course.name) == ["下一节", "再下一节"])
-    let dates = WidgetSchedule.lockScreenTimelineDates(lessons: all, from: start, until: start.addingTimeInterval(86400))
-    #expect(dates.contains(first.end.addingTimeInterval(180)))
+    #expect(WidgetSchedule.lockScreenLessons([first, next], at: first.end).map(\.course.name) == ["下一节"])
+    #expect(WidgetSchedule.lockScreenLessons([first, next], at: next.end).isEmpty)
     let overlapping = ScheduledLesson(course: Course(name: "仍在上课", schedules: []), start: start.addingTimeInterval(3000), end: start.addingTimeInterval(6600))
-    #expect(WidgetSchedule.lockScreenLessons([first, overlapping, next], at: first.end, completionGrace: 180).first?.course.name == "仍在上课")
+    #expect(WidgetSchedule.lockScreenLessons([first, overlapping, next], at: first.end).first?.course.name == "仍在上课")
+}
+
+@Test func widgetsWaitForConfiguredNightEndEvenWithoutEveningCourses() throws {
+    let start = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
+    let today = Course(name: "今日下午", schedules: [CourseSchedule(weekday: 4, periods: [5,6], weekPattern: [1])])
+    let tomorrow = Course(name: "明日早课", schedules: [CourseSchedule(weekday: 5, periods: [1,2], weekPattern: [1])])
+    let table = Timetable(startDate: ScheduleEngine.monday(of: start, calendar: utcCalendar), courses: [today, tomorrow])
+    let data = AppData(timetables: [table], selectedID: table.id)
+    let afternoon = start.addingTimeInterval(16 * 3600)
+    let cutoff = start.addingTimeInterval(Double(data.timeProfile.periods.last!.end * 60))
+    let gap = WidgetSchedule.daySchedule(data: data, at: afternoon, calendar: utcCalendar)
+    #expect(gap.lessons.isEmpty && !gap.isTomorrow && gap.emptyMessage == "今天没有更多课程")
+    #expect(WidgetSchedule.daySchedule(data: data, at: cutoff.addingTimeInterval(-1), calendar: utcCalendar).lessons.isEmpty)
+    let evening = WidgetSchedule.daySchedule(data: data, at: cutoff, calendar: utcCalendar)
+    #expect(evening.isTomorrow && evening.lessons.map(\.course.name) == ["明日早课"])
+    let dates = WidgetSchedule.displayTimelineDates(data: data, from: afternoon, until: afternoon.addingTimeInterval(86400), calendar: utcCalendar)
+    #expect(dates.contains(cutoff))
+    let midnight = start.addingTimeInterval(86400)
+    #expect(dates.contains(midnight))
+    #expect(!WidgetSchedule.daySchedule(data: data, at: midnight, calendar: utcCalendar).isTomorrow)
+}
+
+@Test func widgetDaySelectionKeepsNightCoursesAndFollowsCustomTimeAndHolidays() throws {
+    let start = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
+    let night = Course(name: "晚课", schedules: [CourseSchedule(weekday: 4, periods: [10], weekPattern: [1])])
+    let tomorrow = Course(name: "明日课", schedules: [CourseSchedule(weekday: 5, periods: [1], weekPattern: [1])])
+    let table = Timetable(startDate: ScheduleEngine.monday(of: start, calendar: utcCalendar), holidays: [start.addingTimeInterval(86400)], courses: [night, tomorrow])
+    var profile = TimeProfile.standard; try profile.moveEnd(profile.periods.count - 1, to: 21 * 60)
+    let data = AppData(timeProfile: profile, timetables: [table], selectedID: table.id)
+    let cutoff = start.addingTimeInterval(21 * 3600)
+    #expect(WidgetSchedule.daySchedule(data: data, at: cutoff.addingTimeInterval(-1), calendar: utcCalendar).lessons.map(\.course.name) == ["晚课"])
+    let after = WidgetSchedule.daySchedule(data: data, at: cutoff, calendar: utcCalendar)
+    #expect(after.isTomorrow && after.lessons.isEmpty && after.emptyMessage == "明天没有课程")
+    let dates = WidgetSchedule.displayTimelineDates(data: data, from: start.addingTimeInterval(16 * 3600), until: start.addingTimeInterval(30 * 3600), calendar: utcCalendar)
+    #expect(dates.contains(cutoff))
+    #expect(!dates.contains(start.addingTimeInterval(Double(TimeProfile.standard.periods.last!.end * 60))))
 }

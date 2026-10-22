@@ -4,16 +4,19 @@ import YIClassCore
 
 struct LessonEntry: TimelineEntry {
     let date: Date
+    let displayDay: Date
     let tableName: String
     let lessons: [ScheduledLesson]
     let configured: Bool
     let syncIssue: String?
     var next: ScheduledLesson? { lessons.first { $0.end > date } }
+    var showsTomorrow: Bool { !Calendar.current.isDate(displayDay, inSameDayAs: date) }
+    var emptyMessage: String { showsTomorrow ? "明天没有课程" : "今天没有更多课程" }
 }
 
 struct LessonProvider: TimelineProvider {
     func placeholder(in context: Context) -> LessonEntry {
-        LessonEntry(date: Date(), tableName: "我的课表", lessons: [], configured: false, syncIssue: nil)
+        LessonEntry(date: Date(), displayDay: Date(), tableName: "我的课表", lessons: [], configured: false, syncIssue: nil)
     }
     func getSnapshot(in context: Context, completion: @escaping (LessonEntry) -> Void) {
         completion(entry(at: Date(), result: SharedLibrary.readResult()))
@@ -21,21 +24,18 @@ struct LessonProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<LessonEntry>) -> Void) {
         let now = Date(), result = SharedLibrary.readResult()
         let data = try? result.get()
-        let lessons = data.map { WidgetSchedule.lessons(data: $0, from: now.addingTimeInterval(-180)) } ?? []
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
-        let dates = WidgetSchedule.lockScreenTimelineDates(lessons: lessons, from: now, until: horizon)
-        let base = entry(at: now, result: result)
-        let entries = dates.map { date in
-            LessonEntry(date: date, tableName: base.tableName, lessons: lessons, configured: base.configured, syncIssue: base.syncIssue)
-        }
+        let dates = data.map { WidgetSchedule.displayTimelineDates(data: $0, from: now, until: horizon) } ?? [now]
+        let entries = dates.map { entry(at: $0, result: result) }
         completion(Timeline(entries: entries, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
     }
     private func entry(at date: Date, result: Result<AppData, AppFailure>) -> LessonEntry {
         let data = try? result.get()
         let issue: String?
         if case .failure(let error) = result { issue = error.localizedDescription } else { issue = nil }
-        return LessonEntry(date: date, tableName: data?.timetables.first { $0.id == data?.selectedID }?.name ?? "YIClass",
-                    lessons: data.map { WidgetSchedule.lessons(data: $0, from: date.addingTimeInterval(-180)) } ?? [], configured: data != nil, syncIssue: issue)
+        let schedule = data.map { WidgetSchedule.daySchedule(data: $0, at: date) }
+        return LessonEntry(date: date, displayDay: schedule?.day ?? date, tableName: data?.timetables.first { $0.id == data?.selectedID }?.name ?? "YIClass",
+                    lessons: schedule?.lessons ?? [], configured: data != nil, syncIssue: issue)
     }
 }
 
@@ -56,17 +56,18 @@ struct LessonWidgetView: View {
                 if let next = displayedLesson {
                     let clock = (next.start <= entry.date ? next.end : next.start).formatted(date: .omitted, time: .shortened)
                     Text("\(String(next.course.name.prefix(6))) · \(clock)" + (next.course.location.isEmpty ? "" : " · " + next.course.location))
-                } else { Text(entry.configured ? "暂无课程" : "打开 YIClass 同步") }
+                } else if entry.configured { Color.clear.accessibilityHidden(true) }
+                else { Text("打开 YIClass 同步") }
             case .accessoryCircular:
                 if let next = displayedLesson { circular(next) }
-                else {
-                    Text(entry.configured ? "无课" : "待同步").font(.caption2)
-                }
+                else if entry.configured { Color.clear.accessibilityHidden(true) }
+                else { Text("待同步").font(.caption2) }
             case .accessoryRectangular:
-                let lessons = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date, completionGrace: 180)
+                let lessons = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date)
                 if showsTwoLessons && lessons.count == 2 { rectangularPair(lessons) }
                 else if lessons.indices.contains(position) { rectangular(lessons[position]) }
-                else { Text(entry.configured ? (position == 0 ? "接下来暂无课程" : "后续暂无课程") : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
+                else if entry.configured { Color.clear.accessibilityHidden(true) }
+                else { Text(entry.syncIssue ?? "打开 YIClass 同步课表") }
             default:
                 home.padding(margins)
             }
@@ -75,7 +76,7 @@ struct LessonWidgetView: View {
             if family == .systemSmall || family == .systemMedium { Rectangle().fill(.background) }
             else { Color.clear }
         }
-        .widgetURL(URL(string: "yiclass://schedule"))
+        .widgetURL(entry.configured && displayedLesson == nil && family != .systemSmall && family != .systemMedium ? nil : URL(string: "yiclass://schedule"))
         .privacySensitive()
     }
     private func dayLabel(_ date: Date) -> String {
@@ -103,41 +104,33 @@ struct LessonWidgetView: View {
     // is optional, for people who prefer two larger single-course cards.
     private func rectangularPair(_ lessons: [ScheduledLesson]) -> some View {
         GeometryReader { geometry in
-            let compact = geometry.size.height < 62
-            VStack(spacing: 4) {
+            HStack(alignment: .top, spacing: 6) {
                 ForEach(lessons) { lesson in
-                    VStack(alignment: .leading, spacing: compact ? 0 : 1) {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(lesson.course.name)
-                                .font(.system(size: compact ? 12 : 14, weight: .semibold))
-                                .lineLimit(1).minimumScaleFactor(0.85)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            Text(clockRange(lesson))
-                                .font(.system(size: compact ? 9 : 10)).monospacedDigit().fixedSize()
-                        }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(lesson.course.name)
+                            .font(.system(size: 12, weight: .semibold))
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(2)
+                        Text(clockRange(lesson))
+                            .font(.system(size: 9)).monospacedDigit().lineLimit(1)
+                            .minimumScaleFactor(0.85).layoutPriority(1)
                         if lesson.course.location.isEmpty {
-                            HStack(spacing: 3) {
-                                if lesson.end <= entry.date { Text("已下课") }
-                                else {
-                                    Text(lesson.start <= entry.date ? "距下课" : dayLabel(lesson.start))
-                                    Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
-                                }
-                            }.font(.system(size: compact ? 10 : 11)).lineLimit(1)
+                            HStack(spacing: 2) {
+                                Text(lesson.start <= entry.date ? "距下课" : "距上课")
+                                Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
+                            }.font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.8)
                         } else {
-                            Text((Calendar.current.isDate(lesson.start, inSameDayAs: entry.date) ? "" : dayLabel(lesson.start) + " · ") + lesson.course.location)
-                                .font(.system(size: compact ? 10 : 11))
-                                .lineLimit(1).minimumScaleFactor(0.8)
+                            Text(lesson.course.location)
+                                .font(.system(size: 10)).lineLimit(2).minimumScaleFactor(0.8)
                         }
                     }
-                    .padding(.horizontal, 3)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .background { batteryFill(lesson) }
-                    .overlay { courseOutline(lesson) }
+                    .padding(.horizontal, 4).padding(.vertical, 5)
+                    .frame(width: max(1, (geometry.size.width - 10) / 2), height: max(1, geometry.size.height - 4), alignment: .topLeading)
+                    .overlay { courseOutline(lesson, single: false) }
                     .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
                     .accessibilityElement(children: .combine)
                 }
             }
-            .padding(1)
+            .padding(2)
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
@@ -151,62 +144,69 @@ struct LessonWidgetView: View {
         if lesson.end <= entry.date { return 0.38 }
         return lesson.start <= entry.date ? 1 : 0.72
     }
-    @ViewBuilder private func batteryFill(_ lesson: ScheduledLesson) -> some View {
-        if lesson.start <= entry.date && lesson.end > entry.date {
-            GeometryReader { geometry in
-                LessonOutline().fill(.primary.opacity(0.12))
-                    .mask(alignment: .bottom) {
-                        Rectangle().frame(height: geometry.size.height * WidgetSchedule.remainingFraction(lesson, at: entry.date))
-                    }
-            }
+    @ViewBuilder private func courseOutline(_ lesson: ScheduledLesson, single: Bool) -> some View {
+        let active = lesson.start <= entry.date && lesson.end > entry.date
+        if single {
+            LessonOutline().stroke(.primary.opacity(active ? 0.2 : 0.5), lineWidth: 2.4)
+        }
+        if active {
+            LessonOutline().trim(from: 1 - WidgetSchedule.remainingFraction(lesson, at: entry.date), to: 1)
+                .stroke(.primary, style: StrokeStyle(lineWidth: single ? 3.2 : 2.8, lineCap: .round))
         }
     }
-    private func courseOutline(_ lesson: ScheduledLesson) -> some View {
-        let active = lesson.start <= entry.date && lesson.end > entry.date
-        return LessonOutline().stroke(.primary.opacity(active ? 0.95 : (lesson.end <= entry.date ? 0.25 : 0.45)),
-                                      lineWidth: active ? 1.4 : 1)
-    }
-    private func rectangular(_ lesson: ScheduledLesson) -> some View {
-        let ongoing = lesson.start <= entry.date && lesson.end > entry.date
-        return VStack(alignment: .leading, spacing: 2) {
-            Text(lesson.course.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
+    private func singleLockContent(_ lesson: ScheduledLesson, large: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(lesson.course.name).font(.system(size: large ? 19 : 14, weight: .semibold))
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true).layoutPriority(2)
             HStack(spacing: 2) {
-                Text(lesson.start, style: .time); Text("–"); Text(lesson.end, style: .time)
-                if !Calendar.current.isDate(lesson.start, inSameDayAs: entry.date) {
-                    Spacer(minLength: 1)
-                    Text(dayLabel(lesson.start)).minimumScaleFactor(0.75)
-                }
-            }.font(.caption2).monospacedDigit().lineLimit(1)
+                Text(clockRange(lesson)).monospacedDigit()
+                if entry.showsTomorrow { Spacer(minLength: 1); Text("明天") }
+            }.font(.system(size: large ? 14 : 11)).lineLimit(1).minimumScaleFactor(0.85)
             if !lesson.course.location.isEmpty {
-                Text(lesson.course.location).font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
+                Text(lesson.course.location).font(.system(size: large ? 12 : 10))
+                    .lineLimit(1).minimumScaleFactor(0.8)
             } else {
                 HStack(spacing: 3) {
-                    if lesson.end <= entry.date { Text("已下课") }
-                    else {
-                        Text(ongoing ? "距下课" : "距上课")
-                        Text(ongoing ? lesson.end : lesson.start, style: .timer).monospacedDigit()
-                    }
-                }.font(.caption2)
+                    Text(lesson.start <= entry.date ? "距下课" : "距上课")
+                    Text(lesson.start <= entry.date ? lesson.end : lesson.start, style: .timer).monospacedDigit()
+                }.font(.system(size: large ? 12 : 10)).lineLimit(1)
             }
         }
-        .padding(.horizontal, 4).padding(.vertical, 2)
+    }
+    private func rectangular(_ lesson: ScheduledLesson) -> some View {
+        ViewThatFits(in: .vertical) {
+            singleLockContent(lesson, large: true)
+            singleLockContent(lesson, large: false)
+        }
+        .padding(.horizontal, 5).padding(.vertical, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background { batteryFill(lesson) }
-        .overlay { courseOutline(lesson) }
+        .overlay { courseOutline(lesson, single: true) }
         .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
-        .padding(1)
-        .accessibilityLabel("\(lesson.course.name)，\(lesson.end <= entry.date ? "已下课" : (ongoing ? "上课中" : "待上课"))，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
+        .padding(2)
+        .accessibilityLabel("\(lesson.course.name)，\(lesson.start <= entry.date ? "上课中" : "待上课")，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
+    }
+    private func singleHomeLesson(_ lesson: ScheduledLesson) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(lesson.course.name).font(.title2.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.8)
+            Text(clockRange(lesson)).font(.body.monospacedDigit())
+            if !lesson.course.location.isEmpty {
+                Text(lesson.course.location).font(.subheadline).foregroundStyle(.secondary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
     private var home: some View {
         VStack(alignment: .leading, spacing: family == .systemMedium ? 4 : 6) {
             HStack {
-                Text(entry.next.map { $0.start <= entry.date ? "正在上课" : "下一节" } ?? "YIClass")
+                Text(entry.next.map { $0.start <= entry.date ? "正在上课" : "下一节" } ?? (entry.configured ? (entry.showsTomorrow ? "明日课程" : "今日课程") : "YIClass"))
                     .font(.caption.weight(.semibold)).foregroundStyle(.blue)
                 Spacer(minLength: 4)
-                Text(entry.next?.start ?? entry.date, format: .dateTime.month().day())
+                Text(entry.next?.start ?? entry.displayDay, format: .dateTime.month().day())
                     .font(.caption2).foregroundStyle(.secondary)
             }
             if let next = entry.next {
+                if entry.lessons.count == 1 { singleHomeLesson(next) }
+                else {
                 Text(next.course.name).font(.headline).lineLimit(family == .systemSmall ? 2 : 1)
                 HStack(spacing: 3) {
                     Text(next.start, style: .time)
@@ -236,9 +236,10 @@ struct LessonWidgetView: View {
                         }
                     }
                 }
+                }
             } else {
                 Spacer(minLength: 0)
-                Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表"))
+                Text(entry.configured ? entry.emptyMessage : (entry.syncIssue ?? "打开 YIClass 同步课表"))
                     .font(.subheadline)
                 Spacer(minLength: 0)
             }
@@ -252,7 +253,7 @@ struct YIClassWidget: Widget {
         StaticConfiguration(kind: kind, provider: LessonProvider()) { LessonWidgetView(entry: $0, showsTwoLessons: true) }
             .contentMarginsDisabled()
             .configurationDisplayName("课程安排")
-            .description("锁屏默认同时显示接下来的两节课；桌面查看课程与倒计时。")
+            .description("锁屏双课左右并排，单课自动放大；今日结束后留白，夜间课节结束再切换明日。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }
