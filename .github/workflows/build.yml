@@ -43,18 +43,6 @@ jobs:
             dist/device-SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
-      - name: Build and package simulator app
-        run: bash scripts/package-build.sh simulator
-      - name: Upload simulator build
-        uses: actions/upload-artifact@v4
-        with:
-          name: YIClass-iOS26-simulator
-          path: |
-            dist/YIClass-iOS26-simulator.tar.gz
-            dist/simulator-manifest.json
-            dist/simulator-SHA256SUMS.txt
-          if-no-files-found: error
-          retention-days: 30
       - name: Upload build logs
         if: always()
         uses: actions/upload-artifact@v4

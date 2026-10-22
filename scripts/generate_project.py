@@ -26,14 +26,14 @@ test_files = sorted((ROOT / 'Tests/UI').glob('*.swift'))
 app_refs, app_builds, test_refs, test_builds = [], [], [], []
 for files, file_refs, builds in [(app_files, app_refs, app_builds), (test_files, test_refs, test_builds)]:
     for file in files:
-        path = str(file.relative_to(ROOT))
+        path = file.relative_to(ROOT).as_posix()
         file_ref = add(path, f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {quote(path)}; sourceTree = SOURCE_ROOT;')
         file_refs.append(file_ref)
         builds.append(add('build:' + path, f'isa = PBXBuildFile; fileRef = {file_ref};'))
 
 widget_refs, widget_builds = [], []
 for file in sorted((ROOT / 'Sources/Widget').glob('*.swift')) + sorted((ROOT / 'Sources/Shared').glob('*.swift')):
-    path = str(file.relative_to(ROOT))
+    path = file.relative_to(ROOT).as_posix()
     ref = add('widget:' + path, f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {quote(path)}; sourceTree = SOURCE_ROOT;')
     widget_refs.append(ref)
     widget_builds.append(add('widgetbuild:' + path, f'isa = PBXBuildFile; fileRef = {ref};'))
@@ -85,7 +85,7 @@ app_settings = {
     'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad': 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight',
     'TARGETED_DEVICE_FAMILY': '1,2', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator',
     'SUPPORTS_MACCATALYST': 'NO', 'SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD': 'NO',
-    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.1.13', 'CURRENT_PROJECT_VERSION': '15',
+    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.1.15', 'CURRENT_PROJECT_VERSION': '17',
     'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIconSlate', 'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME': 'AccentColor',
     'SWIFT_EMIT_LOC_STRINGS': 'YES', 'CODE_SIGN_ENTITLEMENTS': 'Sources/App/YIClass.entitlements',
 }
@@ -102,7 +102,7 @@ widget_settings = {
     'APPLICATION_EXTENSION_API_ONLY': 'YES', 'TARGETED_DEVICE_FAMILY': '1,2',
     'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'SUPPORTS_MACCATALYST': 'NO',
     'CODE_SIGN_STYLE': 'Automatic', 'CODE_SIGN_ENTITLEMENTS': 'Sources/Widget/YIClass.entitlements',
-    'MARKETING_VERSION': '3.1.13', 'CURRENT_PROJECT_VERSION': '15',
+    'MARKETING_VERSION': '3.1.15', 'CURRENT_PROJECT_VERSION': '17',
     'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks',
 }
 

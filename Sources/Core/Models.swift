@@ -183,8 +183,19 @@ public struct AppData: Codable, Equatable, Sendable {
     public var timeProfile: TimeProfile
     public var timetables: [Timetable]
     public var selectedID: UUID
-    public init(timeProfile: TimeProfile = .standard, timetables: [Timetable], selectedID: UUID) {
+    public var todos: [TodoItem]
+    public init(timeProfile: TimeProfile = .standard, timetables: [Timetable], selectedID: UUID, todos: [TodoItem] = []) {
         self.timeProfile = timeProfile; self.timetables = timetables; self.selectedID = selectedID
+        self.todos = todos
+    }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, timeProfile, timetables, selectedID, todos }
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
+        timeProfile = try values.decode(TimeProfile.self, forKey: .timeProfile)
+        timetables = try values.decode([Timetable].self, forKey: .timetables)
+        selectedID = try values.decode(UUID.self, forKey: .selectedID)
+        todos = try values.decodeIfPresent([TodoItem].self, forKey: .todos) ?? []
     }
     public static func fresh() -> AppData {
         let table = Timetable()
@@ -217,6 +228,8 @@ public struct AppData: Codable, Equatable, Sendable {
         guard !timetables.isEmpty, timetables.contains(where: { $0.id == selectedID }),
               Set(timetables.map(\.id)).count == timetables.count else { throw AppFailure("课表索引无效。") }
         try timeProfile.validate()
+        guard Set(todos.map(\.id)).count == todos.count else { throw AppFailure("待办标识重复。") }
+        for todo in todos { try todo.validate() }
         for table in timetables { try table.validate(profile: timeProfile) }
     }
 }

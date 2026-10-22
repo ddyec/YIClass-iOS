@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 @MainActor final class SmokeTests: XCTestCase {
     func testFirstLaunchAndSettingsNavigation() {
@@ -6,7 +7,7 @@ import XCTest
         app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         app.launch()
         XCTAssertTrue(app.buttons["添加课程"].firstMatch.waitForExistence(timeout: 10))
-        app.tabBars.buttons["设置"].tap()
+        app.buttons["设置"].tap()
         app.buttons["统一课节时间"].tap()
         XCTAssertTrue(app.navigationBars["统一课节时间"].waitForExistence(timeout: 5))
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -21,10 +22,11 @@ import XCTest
         app.launch()
         XCTAssertTrue(app.buttons["添加课程"].firstMatch.waitForExistence(timeout: 10))
         attach(app, name: "深色-课表")
-        app.tabBars.buttons["助手"].tap()
-        XCTAssertTrue(app.navigationBars["课表助手"].waitForExistence(timeout: 5))
+        app.buttons["AI 助手"].tap()
+        XCTAssertTrue(app.buttons["关闭助手"].waitForExistence(timeout: 5))
         attach(app, name: "深色-助手")
-        app.tabBars.buttons["设置"].tap()
+        app.buttons["关闭助手"].tap()
+        app.buttons["设置"].tap()
         XCTAssertTrue(app.buttons["统一课节时间"].waitForExistence(timeout: 5))
         attach(app, name: "深色-设置")
     }
@@ -36,6 +38,49 @@ import XCTest
         XCTAssertTrue(app.navigationBars["秋季学期"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "高等数学")).firstMatch.exists)
         attach(app, name: "浅色-周视图")
+    }
+
+    func testEveningToggleVisibleWhenCollapsedAndReachableAfterExpansion() {
+        defer { XCUIDevice.shared.orientation = .portrait }
+        for appearance in ["light", "dark"] {
+            XCUIDevice.shared.orientation = .portrait
+            let app = XCUIApplication()
+            app.launchArguments = ["-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN", "-appearance", appearance, "--ui-testing-demo"]
+            app.launch()
+            let toggle = app.buttons["evening-toggle"]
+            let assistant = app.buttons["ai-assistant-button"]
+            XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+            XCTAssertTrue(assistant.exists)
+
+            for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+                XCUIDevice.shared.orientation = orientation
+                XCTAssertTrue(toggle.isHittable)
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, assistant.frame.minY)
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, app.buttons["课表"].frame.minY)
+                toggle.tap()
+                XCTAssertTrue(toggle.label.contains("收起晚间"))
+
+                let grid = app.scrollViews["week-grid-scroll"]
+                let lastPeriod = app.staticTexts["20:40"]
+                for _ in 0..<5 {
+                    if toggle.isHittable && lastPeriod.isHittable &&
+                        toggle.frame.maxY <= assistant.frame.minY && lastPeriod.frame.maxY <= toggle.frame.minY { break }
+                    grid.swipeUp()
+                }
+                XCTAssertTrue(lastPeriod.isHittable)
+                XCTAssertLessThanOrEqual(lastPeriod.frame.maxY, toggle.frame.minY, "最后一节应能滚动到晚间条上方")
+                XCTAssertLessThanOrEqual(toggle.frame.maxY, assistant.frame.minY)
+                attach(app, name: "\(appearance)-晚间展开-\(orientation.rawValue)")
+                toggle.tap()
+                XCTAssertTrue(toggle.label.contains("展开"))
+                XCTAssertTrue(toggle.isHittable)
+            }
+            assistant.tap()
+            XCTAssertTrue(app.buttons["关闭助手"].waitForExistence(timeout: 5))
+            app.buttons["关闭助手"].tap()
+            XCTAssertTrue(toggle.isHittable)
+            app.terminate()
+        }
     }
 
     private func attach(_ app: XCUIApplication, name: String) {
@@ -52,7 +97,7 @@ extension SmokeTests {
         app.launchEnvironment["YICLASS_UI_PDF"] = try Data(contentsOf: fixture).base64EncodedString()
         app.launch()
         XCTAssertTrue(app.buttons["添加课程"].firstMatch.waitForExistence(timeout: 20))
-        app.tabBars.buttons["设置"].tap()
+        app.buttons["设置"].tap()
         attach(app, name: "紧凑-设置")
         app.buttons["统一课节时间"].tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "上午")).firstMatch.waitForExistence(timeout: 5))
@@ -64,9 +109,9 @@ extension SmokeTests {
         XCTAssertTrue(app.navigationBars["确认导入"].waitForExistence(timeout: 5))
         attach(app, name: "PDF-导入预览")
         app.navigationBars.buttons["导入"].tap()
-        XCTAssertTrue(app.buttons["完成"].waitForExistence(timeout: 5))
-        app.buttons["完成"].tap()
-        app.tabBars.buttons["课表"].tap()
+        XCTAssertTrue(app.buttons["关闭助手"].waitForExistence(timeout: 5))
+        app.buttons["关闭助手"].tap()
+        app.buttons["课表"].tap()
         XCTAssertTrue(app.navigationBars["导入课表"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "普通化学II")).firstMatch.exists)
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "实验室安全通识教育")).firstMatch.exists)

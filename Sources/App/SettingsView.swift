@@ -36,9 +36,12 @@ struct SettingsView: View {
                     Picker("显示模式", selection: $appearance) {
                         ForEach(AppearanceMode.allCases) { Text($0.title).tag($0.rawValue) }
                     }
+                    NavigationLink("自由配色") { ThemeSettingsView() }
                     NavigationLink("统一课节时间") { TimeSettingsView() }
                     NavigationLink("学期与课表设置") { SemesterSettingsView() }
-                    NavigationLink("AI 模式与接口配置") { AISettingsView() }
+                    NavigationLink { AISettingsView() } label: {
+                        HStack { AssistantLogo(size: 20); Text("AI 模式与接口配置") }
+                    }
                 }
                 Section("上课提醒") {
                     Toggle("提醒当前课表", isOn: Binding(get: { reminders.enabled }, set: { value in
@@ -59,7 +62,9 @@ struct SettingsView: View {
                     if let issue = reminders.issue { Text(issue).font(.footnote).foregroundStyle(.secondary) }
                 }
                 Section("导入与备份") {
-                    Button("AI 识别课表", systemImage: "sparkles") { aiImport = true }
+                    Button { aiImport = true } label: {
+                        HStack { AssistantLogo(size: 20); Text("AI 识别课表") }
+                    }.accessibilityLabel("AI 识别课表")
                     Button("导入 JSON 课表", systemImage: "square.and.arrow.down") { importing = true }.disabled(reading)
                     Button("导出当前课表", systemImage: "square.and.arrow.up") {
                         do {
@@ -78,15 +83,25 @@ struct SettingsView: View {
                             Text("仅末课宽幅").tag(false)
                             Text("当前与后续课程").tag(true)
                         }
-                        Toggle("灵动岛课程信息", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
+                        Toggle("在灵动岛显示课程内容", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
                         if !wideLesson.islandEnabled {
-                            Text("隐藏岛上的课程内容；iOS 可能仍保留活动占位。完全不占岛请关闭实时活动，使用普通锁屏组件。")
+                            Text("此开关只隐藏课程文字；实时活动仍可能占据灵动岛。iOS 不提供仅保留锁屏实时活动的独立开关。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         if wideLesson.allLessons {
                             Text("回到应用时更新。后台到下课节点若未更新，可点卡片内“刷新课程”；普通组件继续自动按时间线切课。")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
+                    }
+                    if wideLesson.enabled {
+                        Button("完全不占灵动岛（关闭实时活动）", systemImage: "rectangle.slash") {
+                            wideLesson.setEnabled(false, data: store.data)
+                        }
+                        Text("关闭后结束课程实时活动，包括已预排的活动；普通锁屏课表组件继续可用，不显示实时活动的大幅卡片。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("课程实时活动已关闭，不会占用灵动岛。锁屏可添加普通“课程安排”和“后续课程”组件。")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                     if let issue = wideLesson.issue {
                         Text(issue).font(.footnote).foregroundStyle(.secondary)
@@ -113,6 +128,7 @@ struct SettingsView: View {
                     Link("原项目与开源协议", destination: URL(string: "https://github.com/ddyec/YIClass")!)
                 }
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
+            .floatingNavigationScrollTracking()
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .background {
                 DocumentImportPicker(isPresented: $importing, contentTypes: [.json]) { url in

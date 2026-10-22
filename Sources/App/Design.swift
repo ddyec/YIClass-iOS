@@ -20,8 +20,10 @@ extension Color {
 }
 
 struct AppBackdrop: View {
+    @AppStorage("theme.accent") private var accent = 0xFF637EEA
+    @AppStorage("theme.background") private var backdrop = 0xFF298F84
     var body: some View {
-        LinearGradient(colors: [Color.indigo.opacity(0.09), Color(.systemGroupedBackground), Color.teal.opacity(0.06)],
+        LinearGradient(colors: [Color(argb: UInt32(clamping: accent)).opacity(0.09), Color(.systemGroupedBackground), Color(argb: UInt32(clamping: backdrop)).opacity(0.06)],
                        startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
     }
 }
@@ -40,13 +42,108 @@ struct GlassPanel<Content: View>: View {
     }
 }
 
-struct BrandMark: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20).fill(Color(.secondarySystemGroupedBackground))
-            Image("Brand").resizable().scaledToFit().padding(8)
-        }.frame(width: 68, height: 68).accessibilityLabel("YIClass")
+
+let weekdayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+// Opaque sRGB values keep storage independent of display mode and Color's encoding.
+extension Color {
+    var opaqueARGB: UInt32 {
+        let resolved = resolve(in: EnvironmentValues())
+        let r = UInt32((min(1, max(0, resolved.red)) * 255).rounded())
+        let g = UInt32((min(1, max(0, resolved.green)) * 255).rounded())
+        let b = UInt32((min(1, max(0, resolved.blue)) * 255).rounded())
+        return 0xFF000000 | (r << 16) | (g << 8) | b
     }
 }
 
-let weekdayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+struct ThemeSettingsView: View {
+    @AppStorage("theme.accent") private var accent = 0xFF637EEA
+    @AppStorage("theme.background") private var backdrop = 0xFF298F84
+    var body: some View {
+        Form {
+            Section("自由配色") {
+                ColorPicker("主题色", selection: Binding(get: { Color(argb: UInt32(clamping: accent)) }, set: { accent = Int($0.opaqueARGB) }), supportsOpacity: false)
+                ColorPicker("背景渐变色", selection: Binding(get: { Color(argb: UInt32(clamping: backdrop)) }, set: { backdrop = Int($0.opaqueARGB) }), supportsOpacity: false)
+                Text("主题色用于按钮、选中状态和助手气泡。背景渐变用于课表与助手。课程颜色可在编辑课程时单独选择。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("预览") {
+                VStack(spacing: 16) {
+                    Label("今天的安排", systemImage: "calendar").font(.headline)
+                    Button("主题色预览") {}.buttonStyle(.borderedProminent)
+                }.frame(maxWidth: .infinity).padding(28).background { AppBackdrop() }.clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            Section { Button("恢复默认配色") { accent = 0xFF637EEA; backdrop = 0xFF298F84 } }
+        }.navigationTitle("配色").navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct ProductLogo: View {
+    var size: CGFloat = 72
+    var body: some View {
+        Image("Brand")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
+            .accessibilityHidden(true)
+    }
+}
+
+struct AssistantLogo: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var size: CGFloat = 88
+    var body: some View {
+        Image("AssistantLogo")
+            .resizable().renderingMode(.template).scaledToFit()
+            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct FloatingNavigationScrollKey: EnvironmentKey {
+    static let defaultValue: @MainActor @Sendable (Bool) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var minimizeFloatingNavigation: @MainActor @Sendable (Bool) -> Void {
+        get { self[FloatingNavigationScrollKey.self] }
+        set { self[FloatingNavigationScrollKey.self] = newValue }
+    }
+}
+
+/// Attach to the vertical content scroller, never the week grid's horizontal wrapper.
+private struct FloatingNavigationScrollTracking: ViewModifier {
+    @Environment(\.minimizeFloatingNavigation) private var minimize
+    @State private var scrolling = false
+    @State private var travel: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollPhaseChange { _, phase in
+                scrolling = phase == .interacting || phase == .decelerating
+                if !scrolling { travel = 0 }
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                // Clamp rubber banding so a bottom bounce cannot reopen the bar.
+                let maximum = max(0, geometry.contentSize.height + geometry.contentInsets.top + geometry.contentInsets.bottom - geometry.containerSize.height)
+                return min(maximum, max(0, geometry.contentOffset.y + geometry.contentInsets.top))
+            } action: { old, new in
+                guard scrolling else { return }
+                let delta = new - old
+                if new <= 0 { minimize(false); travel = 0; return }
+                if delta * travel < 0 { travel = 0 }
+                travel += delta
+                if abs(travel) >= 18 {
+                    minimize(travel > 0)
+                    travel = 0
+                }
+            }
+    }
+}
+
+extension View {
+    func floatingNavigationScrollTracking() -> some View {
+        modifier(FloatingNavigationScrollTracking())
+    }
+}

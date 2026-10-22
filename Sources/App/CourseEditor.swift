@@ -17,6 +17,7 @@ struct CourseEditor: View {
                     TextField("课程名称", text: $draft.name)
                     TextField("教室 / 地点", text: $draft.location)
                     TextField("教师", text: $draft.teacher)
+                    ColorPicker("自定义课程颜色", selection: Binding(get: { Color(argb: draft.color) }, set: { draft.color = $0.opaqueARGB }), supportsOpacity: false)
                     HStack {
                         ForEach(palette, id: \.self) { color in
                             Button { draft.color = color } label: {
@@ -98,8 +99,8 @@ struct CourseEditor: View {
                     else { selection.wrappedValue.append(value); selection.wrappedValue.sort() }
                 } label: {
                     Text("\(value)").font(.subheadline.monospacedDigit()).frame(maxWidth: .infinity, minHeight: 40)
-                        .background(selected ? Color.indigo.opacity(0.17) : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-                }.buttonStyle(.plain).foregroundStyle(selected ? Color.indigo : Color.secondary)
+                        .background(selected ? Color.accentColor.opacity(0.17) : Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+                }.buttonStyle(.plain).foregroundStyle(selected ? Color.accentColor : Color.secondary)
                     .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }.padding(.vertical, 6)

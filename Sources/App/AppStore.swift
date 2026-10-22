@@ -116,7 +116,9 @@ import YIClassCore
     }
     func restoreRevision(_ id: UUID) throws {
         guard let revision = archive.revisions.first(where: { $0.id == id }) else { throw AppFailure("恢复记录不存在。") }
-        try commit(revision.data, undoable: true, reason: "恢复历史记录")
+        var restored = revision.data
+        restored.todos = data.todos
+        try commit(restored, undoable: true, reason: "恢复历史记录")
     }
     func syncWidgets() {
         guard !loadFailed else { return }
@@ -174,6 +176,26 @@ import YIClassCore
         let index = next.timetables.firstIndex { $0.id == table.id }!
         next.timetables[index] = proposed
         try commit(next, undoable: true, reason: plan.title)
+    }
+    func saveTodo(_ todo: TodoItem) throws {
+        var next = data
+        if let index = next.todos.firstIndex(where: { $0.id == todo.id }) { next.todos[index] = todo }
+        else { next.todos.append(todo) }
+        try commit(next, undoable: true, reason: "编辑待办")
+    }
+    func deleteTodo(_ id: UUID) throws {
+        var next = data; next.todos.removeAll { $0.id == id }
+        try commit(next, undoable: true, reason: "删除待办")
+    }
+    func addTodos(_ proposals: [AssistantTodo]) throws -> String {
+        let items = try proposals.map { try $0.materialize(table: table, profile: profile) }
+        guard !items.isEmpty else { throw AppFailure("没有可导入的待办。") }
+        var next = data; next.todos.append(contentsOf: items)
+        try commit(next, undoable: true, reason: "AI 导入待办")
+        let formatter = DateFormatter(); formatter.dateStyle = .medium; formatter.timeStyle = .short
+        return "已保存 \(items.count) 条待办：\n" + items.map {
+            "• " + $0.title + " · " + ($0.deadline.map { formatter.string(from: $0) } ?? "未设截止时间") + " · 重要程度：" + $0.importance.title
+        }.joined(separator: "\n")
     }
     func undo() throws {
         guard let previous = undoData else { return }

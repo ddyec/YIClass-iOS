@@ -6,6 +6,8 @@ private enum ScheduleMode: String, CaseIterable { case week = "周", day = "日"
 private struct CourseSelection: Identifiable { let course: Course; var id: UUID { course.id } }
 
 struct ScheduleView: View {
+    var bottomNavigationInset: CGFloat = 0
+    var bottomNavigationTop: CGFloat?
     @Environment(AppStore.self) private var store
     @State private var week = 1
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
@@ -33,8 +35,10 @@ struct ScheduleView: View {
                                 .containerRelativeFrame(.vertical)
                                 .background { TabBarScrollConnection() }
                         }.scrollBounceBehavior(.always, axes: .vertical)
+                            .floatingNavigationScrollTracking()
+                            .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
                     } else if mode == .week {
-                        WeekGrid(table: store.table, profile: store.profile, week: week) { selection = CourseSelection(course: $0) }
+                        WeekGrid(table: store.table, profile: store.profile, week: week, bottomNavigationInset: bottomNavigationInset, bottomNavigationTop: bottomNavigationTop) { selection = CourseSelection(course: $0) }
                     } else {
                         agenda
                     }
@@ -173,6 +177,8 @@ struct ScheduleView: View {
                 }
             }
         }.scrollContentBackground(.hidden)
+            .floatingNavigationScrollTracking()
+            .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
             .scrollBounceBehavior(.always, axes: .vertical)
             .background { TabBarScrollConnection() }
     }
@@ -193,17 +199,20 @@ struct WeekGrid: View {
     let table: Timetable
     let profile: TimeProfile
     let week: Int
+    var bottomNavigationInset: CGFloat = 0
+    var bottomNavigationTop: CGFloat?
     let onSelect: (Course) -> Void
     @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 44
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 44
     @ScaledMetric(relativeTo: .body) private var sessionGap: CGFloat = 20
-    @State private var showFullEvening = false
+    @State private var eveningExpanded: Bool?
+    private var showFullEvening: Bool { eveningExpanded ?? hasEveningCourses }
     private var days: Int { table.showWeekend ? 7 : 5 }
     private var daytimePeriodCount: Int { profile.counts[0] + profile.counts[1] }
     private var hasEveningCourses: Bool { blocks.contains { $0.last > daytimePeriodCount } }
-    private var canCollapseEvening: Bool { profile.counts[2] > 0 && !hasEveningCourses }
+    private var canCollapseEvening: Bool { profile.counts[2] > 0 }
     private var visiblePeriods: [PeriodTime] {
-        let count = hasEveningCourses || showFullEvening ? profile.periods.count : max(1, daytimePeriodCount)
+        let count = showFullEvening ? profile.periods.count : max(1, daytimePeriodCount)
         return Array(profile.periods.prefix(count))
     }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
@@ -214,45 +223,63 @@ struct WeekGrid: View {
             let daytimeCount = min(visiblePeriods.count, max(1, profile.counts[0] + profile.counts[1]))
             let daytimeGaps = CGFloat(visiblePeriods.prefix(daytimeCount).filter { isSessionStart($0.period) }.count) * sessionGap
             let footerHeight: CGFloat = canCollapseEvening ? 44 : 0
-            let eveningPeek: CGFloat = visiblePeriods.count > daytimeCount ? sessionGap + 16 : 0
-            let fittedHeight = (geometry.size.height - 72 - footerHeight - daytimeGaps - eveningPeek) / CGFloat(daytimeCount)
-            let rowHeight = max(minimumRowHeight, min(64, fittedHeight))
-            ScrollView(.horizontal) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 0) {
-                        Text("节次").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
-                        ForEach(1...days, id: \.self) { day in dateHeader(day).frame(width: columnWidth) }
-                    }.frame(height: 68)
-                    ScrollView(.vertical) {
-                        HStack(alignment: .top, spacing: 0) {
+            // Size daytime rows from the collapsed viewport, so expanding adds
+            // evening rows rather than shrinking the courses already on screen.
+            let navigationOverlap = bottomNavigationTop.map { max(0, geometry.frame(in: .global).maxY - $0) } ?? bottomNavigationInset
+            let collapsedHeight = max(0, geometry.size.height - navigationOverlap)
+            let fittedHeight = (collapsedHeight - 68 - footerHeight - daytimeGaps - 12) / CGFloat(daytimeCount)
+            let rowHeight = max(minimumRowHeight, min(80, fittedHeight))
+            let gridHeight = showFullEvening ? geometry.size.height : max(0, collapsedHeight - footerHeight)
+            VStack(spacing: 0) {
+                ScrollView(.horizontal) {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 0) {
+                            Text("节次").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
+                            ForEach(1...days, id: \.self) { day in dateHeader(day).frame(width: columnWidth) }
+                        }.frame(height: 68)
+                        ScrollView(.vertical) {
                             VStack(spacing: 0) {
-                                ForEach(visiblePeriods) { time in
-                                    if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
-                                    VStack(spacing: 2) {
-                                        Text("\(time.period)").font(.system(size: 12, weight: .semibold, design: .rounded))
-                                        Text(PeriodTime.clock(time.start)).font(.system(size: 10, design: .rounded)).monospacedDigit()
-                                        Text(PeriodTime.clock(time.end)).font(.system(size: 10, design: .rounded)).foregroundStyle(.tertiary).monospacedDigit()
-                                    }.foregroundStyle(.secondary).frame(width: 44, height: rowHeight)
-                                }
+                                HStack(alignment: .top, spacing: 0) {
+                                    VStack(spacing: 0) {
+                                        ForEach(visiblePeriods) { time in
+                                            if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
+                                            VStack(spacing: 2) {
+                                                Text("\(time.period)").font(.system(size: 12, weight: .semibold, design: .rounded))
+                                                Text(PeriodTime.clock(time.start)).font(.system(size: 10, design: .rounded)).monospacedDigit()
+                                                Text(PeriodTime.clock(time.end)).font(.system(size: 10, design: .rounded)).foregroundStyle(.tertiary).monospacedDigit()
+                                            }.foregroundStyle(.secondary).frame(width: 44, height: rowHeight)
+                                        }
+                                    }
+                                    ForEach(1...days, id: \.self) { day in
+                                        dayColumn(day, width: columnWidth, rowHeight: rowHeight)
+                                    }
+                                }.padding(.bottom, 4)
+                                    .background { TabBarScrollConnection() }
+                                if canCollapseEvening && showFullEvening { eveningToggle }
                             }
-                            ForEach(1...days, id: \.self) { day in
-                                dayColumn(day, width: columnWidth, rowHeight: rowHeight)
-                            }
-                        }.padding(.bottom, 4)
-                            .background { TabBarScrollConnection() }
-                    }.scrollBounceBehavior(.always, axes: .vertical)
-                    if canCollapseEvening {
-                        Button { showFullEvening.toggle() } label: {
-                            Label(showFullEvening ? "收起晚间" : "晚间无课 · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
-                                .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-                        }.buttonStyle(.plain).foregroundStyle(.tint)
-                    }
-                }.frame(width: 44 + columnWidth * CGFloat(days))
+                        }.scrollBounceBehavior(.always, axes: .vertical)
+                            .floatingNavigationScrollTracking()
+                            .contentMargins(.bottom, showFullEvening ? navigationOverlap + 8 : 8, for: .scrollContent)
+                            .accessibilityIdentifier("week-grid-scroll")
+                    }.frame(width: 44 + columnWidth * CGFloat(days), height: gridHeight)
+                }
+                .scrollIndicators(.automatic)
+                .frame(height: gridHeight)
+                if canCollapseEvening && !showFullEvening { eveningToggle }
             }
-            .scrollIndicators(.automatic)
+            .frame(height: geometry.size.height, alignment: .top)
         }
-        .onChange(of: week) { _, _ in showFullEvening = false }
-        .onChange(of: table.id) { _, _ in showFullEvening = false }
+        .onChange(of: week) { _, _ in eveningExpanded = nil }
+        .onChange(of: table.id) { _, _ in eveningExpanded = nil }
+    }
+    private var eveningToggle: some View {
+        Button { eveningExpanded = !showFullEvening } label: {
+            let status = hasEveningCourses ? "有课" : "无课"
+            Label(showFullEvening ? "收起晚间 · \(status)" : "晚间\(status) · 展开", systemImage: showFullEvening ? "chevron.up" : "moon")
+                .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).foregroundStyle(.tint)
+        .accessibilityIdentifier("evening-toggle")
     }
     private var minimumLaneWidth: CGFloat {
         let lanes = (1...days).flatMap { day in
@@ -273,12 +300,12 @@ struct WeekGrid: View {
             Text(weekdayNames[day - 1]).font(.caption).foregroundStyle(.secondary)
             Text("\(Calendar.current.component(.day, from: date))").font(.subheadline.weight(.semibold))
                 .frame(width: 30, height: 30)
-                .background(today ? Color.indigo : Color.clear, in: Circle())
+                .background(today ? Color.accentColor : Color.clear, in: Circle())
                 .foregroundStyle(today ? Color.white : Color.primary)
         }.padding(.vertical, 6).accessibilityElement(children: .combine)
     }
     private func dayColumn(_ day: Int, width: CGFloat, rowHeight: CGFloat) -> some View {
-        let dayBlocks = blocks.filter { $0.weekday == day }
+        let dayBlocks = blocks.filter { $0.weekday == day && $0.first <= visiblePeriods.count }
         let groups = ScheduleEngine.overlapGroups(dayBlocks)
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
         return ZStack(alignment: .topLeading) {
@@ -297,14 +324,14 @@ struct WeekGrid: View {
                         CourseTile(block: block, conflict: group.count > 1)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: max(1, laneWidth - 5), height: yPosition(block.last, rowHeight: rowHeight) - yPosition(block.first, rowHeight: rowHeight) + rowHeight - 8)
+                    .frame(width: max(1, laneWidth - 5), height: yPosition(min(block.last, visiblePeriods.count), rowHeight: rowHeight) - yPosition(block.first, rowHeight: rowHeight) + rowHeight - 8)
                     .offset(x: CGFloat(lane) * laneWidth + 2, y: yPosition(block.first, rowHeight: rowHeight) + 4)
                     .accessibilityLabel("\(block.course.name)，\(weekdayNames[day - 1])，第 \(block.first) 到 \(block.last) 节，\(block.course.location)\(group.count > 1 ? "，有时间冲突" : "")")
                 }
             }
         }
         .frame(width: width, height: yPosition(visiblePeriods.count, rowHeight: rowHeight) + rowHeight)
-        .background(Calendar.current.isDateInToday(date) ? Color.indigo.opacity(0.035) : Color.clear)
+        .background(Calendar.current.isDateInToday(date) ? Color.accentColor.opacity(0.035) : Color.clear)
     }
 }
 
@@ -326,7 +353,11 @@ private struct CourseTile: View {
             let titleLineHeight = UIFont.systemFont(ofSize: titleSize, weight: .semibold).lineHeight
             let measuredTitle = textHeight(block.course.name, size: titleSize, width: geometry.size.width - 8, weight: .semibold)
             let neededTitleLines = max(1, Int(ceil(measuredTitle / titleLineHeight)))
-            let titleLines = min(neededTitleLines, max(1, Int(contentHeight / titleLineHeight)))
+            let locationLineHeight = UIFont.systemFont(ofSize: locationSize).lineHeight
+            let reservedLocationHeight = block.course.location.isEmpty ? 0 : min(2 * locationLineHeight, textHeight(block.course.location, size: locationSize, width: geometry.size.width - 8)) + 4
+            // Very long names use an excerpt; keep room for the classroom.
+            let titleLimit = neededTitleLines > 4 ? 3 : neededTitleLines
+            let titleLines = min(titleLimit, max(1, Int(max(0, contentHeight - reservedLocationHeight) / titleLineHeight)))
             let titleHeight = min(contentHeight, CGFloat(titleLines) * titleLineHeight)
             let locationBudget = max(0, contentHeight - titleHeight - 4)
             let locationLines = Int(locationBudget / UIFont.systemFont(ofSize: locationSize).lineHeight)
