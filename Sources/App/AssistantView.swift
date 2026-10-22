@@ -240,17 +240,35 @@ struct AssistantView: View {
                 TextField("描述课程，或补充你的偏好…", text: $input, axis: .vertical).lineLimit(1...5)
                     .focused($inputFocused)
                     .padding(.horizontal, 4).disabled(busy || reading)
-                HStack {
-                    PhotosPicker(selection: $photo, matching: .images) { Label("课表截图", systemImage: "photo") }.disabled(busy || reading)
-                    Button("导入文件", systemImage: "doc") { inputFocused = false; importing = true }.disabled(busy || reading)
-                    Spacer()
+                HStack(spacing: 8) {
+                    PhotosPicker(selection: $photo, matching: .images) {
+                        Label("截图", systemImage: "photo")
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 10).frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }.buttonStyle(.plain).foregroundStyle(.tint)
+                        .accessibilityLabel("选择课表截图").disabled(busy || reading)
+                    Button { inputFocused = false; importing = true } label: {
+                        Label("文件", systemImage: "doc")
+                            .font(.subheadline.weight(.medium))
+                            .padding(.horizontal, 10).frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }.buttonStyle(.plain).foregroundStyle(.tint)
+                        .accessibilityLabel("导入课表文件").disabled(busy || reading)
+                    Spacer(minLength: 0)
                     if inputFocused {
-                        Button("收起键盘", systemImage: "keyboard.chevron.compact.down") { inputFocused = false }.labelStyle(.iconOnly)
+                        Button { inputFocused = false } label: {
+                            Image(systemName: "keyboard.chevron.compact.down")
+                                .font(.body).frame(width: 44, height: 44).contentShape(Rectangle())
+                        }.buttonStyle(.plain).foregroundStyle(.tint).accessibilityLabel("收起键盘")
                     }
-                    Button("发送", systemImage: "arrow.up") { send(input) }
-                        .labelStyle(.iconOnly).buttonStyle(.glassProminent)
+                    Button { send(input) } label: {
+                        Image(systemName: "arrow.up").font(.body.weight(.semibold))
+                            .frame(width: 44, height: 44).contentShape(Circle())
+                    }.buttonStyle(.glassProminent).buttonBorderShape(.circle)
+                        .accessibilityLabel("发送")
                         .disabled(busy || reading || input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }.font(.caption)
+                }
             }
         }.padding(.horizontal, 16).padding(.bottom, 8)
     }

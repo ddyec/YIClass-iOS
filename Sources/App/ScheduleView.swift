@@ -132,10 +132,10 @@ struct ScheduleView: View {
                     ForEach(unplaced) { course in
                         Button { selection = CourseSelection(course: course) } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(course.name).foregroundStyle(.primary)
-                                Text("第 \((course.unscheduledWeeks ?? []).map(String.init).joined(separator: ",")) 周 · \(course.location)").font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
+                                Text(course.name).foregroundStyle(Color.primary)
+                                Text("第 \((course.unscheduledWeeks ?? []).map(String.init).joined(separator: ",")) 周 · \(course.location)").font(.caption).foregroundStyle(Color.secondary)
+                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                        }.buttonStyle(.plain)
                     }
                 }
             }
@@ -143,25 +143,25 @@ struct ScheduleView: View {
             let selectedDay = (Calendar.current.component(.weekday, from: selectedDate) + 5) % 7 + 1
             let blocks = ScheduleEngine.blocks(table: store.table, week: shownWeek)
             let days = mode == .day ? [selectedDay] : Array(1...7).filter { day in blocks.contains { $0.weekday == day } }
-            if mode != .day && blocks.isEmpty { Text("本周暂无课程").foregroundStyle(.secondary) }
+            if mode != .day && blocks.isEmpty { Text("本周暂无课程").foregroundStyle(Color.secondary) }
             ForEach(days, id: \.self) { weekday in
                 Section {
                     let courses = blocks.filter { $0.weekday == weekday }
-                    if courses.isEmpty { Text("当天暂无课程").foregroundStyle(.secondary) }
+                    if courses.isEmpty { Text("当天暂无课程").foregroundStyle(Color.secondary) }
                     ForEach(courses) { block in
                         Button { selection = CourseSelection(course: block.course) } label: {
                             HStack(spacing: 12) {
                                 RoundedRectangle(cornerRadius: 3).fill(Color(argb: block.course.color)).frame(width: 4)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(block.course.name).font(.headline).foregroundStyle(.primary)
+                                    Text(block.course.name).font(.headline).foregroundStyle(Color.primary)
                                     if !block.course.location.isEmpty || !block.course.teacher.isEmpty {
                                         Text([block.course.location, block.course.teacher].filter { !$0.isEmpty }.joined(separator: " · "))
-                                            .font(.subheadline).foregroundStyle(.secondary)
+                                            .font(.subheadline).foregroundStyle(Color.secondary)
                                     }
-                                    Text(timeLabel(block)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                    Text(timeLabel(block)).font(.caption.monospacedDigit()).foregroundStyle(Color.secondary)
                                 }
-                            }
-                        }
+                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                        }.buttonStyle(.plain)
                     }
                 } header: { Text(weekdayNames[weekday - 1]) }
             }
@@ -185,15 +185,17 @@ struct WeekGrid: View {
     let profile: TimeProfile
     let week: Int
     let onSelect: (Course) -> Void
-    @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 42
+    @ScaledMetric(relativeTo: .body) private var minimumRowHeight: CGFloat = 48
     @ScaledMetric(relativeTo: .body) private var minimumWidth: CGFloat = 44
+    @ScaledMetric(relativeTo: .body) private var sessionGap: CGFloat = 20
     private var days: Int { table.showWeekend ? 7 : 5 }
     private var blocks: [CourseBlock] { ScheduleEngine.blocks(table: table, week: week) }
 
     var body: some View {
         GeometryReader { geometry in
             let columnWidth = max(minimumWidth, (geometry.size.width - 44) / CGFloat(days))
-            let rowHeight = max(minimumRowHeight, min(64, (geometry.size.height - 52 - 24) / CGFloat(profile.periods.count)))
+            let sectionGaps = CGFloat(profile.periods.filter { isSessionStart($0.period) }.count) * sessionGap
+            let rowHeight = max(minimumRowHeight, min(68, (geometry.size.height - 52 - sectionGaps) / CGFloat(profile.periods.count)))
             ScrollView(.horizontal) {
                 VStack(spacing: 0) {
                     HStack(spacing: 0) {
@@ -204,9 +206,9 @@ struct WeekGrid: View {
                         HStack(alignment: .top, spacing: 0) {
                             VStack(spacing: 0) {
                                 ForEach(profile.periods) { time in
-                                    if isSessionStart(time.period) { Color.clear.frame(height: 10) }
-                                    VStack(spacing: 4) {
-                                        Text("\(time.period)").font(.subheadline.weight(.semibold))
+                                    if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
+                                    VStack(spacing: 2) {
+                                        Text("\(time.period)").font(.system(size: 12, weight: .semibold, design: .rounded))
                                         Text(PeriodTime.clock(time.start)).font(.system(size: 10, design: .rounded)).monospacedDigit()
                                         Text(PeriodTime.clock(time.end)).font(.system(size: 10, design: .rounded)).foregroundStyle(.tertiary).monospacedDigit()
                                     }.foregroundStyle(.secondary).frame(width: 44, height: rowHeight)
@@ -226,7 +228,7 @@ struct WeekGrid: View {
         period > 1 && (period == profile.counts[0] + 1 || period == profile.counts[0] + profile.counts[1] + 1)
     }
     private func yPosition(_ period: Int, rowHeight: CGFloat) -> CGFloat {
-        CGFloat(period - 1) * rowHeight + CGFloat((1...period).filter { isSessionStart($0) }.count) * 10
+        CGFloat(period - 1) * rowHeight + CGFloat((1...period).filter { isSessionStart($0) }.count) * sessionGap
     }
     private func dateHeader(_ day: Int) -> some View {
         let date = ScheduleEngine.date(week: week, weekday: day, table: table)
@@ -246,7 +248,7 @@ struct WeekGrid: View {
         return ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
                 ForEach(profile.periods) { time in
-                    if isSessionStart(time.period) { Color.clear.frame(height: 10) }
+                    if isSessionStart(time.period) { Color.clear.frame(height: sessionGap) }
                     Rectangle().fill(Color.primary.opacity(0.045)).frame(height: 0.5)
                         .frame(height: rowHeight, alignment: .top)
                 }
@@ -259,8 +261,8 @@ struct WeekGrid: View {
                         CourseTile(block: block, conflict: group.count > 1)
                     }
                     .buttonStyle(.plain)
-                    .frame(width: max(1, laneWidth - 5), height: yPosition(block.last, rowHeight: rowHeight) - yPosition(block.first, rowHeight: rowHeight) + rowHeight - 4)
-                    .offset(x: CGFloat(lane) * laneWidth + 2, y: yPosition(block.first, rowHeight: rowHeight) + 2)
+                    .frame(width: max(1, laneWidth - 5), height: yPosition(block.last, rowHeight: rowHeight) - yPosition(block.first, rowHeight: rowHeight) + rowHeight - 8)
+                    .offset(x: CGFloat(lane) * laneWidth + 2, y: yPosition(block.first, rowHeight: rowHeight) + 4)
                     .accessibilityLabel("\(block.course.name)，\(weekdayNames[day - 1])，第 \(block.first) 到 \(block.last) 节，\(block.course.location)\(group.count > 1 ? "，有时间冲突" : "")")
                 }
             }
