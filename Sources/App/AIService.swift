@@ -56,30 +56,63 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
     }
     static func reply(mode: AssistantMode, messages: [ChatMessage], table: Timetable, profile: TimeProfile,
                       endpoint: String, model: String) async throws -> AssistantReply {
-        let context = try AssistantPrompt.context(table: table, profile: profile)
-        let output: String
+        let context = try AssistantPrompt.context(table: table, profile: profile, focusText: messages.suffix(20).map(\.content).joined(separator: "\n"))
         switch mode {
         case .onDevice:
             guard case .available = SystemLanguageModel.default.availability else { throw AppFailure(availability) }
             let session = LanguageModelSession(instructions: AssistantPrompt.instructions)
             let conversation = messages.map { "\($0.role): \($0.content)" }.joined(separator: "\n")
-            let response = try await session.respond(to: context + "\n对话：\n" + conversation)
-            output = response.content
+            let response = try await session.respond(to: "对话：\n" + conversation + "\n以下为本次执行前的权威数据，优先于历史方案：\n" + context)
+            try Task.checkCancellation()
+            return try AssistantReply.parse(response.content, table: table, profile: profile)
         case .remote:
-            output = try await remote(messages: [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages,
-                                      endpoint: endpoint, model: model, key: APIKeyStore.read())
+            var turns = [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages
+            var queriedDates = Set<String>()
+            var repaired = false
+            for _ in 0..<6 {
+                let turn = try await remoteTurn(messages: turns, endpoint: endpoint, model: model, key: APIKeyStore.read(), tools: AssistantTools.definitions)
+                try Task.checkCancellation()
+                if let calls = turn.tool_calls, !calls.isEmpty {
+                    turns.append(turn)
+                    for call in calls {
+                        let content: String
+                        do {
+                            content = try AssistantTools.execute(call, table: table, profile: profile)
+                            if call.function.name == "get_schedule_dates",
+                               let args = try? JSONDecoder().decode([String: [String]].self, from: Data(call.function.arguments.utf8)) {
+                                queriedDates.formUnion(args["dates"] ?? [])
+                            }
+                        } catch {
+                            let data = try JSONEncoder().encode(["error": error.localizedDescription, "applied": "false"])
+                            content = String(decoding: data, as: UTF8.self)
+                        }
+                        turns.append(ChatMessage(role: "tool", content: content, toolCallID: call.id))
+                    }
+                    continue
+                }
+                do {
+                    let reply = try AssistantReply.parse(turn.content, table: table, profile: profile)
+                    let requiredDates = Set(reply.plans.flatMap { $0.dateMoves ?? [] }.flatMap { [$0.from, $0.to] })
+                    guard requiredDates.isSubset(of: queriedDates) else { throw AppFailure("请先调用 get_schedule_dates 查询所有调课源日和目标日，再返回方案。") }
+                    return reply
+                } catch {
+                    guard !repaired else { throw error }
+                    repaired = true
+                    turns.append(turn)
+                    turns.append(ChatMessage(role: "user", content: "方案校验未通过，尚未保存任何修改：" + error.localizedDescription + " 请依据本次权威课表修正；整天调课使用 dateMoves，其他修改保留全部现有课程和 UUID。"))
+                }
+            }
+            throw AppFailure("本次查询次数已达上限，未应用任何修改。请缩小日期范围后重试。")
         }
-        try Task.checkCancellation()
-        return try AssistantReply.parse(output, table: table, profile: profile)
     }
     static func test(endpoint: String, model: String, key: String) async throws -> String {
-        let result = try await remote(messages: [ChatMessage(role: "user", content: "请只回复 OK")],
+        let result = try await remoteTurn(messages: [ChatMessage(role: "user", content: "请只回复 OK")],
                                       endpoint: endpoint, model: model, key: key, testing: true)
-        guard !result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AppFailure("接口返回空内容。") }
+        guard !result.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw AppFailure("接口返回空内容。") }
         return "连接成功 · \(model)"
     }
-    private static func remote(messages: [ChatMessage], endpoint: String, model: String, key: String,
-                               testing: Bool = false) async throws -> String {
+    private static func remoteTurn(messages: [ChatMessage], endpoint: String, model: String, key: String,
+                               testing: Bool = false, tools: [AssistantToolDefinition]? = nil) async throws -> ChatMessage {
             let endpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
             let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
             let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -99,7 +132,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             for attempt in 0..<2 {
                 try Task.checkCancellation()
                 let budget = testing ? 64 : (attempt == 0 ? 16_384 : 32_768)
-                let body = AIChatRequest(model: model, messages: messages, maxTokens: budget, endpoint: url, testing: testing)
+                let body = AIChatRequest(model: model, messages: messages, maxTokens: budget, endpoint: url, testing: testing, tools: tools)
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"; request.timeoutInterval = 180
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -115,7 +148,7 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                     throw AppFailure("AI 请求失败（HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)）：\(safeDetail)" + imageHint)
                 }
                 guard data.count <= 4_000_000 else { throw AppFailure("AI 返回内容过大。") }
-                do { return try AIChatResponse.text(from: data) }
+                do { return try AIChatResponse.turn(from: data) }
                 catch AITransportFailure.truncated {
                     if attempt == 1 || testing { throw AppFailure("AI 回答仍达到输出上限，未应用任何更改。请减少本次修改范围后重试。") }
                 }

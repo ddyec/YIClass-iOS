@@ -29,7 +29,7 @@ struct CourseEditor: View {
                 if let weeks = draft.unscheduledWeeks {
                     Section("未排时间") {
                         Text("第 \(weeks.map(String.init).joined(separator: ",")) 周")
-                        Text("补充上课安排后，会转为正常排课课程。").font(.footnote).foregroundStyle(.secondary)
+                        Text("这些周次尚有待安排的课程。").font(.footnote).foregroundStyle(.secondary)
                     }
                 }
                 ForEach(draft.schedules.indices, id: \.self) { index in
@@ -51,9 +51,10 @@ struct CourseEditor: View {
                     } header: { Text("上课安排 \(index + 1)") }
                 }
                 Button("增加上课安排", systemImage: "plus") {
+                    let weeks = draft.unscheduledWeeks ?? Array(1...store.table.totalWeeks)
                     draft.unscheduledWeeks = nil
                     draft.schedules.append(CourseSchedule(weekday: 1, periods: [1, 2].filter { $0 <= store.profile.periods.count },
-                                                         weekPattern: Array(1...store.table.totalWeeks)))
+                                                         weekPattern: weeks))
                 }
                 if conflictCount > 0 {
                     Label("有 \(conflictCount) 组课程时间冲突，仍可保存并在周视图并排查看。", systemImage: "exclamationmark.triangle")

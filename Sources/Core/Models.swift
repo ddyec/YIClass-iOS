@@ -137,7 +137,7 @@ public struct Course: Codable, Equatable, Identifiable, Sendable {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (!schedules.isEmpty || unscheduledWeeks != nil), schedules.count <= 100 else { throw AppFailure("课程名称或排课信息无效。") }
         if let weeks = unscheduledWeeks {
-            guard schedules.isEmpty, !weeks.isEmpty, Set(weeks).count == weeks.count,
+            guard !weeks.isEmpty, Set(weeks).count == weeks.count,
                   weeks.allSatisfy({ (1...totalWeeks).contains($0) }) else { throw AppFailure("未排课课程的周次无效。") }
         }
         for schedule in schedules {

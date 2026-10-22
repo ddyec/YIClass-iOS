@@ -23,9 +23,12 @@ struct LessonProvider: TimelineProvider {
         let data = try? result.get()
         let lessons = data.map { WidgetSchedule.lessons(data: $0, from: now) } ?? []
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
-        let midnight = Calendar.current.startOfDay(for: horizon)
-        let dates = Set([now] + ([midnight] + lessons.flatMap { [$0.start.addingTimeInterval(-3600), $0.start, $0.end.addingTimeInterval(-3600), $0.end] }).filter { $0 > now && $0 < horizon })
-        completion(Timeline(entries: dates.sorted().map { entry(at: $0, result: result) }, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
+        let dates = WidgetSchedule.lockScreenTimelineDates(lessons: lessons, from: now, until: horizon)
+        let base = entry(at: now, result: result)
+        let entries = dates.map { date in
+            LessonEntry(date: date, tableName: base.tableName, lessons: lessons, configured: base.configured, syncIssue: base.syncIssue)
+        }
+        completion(Timeline(entries: entries, policy: .after(data == nil ? now.addingTimeInterval(15 * 60) : horizon)))
     }
     private func entry(at date: Date, result: Result<AppData, AppFailure>) -> LessonEntry {
         let data = try? result.get()
@@ -39,30 +42,35 @@ struct LessonProvider: TimelineProvider {
 struct LessonWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: LessonEntry
+    var position = 0
+    private var displayedLesson: ScheduledLesson? {
+        let visible = WidgetSchedule.lockScreenLessons(entry.lessons, at: entry.date)
+        return visible.indices.contains(position) ? visible[position] : nil
+    }
     var body: some View {
         Group {
             switch family {
             case .accessoryInline:
-                if let next = entry.next {
+                if let next = displayedLesson {
                     let clock = (next.start <= entry.date ? next.end : next.start).formatted(date: .omitted, time: .shortened)
                     Text("\(String(next.course.name.prefix(6))) · \(clock)" + (next.course.location.isEmpty ? "" : " · " + next.course.location))
                 } else { Text(entry.configured ? "暂无课程" : "打开 YIClass 同步") }
             case .accessoryCircular:
-                if let next = entry.next { circular(next) }
+                if let next = displayedLesson { circular(next) }
                 else {
-                    VStack(spacing: 2) {
-                        Image(systemName: entry.configured ? "checkmark" : "arrow.triangle.2.circlepath")
-                        Text(entry.configured ? "无课" : "待同步").font(.caption2)
-                    }
+                    Text(entry.configured ? "无课" : "待同步").font(.caption2)
                 }
             case .accessoryRectangular:
-                if let next = entry.next { rectangular(next) }
-                else { Text(entry.configured ? "接下来暂无课程" : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
+                if let next = displayedLesson { rectangular(next) }
+                else { Text(entry.configured ? (position == 0 ? "接下来暂无课程" : "后续暂无课程") : (entry.syncIssue ?? "打开 YIClass 同步课表")) }
             default:
                 home
             }
         }
-        .containerBackground(.background, for: .widget)
+        .containerBackground(for: .widget) {
+            if family == .systemSmall || family == .systemMedium { Rectangle().fill(.background) }
+            else { Color.clear }
+        }
         .widgetURL(URL(string: "yiclass://schedule"))
         .privacySensitive()
     }
@@ -76,7 +84,6 @@ struct LessonWidgetView: View {
         let target = ongoing ? lesson.end : lesson.start
         let countdown = target.timeIntervalSince(entry.date) <= 3600
         return ZStack {
-            AccessoryWidgetBackground()
             VStack(spacing: 1) {
                 Text(String(lesson.course.name.prefix(4))).font(.system(size: 10, weight: .medium)).lineLimit(1)
                 if countdown {
@@ -91,24 +98,34 @@ struct LessonWidgetView: View {
     private func rectangular(_ lesson: ScheduledLesson) -> some View {
         let ongoing = lesson.start <= entry.date
         return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 3) {
-                Text(lesson.course.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
-                if ongoing { Text("上课中").font(.system(size: 9)).fixedSize() }
-            }
+            Text(lesson.course.name).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
             HStack(spacing: 2) {
                 Text(lesson.start, style: .time); Text("–"); Text(lesson.end, style: .time)
-                Spacer(minLength: 2)
-                if !Calendar.current.isDate(lesson.start, inSameDayAs: entry.date) { Text(dayLabel(lesson.start)) }
-            }.font(.caption2).monospacedDigit()
+                if !Calendar.current.isDate(lesson.start, inSameDayAs: entry.date) {
+                    Spacer(minLength: 1)
+                    Text(dayLabel(lesson.start)).minimumScaleFactor(0.75)
+                }
+            }.font(.caption2).monospacedDigit().lineLimit(1)
             if !lesson.course.location.isEmpty {
-                Label(lesson.course.location, systemImage: "mappin").font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
+                Text(lesson.course.location).font(.caption2).lineLimit(1).minimumScaleFactor(0.75)
             } else {
                 HStack(spacing: 3) {
                     Text(ongoing ? "距下课" : "距上课")
                     Text(ongoing ? lesson.end : lesson.start, style: .timer).monospacedDigit()
                 }.font(.caption2)
             }
-        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 7).padding(.vertical, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .overlay {
+            if ongoing {
+                LessonOutline().stroke(.primary.opacity(0.18), lineWidth: 1)
+                LessonOutline().trim(from: 1 - WidgetSchedule.remainingFraction(lesson, at: entry.date), to: 1)
+                    .stroke(.primary, style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+            }
+        }
+        .padding(1)
+        .accessibilityLabel("\(lesson.course.name)，\(ongoing ? "上课中" : "待上课")，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
     }
     private var home: some View {
         VStack(alignment: .leading, spacing: family == .systemMedium ? 4 : 6) {
@@ -159,12 +176,49 @@ struct LessonWidgetView: View {
     }
 }
 
-@main struct YIClassWidget: Widget {
+struct YIClassWidget: Widget {
     let kind = "YIClassLessons"
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: LessonProvider()) { LessonWidgetView(entry: $0) }
             .configurationDisplayName("课程安排")
             .description("下一节课、今日课程与上课倒计时。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryCircular, .accessoryRectangular])
+    }
+}
+
+/// Starts and ends at the bottom centre, with a moderate ten-point radius.
+private struct LessonOutline: Shape {
+    func path(in rect: CGRect) -> Path {
+        let r = min(10, min(rect.width, rect.height) / 4)
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - r), control: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r), control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX - r, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        return path
+    }
+}
+
+struct FollowingLessonWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "YIClassFollowingLesson", provider: LessonProvider()) {
+            LessonWidgetView(entry: $0, position: 1)
+        }
+        .configurationDisplayName("后续课程")
+        .description("与课程安排并排放置，显示后面一节课；下课后自动顺延。")
+        .supportedFamilies([.accessoryRectangular])
+    }
+}
+
+@main struct YIClassWidgets: WidgetBundle {
+    var body: some Widget {
+        YIClassWidget()
+        FollowingLessonWidget()
     }
 }

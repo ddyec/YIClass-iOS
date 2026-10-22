@@ -71,7 +71,8 @@ struct AssistantView: View {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text(plan.title).font(.headline)
                                     Text(plan.explanation).font(.subheadline).foregroundStyle(.secondary)
-                                    Text("\(Set(plan.courses.map(\.name)).count) 门课程 · \(ScheduleEngine.conflictCount(courses: plan.courses.map { $0.materialize() })) 组冲突")
+                                    let courses = (try? plan.proposedTable(from: snapshot?.table ?? store.table, profile: snapshot?.profile ?? store.profile).courses) ?? []
+                                    Text("\(Set(courses.map(\.name)).count) 门课程 · \(ScheduleEngine.conflictCount(courses: courses)) 组冲突")
                                         .font(.caption).foregroundStyle(.secondary)
                                     Button("查看变更并选择") {
                                         if let snapshot { selectedPlan = PlanSelection(plan: plan, snapshot: snapshot) }
@@ -349,16 +350,18 @@ struct AssistantView: View {
         let token = UUID(); requestID = token
         requestTask = Task {
             do {
-                let result = try await AIService.reply(mode: mode, messages: history, table: captured.table,
+                var result = try await AIService.reply(mode: mode, messages: history, table: captured.table,
                     profile: captured.profile, endpoint: endpoint, model: model)
                 try Task.checkCancellation()
                 guard token == requestID else { return }
                 try captured.check(current: planningImport ? (importTable ?? store.table) : store.table, profile: store.profile)
                 // Keep the full structured answer in model history, but display human-readable text only.
                 if result.applyDirectly == true && !planningImport, let plan = result.plans.first {
+                    let receipt = try plan.appliedSummary(from: captured.table, profile: captured.profile)
                     try store.apply(plan, snapshot: captured)
+                    result.message = receipt
                     reply = nil; snapshot = nil
-                    messages.append(ChatMessage(role: "assistant", content: "已更新课表。" + result.message))
+                    messages.append(ChatMessage(role: "assistant", content: "已保存。\n" + receipt))
                 } else {
                     reply = result
                     messages.append(ChatMessage(role: "assistant", content: result.message))
@@ -480,7 +483,7 @@ struct PlanReviewView: View {
     @State private var issue: String?
     @State private var removedConfirmation = false
     @State private var semesterStart = Date()
-    private var proposed: [Course] { plan.courses.map { $0.materialize() } }
+    private var proposed: [Course] { (try? plan.proposedTable(from: snapshot.table, profile: snapshot.profile).courses) ?? [] }
     private var removed: [Course] { snapshot.table.courses.filter { old in !proposed.contains { $0.id == old.id } } }
     var body: some View {
         NavigationStack {

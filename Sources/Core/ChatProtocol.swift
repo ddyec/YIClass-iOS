@@ -7,15 +7,24 @@ public struct ChatImage: Equatable, Sendable {
     public var dataURL: String { "data:\(mimeType);base64," + data.base64EncodedString() }
 }
 
+public struct ChatToolCall: Codable, Sendable {
+    public struct Function: Codable, Sendable { public var name: String; public var arguments: String }
+    public var id: String
+    public var type: String
+    public var function: Function
+}
+
 public struct ChatMessage: Codable, Sendable, Identifiable {
     public var role: String
     public var content: String
     public var images: [ChatImage]
+    public var tool_calls: [ChatToolCall]?
+    public var tool_call_id: String?
     public var id: String { role + content }
-    public init(role: String, content: String, images: [ChatImage] = []) {
-        self.role = role; self.content = content; self.images = images
+    public init(role: String, content: String, images: [ChatImage] = [], toolCalls: [ChatToolCall]? = nil, toolCallID: String? = nil) {
+        self.role = role; self.content = content; self.images = images; tool_calls = toolCalls; tool_call_id = toolCallID
     }
-    private enum Keys: String, CodingKey { case role, content }
+    private enum Keys: String, CodingKey { case role, content, tool_calls, tool_call_id }
     private struct Part: Codable {
         struct ImageURL: Codable { var url: String; var detail: String = "high" }
         var type: String
@@ -25,7 +34,12 @@ public struct ChatMessage: Codable, Sendable, Identifiable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: Keys.self)
         try container.encode(role, forKey: .role)
-        if images.isEmpty { try container.encode(content, forKey: .content) }
+        try container.encodeIfPresent(tool_calls, forKey: .tool_calls)
+        try container.encodeIfPresent(tool_call_id, forKey: .tool_call_id)
+        if images.isEmpty {
+            if content.isEmpty && !(tool_calls ?? []).isEmpty { try container.encodeNil(forKey: .content) }
+            else { try container.encode(content, forKey: .content) }
+        }
         else {
             guard role == "user" else { throw AppFailure("图片只能附在用户消息中。") }
             let parts = [Part(type: "text", text: content)] + images.map { Part(type: "image_url", image_url: .init(url: $0.dataURL)) }
@@ -34,8 +48,12 @@ public struct ChatMessage: Codable, Sendable, Identifiable {
     }
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Keys.self)
-        role = try container.decode(String.self, forKey: .role)
+        role = try container.decodeIfPresent(String.self, forKey: .role) ?? "assistant"
         images = []
+        tool_calls = try container.decodeIfPresent([ChatToolCall].self, forKey: .tool_calls)
+        tool_call_id = try container.decodeIfPresent(String.self, forKey: .tool_call_id)
+        if !container.contains(.content), !(tool_calls ?? []).isEmpty { content = ""; return }
+        if container.contains(.content), try container.decodeNil(forKey: .content) { content = ""; return }
         if let text = try? container.decode(String.self, forKey: .content) { content = text }
         else {
             let parts = try container.decode([Part].self, forKey: .content)
@@ -59,13 +77,14 @@ public struct AIChatRequest: Encodable, Sendable {
     public struct Mode: Encodable, Sendable { public let type: String }
     public let thinking: Mode?
     public let response_format: Mode?
+    public let tools: [AssistantToolDefinition]?
     public static func resolvedModel(_ model: String, endpoint: URL) -> String {
         if endpoint.host?.lowercased() == "api.deepseek.com", ["deepseek-chat", "deepseek-reasoner"].contains(model) { return "deepseek-flash" }
         return model
     }
-    public init(model: String, messages: [ChatMessage], maxTokens: Int, endpoint: URL, testing: Bool = false) {
+    public init(model: String, messages: [ChatMessage], maxTokens: Int, endpoint: URL, testing: Bool = false, tools: [AssistantToolDefinition]? = nil) {
         self.model = Self.resolvedModel(model, endpoint: endpoint)
-        self.messages = messages; max_tokens = maxTokens
+        self.messages = messages; max_tokens = maxTokens; self.tools = tools
         let officialDeepSeek = endpoint.host?.lowercased() == "api.deepseek.com"
         thinking = officialDeepSeek ? Mode(type: "disabled") : nil
         response_format = officialDeepSeek && !testing ? Mode(type: "json_object") : nil
@@ -76,10 +95,14 @@ public enum AITransportFailure: Error { case truncated }
 
 public enum AIChatResponse {
     public static func text(from data: Data) throws -> String {
+        let message = try turn(from: data)
+        guard (message.tool_calls ?? []).isEmpty else { throw AppFailure("AI 返回了工具请求，需先获取课表数据。") }
+        return message.content
+    }
+    public static func turn(from data: Data) throws -> ChatMessage {
         struct Response: Decodable {
             struct Choice: Decodable {
-                struct Message: Decodable { var content: String? }
-                var message: Message
+                var message: ChatMessage
                 var finish_reason: String?
             }
             var choices: [Choice]
@@ -90,9 +113,14 @@ public enum AIChatResponse {
         guard let choice = response.choices.first else { throw AppFailure("AI 没有返回回答，请重试。") }
         if choice.finish_reason == "length" { throw AITransportFailure.truncated }
         if choice.finish_reason == "content_filter" { throw AppFailure("本次内容被模型服务拦截，请修改说明后重试。") }
-        guard let content = choice.message.content, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        if let calls = choice.message.tool_calls, !calls.isEmpty {
+            guard calls.count <= 8, Set(calls.map(\.id)).count == calls.count,
+                  calls.allSatisfy({ !$0.id.isEmpty && $0.type == "function" && $0.function.arguments.utf8.count <= 50_000 }) else { throw AppFailure("AI 工具调用格式无效。") }
+            return choice.message
+        }
+        guard !choice.message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw AppFailure("AI 未返回正文，可能只生成了推理内容。请重试或切换非推理模式。")
         }
-        return content
+        return choice.message
     }
 }
