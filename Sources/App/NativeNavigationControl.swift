@@ -92,7 +92,7 @@ import UIKit
     override func layoutSubviews() {
         super.layoutSubviews()
         base.frame = bounds
-        labels.frame = base.contentView.bounds
+        labels.frame = CGRect(origin: .zero, size: bounds.size)
         let progress = min(1, max(0, (bounds.width - 60) / max(1, expandedWidth - 60)))
         let fullWidth = (expandedWidth - 8) / 3
         let collapsed = CGRect(x: 4, y: 4, width: 52, height: 52)
@@ -104,6 +104,7 @@ import UIKit
             buttons[index].alpha = index == selectedIndex ? 1 : progress
             buttons[index].isUserInteractionEnabled = !minimized || index == selectedIndex
             buttons[index].accessibilityElementsHidden = minimized && index != selectedIndex
+            buttons[index].accessibilityValue = progress <= 0.01 ? "导航已收起" : progress >= 0.99 ? "导航已展开" : "导航过渡中"
         }
         let fullLens = CGRect(x: 4 + CGFloat(selectedIndex) * fullWidth, y: 4, width: fullWidth, height: 52)
         var frame = interpolate(collapsed, fullLens, progress)
@@ -123,7 +124,6 @@ import UIKit
         for index in buttons.indices {
             buttons[index].isSelected = index == selectedIndex
             buttons[index].accessibilityTraits = index == selectedIndex ? [.button, .selected] : [.button]
-            buttons[index].accessibilityValue = minimized ? "导航已收起" : "导航已展开"
             buttons[index].ink = index == selectedIndex ? accent : .label
         }
     }
@@ -137,7 +137,7 @@ import UIKit
         else { UIView.animate(withDuration: 0.24, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseInOut]) { self.layoutIfNeeded() } }
         onSelect?(selected)
     }
-    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         let velocity = pan.velocity(in: self)
         return !minimized && abs(velocity.x) > abs(velocity.y)

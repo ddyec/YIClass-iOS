@@ -17,6 +17,13 @@ import XCTest
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", value), object: button)
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 6), .completed)
     }
+    private func advanceTimeline(_ scroll: XCUIElement) {
+        // A bounded drag leaves room for the second collapse cycle and avoids
+        // testing a bottom rubber band instead of a real scroll offset change.
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+            .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)),
+                   withVelocity: .slow, thenHoldForDuration: 0.2)
+    }
     func testGlassRestSelectionDragAndScrollCollapse() {
         for appearance in ["light", "dark"] {
             let app = launch(appearance)
@@ -34,7 +41,7 @@ import XCTest
             attach("\(appearance)-02-rest-after-drag", app: app)
             app.buttons["navigation-0"].tap()
             XCTAssertTrue(scroll.waitForExistence(timeout: 5))
-            scroll.swipeUp(velocity: .slow)
+            advanceTimeline(scroll)
             waitValue("已收起", button: first)
             XCTAssertLessThanOrEqual(first.frame.width, 64)
             XCTAssertEqual(assistant.frame.midX, originalAIFrame.midX, accuracy: 1)
@@ -43,7 +50,7 @@ import XCTest
             first.tap()
             waitValue("已展开", button: first)
             XCTAssertGreaterThan(first.frame.width, 65)
-            scroll.swipeUp(velocity: .slow)
+            advanceTimeline(scroll)
             waitValue("已收起", button: first)
             scroll.swipeDown(velocity: .slow)
             waitValue("已展开", button: first)
@@ -62,7 +69,7 @@ import XCTest
                 XCTAssertTrue(app.staticTexts["待完成"].waitForExistence(timeout: 5))
                 XCTAssertFalse(app.staticTexts["暂无已完成事项"].exists)
                 XCTAssertFalse(app.staticTexts["已完成的测试事项"].exists)
-                if populated { XCTAssertTrue(app.buttons.containing(.staticText, identifier: "完成实验报告").firstMatch.exists || app.staticTexts["完成实验报告"].exists) }
+                if populated { XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "完成实验报告")).firstMatch.exists || app.staticTexts["完成实验报告"].exists) }
                 else { XCTAssertTrue(app.staticTexts["暂无待办"].exists) }
                 attach("\(appearance)-todo-\(populated ? "populated" : "empty")", app: app)
                 app.terminate()
