@@ -135,16 +135,15 @@ struct LessonWidgetView: View {
         GeometryReader { geometry in
             let compact = geometry.size.height < 70
             let solo = entry.lessons.count == 1
-            let titleSize: CGFloat = solo ? (compact ? 17 : 19) : (compact ? 13 : 15)
-            let titleHeight: CGFloat = solo ? (compact ? 21 : 24) : (compact ? 32 : 36)
-            let timeSize: CGFloat = solo ? (compact ? 12 : 14) : (compact ? 10 : 12)
-            let timeHeight: CGFloat = solo ? (compact ? 15 : 17) : (compact ? 12 : 15)
-            let roomSize: CGFloat = solo ? (compact ? 11 : 12) : (compact ? 9 : 11)
-            let roomHeight: CGFloat = solo ? (compact ? 14 : 15) : (compact ? 11 : 14)
-            // Metrics depend only on the shared display mode and system size.
-            // Every card reserves identical title/time/location rows, regardless
-            // of course-name length, period count, weeks, or lesson duration.
-            VStack(alignment: .leading, spacing: solo ? 3 : 1) {
+            let titleSize: CGFloat = solo ? 19 : 14
+            let titleHeight: CGFloat = solo ? (compact ? 23 : 24) : (compact ? 32 : 34)
+            let timeSize: CGFloat = solo ? 14 : 12
+            let timeHeight: CGFloat = solo ? (compact ? 17 : 18) : (compact ? 14 : 15)
+            let roomSize: CGFloat = solo ? 12 : 11
+            let roomHeight: CGFloat = solo ? (compact ? 15 : 16) : (compact ? 12 : 13)
+            // Fit Apple's 68–76pt rectangular families without scaling text.
+            // Both paired cards reserve the same rows even for short titles.
+            VStack(alignment: .leading, spacing: solo ? 2 : 1) {
                 Text(lesson.course.name).font(.system(size: titleSize, weight: .semibold))
                     .lineLimit(solo ? 1 : 2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,11 +165,11 @@ struct LessonWidgetView: View {
                 }.font(.system(size: roomSize)).lineLimit(1)
                     .frame(height: roomHeight, alignment: .leading)
             }
-            .padding(.horizontal, 5)
-            .frame(width: max(1, geometry.size.width - 4), height: max(1, geometry.size.height - 4), alignment: .leading)
-            .overlay { courseOutline(lesson, single: solo) }
+            .padding(.horizontal, 8)
+            .padding(.vertical, solo ? 4 : 2)
+            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .leading)
+            .overlay { courseOutline(lesson, single: solo).padding(1.75) }
             .foregroundStyle(.primary.opacity(courseEmphasis(lesson)))
-            .padding(2)
         }
         .accessibilityLabel("\(lesson.course.name)，\(lesson.start <= entry.date ? "上课中" : "待上课")，\(lesson.start.formatted(date: .abbreviated, time: .shortened))至\(lesson.end.formatted(date: .omitted, time: .shortened))，\(lesson.course.location)")
     }

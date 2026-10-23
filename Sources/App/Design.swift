@@ -92,11 +92,22 @@ struct ProductLogo: View {
 struct AssistantLogo: View {
     @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 88
+    private var ink: Color { colorScheme == .dark ? .white : .black }
     var body: some View {
         Image("AssistantLogo")
             .resizable().renderingMode(.template).scaledToFit()
-            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
+            // The approved artwork has roughly 16% transparent margins on each
+            // side. Normalize its visible bounds before sizing the glyph.
+            .scaleEffect(1.32)
             .frame(width: size, height: size)
+            .clipped()
+            .foregroundStyle(ink)
+            // Thicken the existing alpha contour, preserving the book artwork.
+            // Scale the added ink with the glyph, including the drawer logo.
+            .shadow(color: ink, radius: 0, x: size * 0.008, y: 0)
+            .shadow(color: ink, radius: 0, x: -size * 0.008, y: 0)
+            .shadow(color: ink, radius: 0, x: 0, y: size * 0.008)
+            .shadow(color: ink, radius: 0, x: 0, y: -size * 0.008)
             .accessibilityHidden(true)
     }
 }

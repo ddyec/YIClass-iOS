@@ -111,12 +111,13 @@ struct RootView: View {
                     if !navigationMinimized || selected == 2 { navigationItem("设置", icon: "slider.horizontal.3", value: 2) }
                 }
                 .padding(5)
-                .frame(maxWidth: navigationMinimized ? 64 : .infinity)
+                .frame(maxWidth: navigationMinimized ? 60 : .infinity)
                 .glassEffect(.regular, in: .capsule)
                 if navigationMinimized { Spacer(minLength: 12) }
                 Button { assistantPresented = true } label: {
-                    AssistantLogo(size: 36)
-                        .frame(width: 64, height: 64)
+                    AssistantLogo(size: 34)
+                        // Match the 50pt item + 5pt capsule padding on each side.
+                        .frame(width: 60, height: 60)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -136,7 +137,7 @@ struct RootView: View {
                 Image(systemName: icon).font(.system(size: 21, weight: .medium))
                 if !navigationMinimized { Text(title).font(.caption.weight(.medium)) }
             }
-            .frame(maxWidth: .infinity, minHeight: 54)
+            .frame(maxWidth: .infinity, minHeight: 50)
             .foregroundStyle(selected == value ? Color(argb: UInt32(clamping: accent)) : Color.primary)
             .background {
                 if selected == value { Capsule().fill(Color(argb: UInt32(clamping: accent)).opacity(0.12)) }
