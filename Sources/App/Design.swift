@@ -104,10 +104,10 @@ struct AssistantLogo: View {
             .foregroundStyle(ink)
             // Thicken the existing alpha contour, preserving the book artwork.
             // Scale the added ink with the glyph, including the drawer logo.
-            .shadow(color: ink, radius: 0, x: size * 0.008, y: 0)
-            .shadow(color: ink, radius: 0, x: -size * 0.008, y: 0)
-            .shadow(color: ink, radius: 0, x: 0, y: size * 0.008)
-            .shadow(color: ink, radius: 0, x: 0, y: -size * 0.008)
+            .shadow(color: ink, radius: 0, x: size * 0.016, y: 0)
+            .shadow(color: ink, radius: 0, x: -size * 0.016, y: 0)
+            .shadow(color: ink, radius: 0, x: 0, y: size * 0.016)
+            .shadow(color: ink, radius: 0, x: 0, y: -size * 0.016)
             .accessibilityHidden(true)
     }
 }
