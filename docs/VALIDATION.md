@@ -6,7 +6,7 @@
 
 依据：[Apple WWDC25 原生底栏及 UISearchTab](https://developer.apple.com/videos/play/wwdc2025/284/)、[UISearchTab](https://developer.apple.com/documentation/uikit/uisearchtab)、[公开选择委托](https://developer.apple.com/documentation/uikit/uitabbarcontrollerdelegate/tabbarcontroller(_:shouldselecttab:))。未使用 iOS 27 才新增的 prominentTabIdentifier，不提高最低系统版本。
 
-按用户决定，不再运行模拟器界面检查；自动流程 Test → Build IPA，版本 3.2.2 (23)。可选 UI 用例源码改为系统 tabBar 定位，尚未运行。工程确定性检查已通过，其余基础测试及设备归档待流水线结果。静止／拖动选中、上下滚动收纳、助手抽屉返回由用户真机验收，不宣称视觉已通过。
+按用户决定，不再运行模拟器界面检查；自动流程 Test → Build IPA，版本 3.2.2 (23)。可选 UI 用例源码改为系统 tabBar 定位，尚未运行。源码 `e8437493b09d1aef4e25955a19c90e35965911a7` 的 [构建 39944375854](https://github.com/ddyec/YIClass-iOS/actions/runs/39944375854) 已按 Test → Build IPA 完成：工程／资源、核心测试、真实 PDF／存储集成、生产卡片 SwiftUI 渲染及 iPhoneOS 归档全部通过。设备 IPA 已上传为产物 `12497976173`，无打包后的测试任务。静止／拖动选中、上下滚动收纳、助手抽屉返回由用户真机验收，不宣称视觉已通过。
 
 ## 3.2.1 导航静态玻璃、收纳与待办主次层级
 
