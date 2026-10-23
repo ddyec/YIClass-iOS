@@ -10,3 +10,7 @@
 - Todo header shows “待办” on the left and a date button on the right opening a calendar. Put this header in the page layout so toolbar overflow cannot replace it with an ellipsis. Directly show pending and completed items underneath; keep empty states compact. Preserve urgency-colored task backgrounds with text status labels.
 - Very long week-card course names should truncate to leave room for the classroom. Keep the full course name available by opening the course.
 - Lock-screen Live Activities show course names, times, and locations only. Omit dates/count headers, action rows, progress lines and decorative outlines. Keep up to two courses aligned, with internal padding and a compact fallback for constrained presentations; do not force an oversized minimum height.
+
+- Automatic Actions use one ordered pipeline: Test first, then Build IPA only after Test succeeds. Do not duplicate automatic test/build runs across workflows. Link the versioned IPA artifact directly in the final build summary; do not run another test job after packaging.
+- AI book strokes must remain clean vector paths with open counters. Do not thicken the bitmap with repeated shadows. Inspect small-size light/dark renderings before delivery.
+- Visual checks may use a macOS SwiftUI ImageRenderer for the production card view; distinguish these from real iOS WidgetKit or device screenshots.

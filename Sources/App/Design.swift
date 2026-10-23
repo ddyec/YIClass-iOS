@@ -96,18 +96,8 @@ struct AssistantLogo: View {
     var body: some View {
         Image("AssistantLogo")
             .resizable().renderingMode(.template).scaledToFit()
-            // The approved artwork has roughly 16% transparent margins on each
-            // side. Normalize its visible bounds before sizing the glyph.
-            .scaleEffect(1.32)
             .frame(width: size, height: size)
-            .clipped()
             .foregroundStyle(ink)
-            // Thicken the existing alpha contour, preserving the book artwork.
-            // Scale the added ink with the glyph, including the drawer logo.
-            .shadow(color: ink, radius: 0, x: size * 0.016, y: 0)
-            .shadow(color: ink, radius: 0, x: -size * 0.016, y: 0)
-            .shadow(color: ink, radius: 0, x: 0, y: size * 0.016)
-            .shadow(color: ink, radius: 0, x: 0, y: -size * 0.016)
             .accessibilityHidden(true)
     }
 }

@@ -1,14 +1,13 @@
-name: Downloadable iOS builds
+name: Test then Build IPA
 on:
   workflow_dispatch:
   push:
     paths:
       - 'Sources/**'
       - 'Package.swift'
+      - 'Tests/**'
       - 'YIClass.xcodeproj/**'
-      - 'scripts/package-build.sh'
-      - 'scripts/verify_build.py'
-      - 'scripts/prepare-icons.py'
+      - 'scripts/**'
       - '.github/workflows/build.yml'
 permissions:
   contents: read
@@ -16,7 +15,37 @@ concurrency:
   group: downloadable-ios-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  package:
+  test:
+    name: 1 - Test
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0'
+      - name: Validate project and assets
+        run: |
+          python3 scripts/prepare-icons.py
+          python3 scripts/validate_project.py
+      - name: Core tests
+        run: swift test
+      - name: PDF and persistence integration tests
+        run: |
+          bash scripts/test-pdf.sh
+          bash scripts/test-store.sh
+      - name: Render production SwiftUI views for visual review
+        run: bash scripts/render-visual-review.sh
+      - name: Upload review images (not an app package)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Visual-review-images
+          path: dist/visual-review/*.png
+          if-no-files-found: error
+          retention-days: 30
+  build:
+    name: 2 - Build IPA (iPhone and iPad)
+    needs: test
     runs-on: macos-15
     timeout-minutes: 25
     steps:
@@ -24,30 +53,33 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '26.0'
-      - name: Validate project and test core
-        run: |
-          python3 scripts/prepare-icons.py
-          python3 scripts/validate_project.py
-          swift test
-          bash scripts/test-pdf.sh
-          bash scripts/test-store.sh
-      - name: Archive and package iPhone IPA
+      - name: Prepare icon renditions
+        run: python3 scripts/prepare-icons.py
+      - name: Archive and package device IPA
         run: bash scripts/package-build.sh device
-      - name: Upload iPhone build
+      - name: Download IPA here
+        id: ipa
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-iOS26-resign-ipa
+          name: YIClass-3.1.17-iPhone-iPad-IPA
           path: |
             dist/YIClass-iOS26-resign.ipa
             dist/device-manifest.json
             dist/device-SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
-      - name: Upload build logs
-        if: always()
+      - name: Put IPA download first in the run summary
+        env:
+          IPA_ARTIFACT_URL: ${{ steps.ipa.outputs.artifact-url }}
+        run: |
+          echo '## iPhone / iPad IPA' >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download 3.1.17 (19) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Tests finished before this build. This is the device package; re-sign before installation.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload build logs on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-build-logs
+          name: Failed-device-build-logs
           path: dist/*-build.log
           if-no-files-found: warn
           retention-days: 30

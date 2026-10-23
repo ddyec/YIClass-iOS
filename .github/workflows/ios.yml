@@ -1,8 +1,5 @@
-name: Native iOS
+name: Manual SDK compile
 on:
-  push:
-    paths-ignore: ['**/*.md', 'LICENSE', 'NOTICE']
-  pull_request:
   workflow_dispatch:
 concurrency:
   group: native-ios-${{ github.ref }}
