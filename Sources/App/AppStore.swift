@@ -29,7 +29,7 @@ import YIClassCore
         #if DEBUG
         if CommandLine.arguments.contains("--ui-testing-demo") {
             // Isolate UI fixtures from real user data; this branch is absent from Release builds.
-            file = FileManager.default.temporaryDirectory.appending(path: "yi-ui-\(UUID()).json")
+            file = FileManager.default.temporaryDirectory.appending(path: "yi-ui-\(UUID())", directoryHint: .isDirectory).appending(path: "library.json")
             let entries: [(String, String, Int, [Int], UInt32)] = [
                 ("高等数学", "教学楼 A301", 1, [1, 2], 0xFF637EEA),
                 ("大学英语", "外语楼 202", 2, [3, 4], 0xFF298F84),
@@ -282,7 +282,27 @@ import YIClassCore
             agendaChanges: reply.agendaChanges, to: agenda, table: table, profile: profile)
         var next = data; next.todos = document.todos
         try commit(next, undoable: true, reason: "AI 更新待办与日程", dayAgenda: document)
-        return "已保存：新增 \(reply.todos.count) 条待办，更新 \(reply.todoChanges.count) 条待办，调整 \(reply.agendaChanges.count) 条时间安排。"
+        let formatter = DateFormatter(); formatter.dateStyle = .medium; formatter.timeStyle = .short
+        var lines = ["已保存：新增 \(reply.todos.count) 条待办，更新 \(reply.todoChanges.count) 条待办，调整 \(reply.agendaChanges.count) 条时间安排。"]
+        let oldIDs = Set(expected.todos.map(\.id))
+        for item in document.todos where !oldIDs.contains(item.id) {
+            lines.append("• 新增「\(item.title)」" + (item.deadline.map { "，截止 " + formatter.string(from: $0) } ?? "，未设截止时间"))
+            if let placement = document.placement(for: item.id) {
+                lines.append("  安排：" + formatter.string(from: placement.start) + "–" + formatter.string(from: placement.end))
+            }
+        }
+        for change in reply.todoChanges {
+            let title = document.todos.first { $0.id == change.todoID }?.title ?? expected.todos.first { $0.id == change.todoID }?.title ?? "待办"
+            let action: String = switch change.action { case .update: "更新"; case .complete: "完成"; case .reopen: "重新打开"; case .delete: "删除" }
+            lines.append("• \(action)「\(title)」")
+        }
+        for change in reply.agendaChanges {
+            let title = document.todos.first { $0.id == change.todoID }?.title ?? "待办"
+            if let placement = document.placement(for: change.todoID) {
+                lines.append("• 安排「\(title)」：" + formatter.string(from: placement.start) + "–" + formatter.string(from: placement.end))
+            } else { lines.append("• 取消「\(title)」的时间安排，保留待办") }
+        }
+        return lines.joined(separator: "\n")
     }
     func undo() throws {
         guard let previous = undoData else { return }

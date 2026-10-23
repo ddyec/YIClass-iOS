@@ -14,7 +14,7 @@ struct TodoTaskCard: View {
             Button(action: complete) {
                 Image(systemName: item.completedAt == nil ? "circle" : "checkmark.circle.fill")
                     .font(.title3).foregroundStyle(item.completedAt == nil ? color : .secondary)
-                    .frame(width: 40, height: 44)
+                    .frame(width: 44, height: 44)
             }.buttonStyle(.plain)
                 .accessibilityLabel(item.completedAt == nil ? "完成：\(item.title)" : "重新打开：\(item.title)")
             Button(action: edit) {
@@ -26,11 +26,11 @@ struct TodoTaskCard: View {
                         if item.importance == .high { Text("· 重要") }
                     }.font(.caption.weight(.medium)).foregroundStyle(color)
                     if let deadline = item.deadline {
-                        Text("截止 · " + deadline.formatted(date: .abbreviated, time: .shortened))
+                        (Text("截止 · ") + Text(deadline, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     if let placement {
-                        Text("安排 · " + placement.start.formatted(date: .abbreviated, time: .shortened) + "–" + placement.end.formatted(date: .omitted, time: .shortened))
+                        (Text("安排 · ") + Text(placement.start, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()) + Text("–") + Text(placement.end, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     if !item.notes.isEmpty { Text(item.notes).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
@@ -52,6 +52,11 @@ struct DayTimelineCanvas: View {
     private var firstHour: Int { max(0, min(7, (items.map(\.startMinute).min() ?? 420) / 60)) }
     private var lastHour: Int { min(24, max(22, ((items.map(\.endMinute).max() ?? 1260) + 59) / 60)) }
     private var height: CGFloat { CGFloat(lastHour - firstHour) * hourHeight }
+    private var nowMinute: Int? {
+        guard Calendar.current.isDate(date, inSameDayAs: now) else { return nil }
+        return Calendar.current.component(.hour, from: now) * 60 + Calendar.current.component(.minute, from: now)
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let gutter: CGFloat = 48
@@ -62,9 +67,11 @@ struct DayTimelineCanvas: View {
                     Text(String(format: "%02d:00", hour))
                         .font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(.secondary)
                         .frame(width: 40, alignment: .trailing).offset(y: y - 7).id("agenda-hour-\(hour)")
+                        .opacity(nowMinute.map { abs($0 - hour * 60) < 8 } == true ? 0 : 1)
                     Text(String(format: "%02d:30", hour))
                         .font(.system(size: 9).monospacedDigit()).foregroundStyle(.tertiary)
                         .frame(width: 40, alignment: .trailing).offset(y: y + hourHeight / 2 - 6)
+                        .opacity(nowMinute.map { abs($0 - (hour * 60 + 30)) < 8 } == true ? 0 : 1)
                     Rectangle().fill(Color.primary.opacity(0.09)).frame(width: width, height: 0.5).offset(x: gutter, y: y)
                     Rectangle().fill(Color.primary.opacity(0.04)).frame(width: width, height: 0.5).offset(x: gutter, y: y + hourHeight / 2)
                 }
@@ -109,7 +116,7 @@ struct DayTimelineCanvas: View {
                         .strikethrough(item.completed)
                 }.foregroundStyle(.primary)
                 if height >= 54 {
-                    Text(item.start.formatted(date: .omitted, time: .shortened) + "–" + item.end.formatted(date: .omitted, time: .shortened))
+                    (Text(item.start, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute()) + Text("–") + Text(item.end, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute()))
                         .font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if height >= 84 && !item.subtitle.isEmpty {

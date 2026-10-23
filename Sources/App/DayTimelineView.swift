@@ -18,11 +18,12 @@ struct DayTimelineView: View {
                         HStack {
                             Label("日程", systemImage: "clock").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                             Spacer()
+                            if !items.isEmpty { Button("首项") { scroll(reader, items: items) }.font(.caption) }
                             Button("安排待办", systemImage: "plus") {
                                 proposedStart = Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: date)
                                 editing = TodoItem(title: "")
                             }.font(.subheadline)
-                        }
+                        }.id("agenda-top")
                         let deadlines = DayAgendaEngine.deadlines(store.data.todos, on: date)
                         if !deadlines.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
@@ -56,8 +57,7 @@ struct DayTimelineView: View {
                     .background { TabBarScrollConnection() }
                 }
                 .floatingNavigationScrollTracking()
-                .onAppear { scroll(reader, items: items) }
-                .onChange(of: date) { _, _ in scroll(reader, items: items) }
+                .onChange(of: date) { _, _ in reader.scrollTo("agenda-top", anchor: .top) }
             }
         }
         .sheet(item: $editing) { todo in
