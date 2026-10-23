@@ -21,10 +21,11 @@ struct TodoView: View {
                             Button { editing = TodoItem(title: "") } label: {
                                 Image(systemName: "plus")
                                     .font(.title2.weight(.medium))
-                                    .frame(width: 44, height: 44)
                             }
                             .buttonStyle(.glass)
                             .buttonBorderShape(.circle)
+                            .controlSize(.large)
+                            .frame(minWidth: 44, minHeight: 44)
                             .accessibilityLabel("添加待办")
                         }.padding(.horizontal, 16)
                         HStack(spacing: 10) {
