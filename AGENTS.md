@@ -7,7 +7,7 @@
 - Keep the main navigation floating near the bottom with home-indicator clearance, without retaining a second safe-area reservation from the hidden system tab bar. Scroll down to minimize navigation to the left, scroll up or tap it to expand; the AI entry stays on the right. Use the user's theme.accent for navigation selection and its subtle highlight, rather than the bundled AccentColor.
 - In the collapsed week grid, maximize daytime course space up to the actual top of floating navigation; measure global frame overlap instead of subtracting the entire navigation height again. Keep “展开晚间” visible without scrolling. Once expanded, put “收起晚间” at the end of the vertical course content and allow it to scroll behind navigation, with enough bottom scroll space to bring it above navigation for tapping. Expansion adds rows without shrinking daytime rows.
 - Main navigation has three destinations (schedule, todos, settings) plus a separate AI button opening a conversation drawer. The empty assistant shows only the logo and “我们应该安排什么？”, with close at top left and history at top right.
-- Todo header shows “待办” on the left and a date button on the right opening a calendar. Put this header in the page layout so toolbar overflow cannot replace it with an ellipsis. Directly show pending and completed items underneath; keep empty states compact. Preserve urgency-colored task backgrounds with text status labels.
+- Todo header shows “待办” on the left and a date button on the right opening a calendar. Put this header in the page layout so toolbar overflow cannot replace it with an ellipsis. Make the pending section the main visual focus with a larger header and empty-state area. Completed tasks must be collapsed by default. Preserve urgency-colored task backgrounds with text status labels.
 - Very long week-card course names should truncate to leave room for the classroom. Keep the full course name available by opening the course.
 - Lock-screen Live Activities show course names, times, and locations only. Omit dates/count headers, action rows, progress lines and decorative outlines. Keep up to two courses aligned, with internal padding and a compact fallback for constrained presentations; do not force an oversized minimum height.
 
@@ -15,7 +15,9 @@
 - AI book strokes must remain clean vector paths with open counters. Do not thicken the bitmap with repeated shadows. Inspect small-size light/dark renderings before delivery.
 - Visual checks may use a macOS SwiftUI ImageRenderer for the production card view; distinguish these from real iOS WidgetKit or device screenshots.
 
-- Use a native UISegmentedControl for the left navigation selection, keeping its system background and selection lens. Do not substitute a painted capsule for native Liquid Glass interaction. The separate AI action continues to open a drawer.
+- Navigation base may use regular glass blur, but the persistent selected lens must use native clear glass without an opaque gray selected fill. Keep native UIGlassEffect materials at rest and during interaction. Keep button identities stable during collapse; the separate AI action continues to open a drawer.
 
 - Day agenda tasks and placements are canonical in day-agenda.json; retain stable UUIDs on migration and do not copy timetable courses into that document. Deadline is separate from scheduled work time. Show overlaps in lanes, and preserve atomic task/placement edits, backup/recovery, undo and stale-AI rejection.
 - Keep Actions ordered Test -> Build IPA. Review production timeline, task cards and task widget renders before sharing the device package.
+
+- The user authorized CI iPhone simulator screenshots for this visual fix. Prefer screenshots and interaction checks; screen recording is optional and not requested. Continue delivering only device IPA artifacts. Run visual UI checks before the device Build IPA job.

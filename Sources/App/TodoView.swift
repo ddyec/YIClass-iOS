@@ -6,7 +6,7 @@ struct TodoView: View {
     @State private var editing: TodoItem?
     @State private var day = Date()
     @State private var choosingDate = false
-    @State private var showCompleted = true
+    @State private var showCompleted = false
     var body: some View {
         NavigationStack {
             ZStack {
@@ -32,28 +32,23 @@ struct TodoView: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 if let issue = store.agendaIssue { AgendaRecoveryPanel(issue: issue) }
-                                HStack {
-                                    Text("待完成").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                                    Spacer(); Text("\(items.count) 项").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                TodoPendingSection(count: items.count, add: { editing = TodoItem(title: "") }) {
+                                    ForEach(items) { item in card(item, reference: reference) }
                                 }
-                                if items.isEmpty {
-                                    Label("暂无待办", systemImage: "checklist").font(.subheadline).foregroundStyle(.secondary)
-                                        .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-                                        .background(.background.opacity(0.65), in: RoundedRectangle(cornerRadius: 18))
-                                }
-                                ForEach(items) { item in card(item, reference: reference) }
                                 let completed = store.data.todos.filter { $0.completedAt != nil }.sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
                                 DisclosureGroup(isExpanded: $showCompleted) {
                                     ForEach(completed) { item in card(item, reference: reference) }
                                     if completed.isEmpty { Text("暂无已完成事项").font(.caption).foregroundStyle(.secondary).padding(.top, 8) }
                                 } label: { Text("已完成 · \(completed.count)").font(.subheadline.weight(.medium)).foregroundStyle(.secondary) }
                                 .padding(.top, 8)
+                                .tint(.secondary)
+                                .accessibilityIdentifier("todo-completed")
                                 if store.undoData != nil {
                                     Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } }.font(.caption).padding(.top, 6)
                                 }
                             }.padding(.horizontal, 16).padding(.bottom, 16)
                                 .background { TabBarScrollConnection() }
-                        }.floatingNavigationScrollTracking()
+                        }.accessibilityIdentifier("todo-list-scroll").floatingNavigationScrollTracking()
                     }.padding(.top, 8)
                     .onChange(of: Calendar.current.startOfDay(for: context.date)) { old, new in
                         if Calendar.current.isDate(day, inSameDayAs: old) { day = new }

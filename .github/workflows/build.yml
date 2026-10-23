@@ -43,9 +43,33 @@ jobs:
           path: dist/visual-review/*.png
           if-no-files-found: error
           retention-days: 30
-  build:
-    name: 2 - Build IPA (iPhone and iPad)
+  visual:
+    name: 2 - iPhone visual checks (screenshots only)
     needs: test
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.0'
+      - name: Check static glass, selection, collapse and todo layout
+        run: bash scripts/test-navigation-visual.sh
+      - name: Export iPhone screenshots
+        if: always()
+        continue-on-error: true
+        run: xcrun xcresulttool export attachments --path dist/NavigationReview.xcresult --output-path dist/navigation-review/screenshots
+      - name: Upload screenshot review (no simulator app)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iPhone-navigation-screenshots
+          path: dist/navigation-review/
+          if-no-files-found: warn
+          retention-days: 30
+  build:
+    name: 3 - Build IPA (iPhone and iPad)
+    needs: visual
     runs-on: macos-15
     timeout-minutes: 25
     steps:
@@ -61,7 +85,7 @@ jobs:
         id: ipa
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-3.2.0-iPhone-iPad-IPA
+          name: YIClass-3.2.1-iPhone-iPad-IPA
           path: |
             dist/YIClass-iOS26-resign.ipa
             dist/device-manifest.json
@@ -73,7 +97,7 @@ jobs:
           IPA_ARTIFACT_URL: ${{ steps.ipa.outputs.artifact-url }}
         run: |
           echo '## iPhone / iPad IPA' >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download 3.2.0 (21) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download 3.2.1 (22) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
           echo 'Tests finished before this build. This is the device package; re-sign before installation.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload build logs on failure
         if: failure()

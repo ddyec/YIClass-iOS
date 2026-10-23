@@ -132,11 +132,16 @@ private struct FloatingNavigationScrollTracking: ViewModifier {
             } action: { old, new in
                 guard scrolling else { return }
                 let delta = new - old
-                if new <= 0 { minimize(false); travel = 0; return }
+                if new <= 4 {
+                    minimize(false)
+                    travel = 0; return
+                }
                 if delta * travel < 0 { travel = 0 }
                 travel += delta
-                if abs(travel) >= 18 {
-                    minimize(travel > 0)
+                let target = travel > 0
+                let threshold: CGFloat = target ? 30 : 40
+                if abs(travel) >= threshold {
+                    minimize(target)
                     travel = 0
                 }
             }

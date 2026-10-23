@@ -21,6 +21,9 @@ import YIClassCore
                 } else { RootView() }
             }
             .task {
+                #if DEBUG
+                if CommandLine.arguments.contains("--ui-testing-demo") { return }
+                #endif
                 if !store.loadFailed { await LessonReminderManager.shared.start(data: store.data) }
                 if !store.loadFailed { LastLessonActivityManager.shared.refresh(data: store.data) }
             }
@@ -76,11 +79,9 @@ struct RootView: View {
             }
             .toolbar(.hidden, for: .tabBar)
             .environment(\.minimizeFloatingNavigation, { minimized in
-                withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) {
-                    navigationMinimized = minimized
-                }
+                setNavigationMinimized(minimized)
             })
-            .onChange(of: selected) { _, _ in navigationMinimized = false }
+            .onChange(of: selected) { _, _ in setNavigationMinimized(false) }
             .overlay(alignment: .bottom) {
                 // Keep the bar floating. Only scrolling content and the evening
                 // control account for its measured height; no navigation row.
@@ -102,28 +103,34 @@ struct RootView: View {
             }
         }
     }
+    private func setNavigationMinimized(_ minimized: Bool) {
+        guard navigationMinimized != minimized else { return }
+        withAnimation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.95)) {
+            navigationMinimized = minimized
+        }
+    }
     private var bottomNavigation: some View {
-        GlassEffectContainer(spacing: 12) {
-            HStack(spacing: 12) {
+        GeometryReader { geometry in
+            let expandedWidth = max(60, geometry.size.width - 72)
+            ZStack(alignment: .leading) {
                 NativeNavigationControl(selection: $selected, minimized: navigationMinimized,
-                    accent: Color(argb: UInt32(clamping: accent))) {
-                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) { navigationMinimized = false }
+                    expandedWidth: expandedWidth, accent: Color(argb: UInt32(clamping: accent))) {
+                        setNavigationMinimized(false)
                     }
-                    .frame(maxWidth: navigationMinimized ? 60 : .infinity)
-                    .frame(height: 60)
-                if navigationMinimized { Spacer(minLength: 12) }
-                Button { assistantPresented = true } label: {
-                    AssistantLogo(size: 34)
-                        // Match the 50pt item + 5pt capsule padding on each side.
-                        .frame(width: 60, height: 60)
-                        .contentShape(Circle())
+                    .frame(width: navigationMinimized ? 60 : expandedWidth, height: 60)
+                HStack {
+                    Spacer(minLength: 0)
+                    Button { assistantPresented = true } label: {
+                        AssistantLogo(size: 34).frame(width: 60, height: 60).contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .circle)
+                    .accessibilityLabel("AI 助手")
+                    .accessibilityIdentifier("ai-assistant-button")
                 }
-                .buttonStyle(.plain)
-                .glassEffect(.regular.interactive(), in: .circle)
-                .accessibilityLabel("AI 助手")
-                .accessibilityIdentifier("ai-assistant-button")
             }
         }
+        .frame(height: 60)
         .accessibilityIdentifier("bottom-navigation")
     }
 }
