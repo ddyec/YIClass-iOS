@@ -14,6 +14,8 @@
 
 ## 3.2 日程与待办
 
+3.2.3 (24) 将待办页“待办”升为系统大标题，加号同步放大并使用原生大号圆形玻璃按钮，确保页面标题高于“待完成”分区层级。
+
 3.2.2 (23) 改用真正的 UIKit `UITabBarController`，不再自绘底栏或叠加玻璃透镜。系统负责胶囊形状、选中态、拖动和滚动收纳；右侧独立入口采用公开 `UISearchTab` 分组能力，使用新版线条书页图标，通过公开委托拦截选择来打开 AI 抽屉，不切换页面或激活搜索框。保留放大的“待完成”区域与默认折叠的“已完成”。安全区由系统管理，移除自定义底栏预留与竞争的滚动动画。
 
 3.2.1 (22) 的自定义玻璃叠层已被用户真机验收否决：底座与选中项呈现矩形。此前不能只凭 API 名称就认定视觉正确。3.2.2 完全移除该实现，按 [Apple 的原生底栏与独立搜索入口说明](https://developer.apple.com/videos/play/wwdc2025/284/) 采用系统控件。自动流程保持 Test → Build IPA，导航实际观感由用户真机验收。
@@ -101,13 +103,13 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.2.2 (23) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `e8437493b09d1aef4e25955a19c90e35965911a7`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39944375854)。本版使用真正的系统 UIKit 液态玻璃底栏及独立助手入口，移除自绘叠层和收纳动画；保留日程、待办及锁屏组件。基础测试、生产卡片渲染及设备归档通过，导航实际观感与手势由用户真机验收。
+**3.2.3 (24) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `be541b243b810119166393620fe2f876577a1aa5`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171)。本版放大待办页主标题和右侧加号，使用系统大号圆形玻璃按钮，沿用原生 UIKit 底栏与独立助手入口。基础测试、生产卡片渲染及设备归档通过，导航实际观感与手势由用户真机验收。
 
 | 产物 | 下载 |
 | --- | --- |
-| 3.2.2 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39944375854/artifacts/12497976173) |
+| 3.2.3 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171/artifacts/12498456700) |
 
-后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.2-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
+后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.3-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
 
 按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
