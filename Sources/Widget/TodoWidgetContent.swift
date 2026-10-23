@@ -36,7 +36,7 @@ struct TodoWidgetContent: View {
                                 Text(deadline, style: .time).monospacedDigit()
                             }
                         }.font(.system(size: 11)).lineLimit(1)
-                        if geometry.size.height >= 64, pending.count > 1 {
+                        if geometry.size.height >= 72, pending.count > 1 {
                             Text(pending[1].title).font(.system(size: 11)).lineLimit(1).foregroundStyle(.secondary)
                         }
                         if geometry.size.height >= 60 {

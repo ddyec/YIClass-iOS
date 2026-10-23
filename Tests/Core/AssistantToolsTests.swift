@@ -150,7 +150,9 @@ private func gridTable() throws -> Timetable {
     #expect(decoded["messages"]?[0].tool_calls?.first?.id == "date_call")
     #expect(decoded["messages"]?[1].tool_call_id == "date_call")
     let object = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
-    #expect((object["tools"] as? [Any])?.count == 3)
+    let tools = try #require(object["tools"] as? [[String: Any]])
+    let toolNames = Set(tools.compactMap { ($0["function"] as? [String: Any])?["name"] as? String })
+    #expect(toolNames == ["get_schedule_dates", "get_next_course_lessons", "get_course_records", "get_todos", "get_day_agenda"])
     #expect(object["tool_choice"] as? String == "required")
     #expect(AssistantTools.needsLookup("29号下午不是还有课吗"))
     #expect(!AssistantTools.needsLookup("你好"))
