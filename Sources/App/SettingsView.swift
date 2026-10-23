@@ -14,6 +14,12 @@ struct JSONDocument: FileDocument {
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
 }
 
+private struct AgendaImportSelection: Identifiable {
+    let id = UUID()
+    let document: DayAgendaDocument
+    let expected: DayAgendaDocument
+}
+
 private struct ImportSelection: Identifiable { let id = UUID(); let preview: ImportPreview }
 
 struct SettingsView: View {
@@ -23,6 +29,8 @@ struct SettingsView: View {
     @State private var wideLesson = LastLessonActivityManager.shared
     @Environment(\.openURL) private var openURL
     @State private var importing = false
+    @State private var importingAgenda = false
+    @State private var agendaSelection: AgendaImportSelection?
     @State private var reading = false
     @State private var aiImport = false
     @State private var exporting = false
@@ -73,6 +81,12 @@ struct SettingsView: View {
                         } catch { store.error = error.localizedDescription }
                     }
                 }
+                Section("日程与待办") {
+                    ShareLink("导出日程 JSON", item: store.agendaURL)
+                    Button("导入日程 JSON", systemImage: "square.and.arrow.down") { importingAgenda = true }.disabled(reading)
+                    Text("day-agenda.json 保存待办与工作时间安排；课程继续由课表提供。").font(.caption).foregroundStyle(.secondary)
+                    if let issue = store.agendaIssue { AgendaRecoveryPanel(issue: issue) }
+                }
                 if reading { ProgressView("正在读取课表…") }
                 Section("小组件") {
                     Toggle("锁屏实时活动", isOn: Binding(get: { wideLesson.enabled }, set: {
@@ -106,6 +120,9 @@ struct SettingsView: View {
                     if let issue = wideLesson.issue {
                         Text(issue).font(.footnote).foregroundStyle(.secondary)
                     }
+                    DisclosureGroup("添加待办锁屏组件") {
+                        Text("长按锁屏 → 自定 → 添加小组件 → YIClass → 待办清单。长方形显示紧急事项与截止时间，圆形显示未完成数量；点按打开待办。").font(.footnote).foregroundStyle(.secondary)
+                    }
                     DisclosureGroup("锁屏并排显示两门课") {
                         Text("长按锁屏 → 自定 → 锁定屏幕 → 添加小组件。")
                             .font(.footnote).foregroundStyle(.secondary)
@@ -130,6 +147,42 @@ struct SettingsView: View {
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
             .floatingNavigationScrollTracking()
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
+            .background {
+                DocumentImportPicker(isPresented: $importingAgenda, contentTypes: [.json]) { url in
+                    guard let url else { return }
+                    let expected = store.agenda
+                    reading = true
+                    Task {
+                        defer { reading = false }
+                        do {
+                            let file = try await DocumentFileReader.read(url, maximumBytes: 5_000_000)
+                            let document = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: file.data)
+                            try document.validate()
+                            agendaSelection = AgendaImportSelection(document: document, expected: expected)
+                        } catch { store.error = "日程导入失败：" + error.localizedDescription }
+                    }
+                }.frame(width: 0, height: 0)
+            }
+            .sheet(item: $agendaSelection) { selection in
+                NavigationStack {
+                    Form {
+                        LabeledContent("待办", value: "\(selection.document.todos.count) 项")
+                        LabeledContent("时间安排", value: "\(selection.document.placements.count) 段")
+                        Text("导入将替换当前待办与时间安排，课表不变。保存前自动备份，可撤销本次导入。")
+                    }
+                    .navigationTitle("导入日程").navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("取消") { agendaSelection = nil } }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("替换日程") {
+                                do { try store.replaceAgenda(selection.document, expected: selection.expected); agendaSelection = nil }
+                                catch { store.error = error.localizedDescription }
+                            }
+                        }
+                    }
+                }.presentationDetents([.medium, .large])
+            }
+
             .background {
                 DocumentImportPicker(isPresented: $importing, contentTypes: [.json]) { url in
                     if let url { importChosenFile(url) }

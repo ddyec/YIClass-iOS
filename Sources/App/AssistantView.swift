@@ -33,6 +33,7 @@ struct AssistantView: View {
     @State private var messages: [ChatMessage] = []
     @State private var modelHistory: [ChatMessage] = []
     @State private var reply: AssistantReply?
+    @State private var agendaSnapshot = DayAgendaDocument()
     @State private var snapshot: PlanSnapshot?
     @State private var selections: [String: String] = [:]
     @State private var busy = false
@@ -68,7 +69,7 @@ struct AssistantView: View {
                         }
                         if let reply {
                             questionChoices(reply)
-                            if !reply.todos.isEmpty && reply.questions.isEmpty && !planningImport {
+                            if reply.hasTaskChanges && reply.questions.isEmpty && !planningImport {
                                 VStack(alignment: .leading, spacing: 8) {
                                     ForEach(reply.todos.indices, id: \.self) { index in
                                         Text(reply.todos[index].title)
@@ -76,9 +77,11 @@ struct AssistantView: View {
                                         Text(item?.deadline?.formatted(date: .abbreviated, time: .shortened) ?? "未设截止时间").font(.caption).foregroundStyle(.secondary)
                                         if let notes = item?.notes, !notes.isEmpty { Text(notes).font(.caption).foregroundStyle(.secondary) }
                                     }
-                                    Button("添加这些待办") {
+                                    if !reply.todoChanges.isEmpty { Text("待办变更：\(reply.todoChanges.count) 项").font(.caption) }
+                                    if !reply.agendaChanges.isEmpty { Text("时间安排变更：\(reply.agendaChanges.count) 项").font(.caption) }
+                                    Button("保存待办与日程") {
                                         do {
-                                            let receipt = try store.addTodos(reply.todos)
+                                            let receipt = try store.applyTaskReply(reply, expected: agendaSnapshot)
                                             messages.append(ChatMessage(role: "assistant", content: receipt))
                                             self.reply = nil; persistConversation()
                                         } catch { localError = error.localizedDescription }
@@ -375,19 +378,21 @@ struct AssistantView: View {
         if planningImport && importTable == nil { importTable = store.table.emptyCopy(name: "导入课表") }
         let captured = PlanSnapshot(table: planningImport ? importTable! : store.table, profile: store.profile)
         snapshot = captured
+        let capturedAgenda = store.agenda
+        agendaSnapshot = capturedAgenda
         let history = modelHistory
         let token = UUID(); requestID = token
         requestTask = Task {
             do {
                 var result = try await AIService.reply(mode: mode, messages: history, table: captured.table,
-                    profile: captured.profile, endpoint: endpoint, model: model)
+                    profile: captured.profile, endpoint: endpoint, model: model, agenda: capturedAgenda)
                 try Task.checkCancellation()
                 guard token == requestID else { return }
                 try captured.check(current: planningImport ? (importTable ?? store.table) : store.table, profile: store.profile)
                 // Keep the full structured answer in model history, but display human-readable text only.
-                if planningImport && !result.todos.isEmpty { throw AppFailure("当前正在导入课表，请在待办页或普通助手对话中添加待办。") }
-                if result.applyDirectly == true && !planningImport && !result.todos.isEmpty {
-                    result.message = try store.addTodos(result.todos)
+                if planningImport && result.hasTaskChanges { throw AppFailure("当前正在导入课表，请在待办页或普通助手对话中添加待办。") }
+                if result.applyDirectly == true && !planningImport && result.hasTaskChanges {
+                    result.message = try store.applyTaskReply(result, expected: capturedAgenda)
                     reply = nil; snapshot = nil
                     messages.append(ChatMessage(role: "assistant", content: result.message))
                 } else if result.applyDirectly == true && !planningImport, let plan = result.plans.first {

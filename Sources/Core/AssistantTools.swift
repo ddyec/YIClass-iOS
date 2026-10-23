@@ -26,16 +26,36 @@ public enum AssistantTools {
         text.range(of: #"今天|明天|后天|昨天|前天|本周|下周|上周|周[一二三四五六日天]|星期[一二三四五六日天]|\d{1,2}[月日号]|\d{4}-\d{2}-\d{2}|下次|下节|下一次|下一节|课前|调课|搬课|移课"#, options: .regularExpression) != nil
     }
     public static let definitions: [AssistantToolDefinition] = [
+        AssistantToolDefinition(function: .init(name: "get_todos", description: "查询现有待办的 UUID、标题、截止时间、完成状态及安排时间。todoIDs 空数组返回前 100 条，或指定最多 100 个 UUID。修改或安排已有待办前必须查询。", parameters: .init(properties: ["todoIDs": .init(description: "现有待办 UUID 数组；空数组查询前 100 条")], required: ["todoIDs"]))),
+        AssistantToolDefinition(function: .init(name: "get_day_agenda", description: "查询指定日期的真实课程、待办安排和截止事项。时间段与截止日期分开。只读。", parameters: .init(properties: ["dates": .init(description: "1–30 个 yyyy-MM-dd 日期")], required: ["dates"]))),
         AssistantToolDefinition(function: .init(name: "get_schedule_dates", description: "查询当前课表指定日期的完整课程 JSON（全天、原排课、有效课和停课状态）。查课或调课前先查源日及目标日。只读，不保存。", parameters: .init(properties: ["dates": .init(description: "1–30 个 yyyy-MM-dd 日期，含源日与目标日")], required: ["dates"]))),
         AssistantToolDefinition(function: .init(name: "get_next_course_lessons", description: "按课程 UUID 查询本学期下一次尚未开始的实际课程，包含开始结束时间，排除停课及未排时间。下次课交报告等待办截止日期必须先查此工具。只读。", parameters: .init(properties: ["courseIDs": .init(description: "1–30 个候选课程 UUID；无法确定是哪门实验课时查询所有候选")], required: ["courseIDs"]))),
         AssistantToolDefinition(function: .init(name: "get_course_records", description: "按 UUID 获取课程完整 JSON，包括所有周次、固定安排和未排时间。只读，不保存。", parameters: .init(properties: ["courseIDs": .init(description: "1–30 个当前课表课程 UUID")], required: ["courseIDs"])))
     ]
     public static func execute(_ call: ChatToolCall, table: Timetable, profile: TimeProfile,
-                               calendar: Calendar = .current, now: Date = Date()) throws -> String {
+                               calendar: Calendar = .current, now: Date = Date(), agenda: DayAgendaDocument = DayAgendaDocument()) throws -> String {
         guard call.type == "function", let bytes = call.function.arguments.data(using: .utf8), bytes.count <= 50_000 else { throw AppFailure("工具参数无效。") }
         let object = try JSONDecoder().decode([String: [String]].self, from: bytes)
         let output: Data
         switch call.function.name {
+        case "get_todos":
+            guard Set(object.keys) == ["todoIDs"], let values = object["todoIDs"], values.count <= 100 else { throw AppFailure("待办查询参数无效。") }
+            let ids = try values.map { value -> UUID in
+                guard let id = UUID(uuidString: value), agenda.todos.contains(where: { $0.id == id }) else { throw AppFailure("待办 UUID 不存在。") }
+                return id
+            }
+            struct Record: Encodable { var todo: TodoItem; var placement: TodoPlacement? }
+            let selected = values.isEmpty ? Array(agenda.todos.prefix(100)) : agenda.todos.filter { ids.contains($0.id) }
+            output = try JSONCoding.encoder().encode(selected.map { Record(todo: $0, placement: agenda.placement(for: $0.id)) })
+        case "get_day_agenda":
+            guard Set(object.keys) == ["dates"], let dates = object["dates"], (1...30).contains(dates.count) else { throw AppFailure("请提供 1–30 个日程日期。") }
+            struct Day: Encodable { var date: String; var items: [AgendaTimelineItem]; var deadlines: [TodoItem] }
+            let data = AppData(timeProfile: profile, timetables: [table], selectedID: table.id, todos: agenda.todos)
+            let result = try dates.map { value -> Day in
+                let date = try AssistantDateEdits.date(value, calendar: calendar)
+                return Day(date: value, items: DayAgendaEngine.items(data: data, agenda: agenda, on: date, calendar: calendar), deadlines: DayAgendaEngine.deadlines(agenda.todos, on: date, calendar: calendar))
+            }
+            output = try JSONCoding.encoder().encode(result)
         case "get_schedule_dates":
             guard Set(object.keys) == ["dates"], let dates = object["dates"], (1...30).contains(dates.count) else { throw AppFailure("请提供 1–30 个查询日期。") }
             struct Day: Encodable {

@@ -66,7 +66,7 @@ struct RootView: View {
                         .toolbar(.hidden, for: .tabBar)
                 }
             }
-            .onOpenURL { url in if url.scheme == "yiclass" { selected = 0 } }
+            .onOpenURL { url in if url.scheme == "yiclass" { selected = url.host == "todos" ? 3 : 0 } }
             .onReceive(NotificationCenter.default.publisher(for: .lessonReminderOpened)) { notification in
                 selected = 0
                 if let rawID = notification.userInfo?["tableID"] as? String, let id = UUID(uuidString: rawID),

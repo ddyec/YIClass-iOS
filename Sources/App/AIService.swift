@@ -55,8 +55,9 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
         }
     }
     static func reply(mode: AssistantMode, messages: [ChatMessage], table: Timetable, profile: TimeProfile,
-                      endpoint: String, model: String) async throws -> AssistantReply {
-        let context = try AssistantPrompt.context(table: table, profile: profile, focusText: messages.suffix(20).map(\.content).joined(separator: "\n"))
+                      endpoint: String, model: String, agenda: DayAgendaDocument = DayAgendaDocument()) async throws -> AssistantReply {
+        var context = try AssistantPrompt.context(table: table, profile: profile, focusText: messages.suffix(20).map(\.content).joined(separator: "\n"))
+        context += "\n日程与待办执行前快照（现有 UUID，deadline 不等于工作时间）：\n" + String(decoding: try JSONCoding.encoder().encode(agenda), as: UTF8.self)
         switch mode {
         case .onDevice:
             guard case .available = SystemLanguageModel.default.availability else { throw AppFailure(availability) }
@@ -69,6 +70,8 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
             var turns = [ChatMessage(role: "system", content: AssistantPrompt.instructions + "\n" + context)] + messages
             var queriedDates = Set<String>()
             var queriedCourses = Set<UUID>()
+            var queriedTodos = false
+            var queriedAgendaDates = Set<String>()
             var repaired = false
             let requireLookup = AssistantTools.needsLookup(messages.last(where: { $0.role == "user" })?.content ?? "")
             for round in 0..<6 {
@@ -79,7 +82,12 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                     for call in calls {
                         let content: String
                         do {
-                            content = try AssistantTools.execute(call, table: table, profile: profile)
+                            content = try AssistantTools.execute(call, table: table, profile: profile, agenda: agenda)
+                            if call.function.name == "get_todos" { queriedTodos = true }
+                            if call.function.name == "get_day_agenda",
+                               let args = try? JSONDecoder().decode([String: [String]].self, from: Data(call.function.arguments.utf8)) {
+                                queriedAgendaDates.formUnion(args["dates"] ?? [])
+                            }
                             if call.function.name == "get_next_course_lessons",
                                let args = try? JSONDecoder().decode([String: [String]].self, from: Data(call.function.arguments.utf8)) {
                                 queriedCourses.formUnion((args["courseIDs"] ?? []).compactMap(UUID.init(uuidString:)))
@@ -98,6 +106,17 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
                 }
                 do {
                     let reply = try AssistantReply.parse(turn.content, table: table, profile: profile)
+                    if !reply.todoChanges.isEmpty || !reply.agendaChanges.isEmpty {
+                        guard queriedTodos else { throw AppFailure("修改待办前请调用 get_todos 查询真实 UUID。") }
+                    }
+                    let starts = reply.agendaChanges.filter { $0.action == .schedule }.compactMap(\.start) + reply.todos.compactMap(\.scheduledStart)
+                    let agendaFormatter = DateFormatter()
+                    agendaFormatter.locale = Locale(identifier: "en_US_POSIX")
+                    agendaFormatter.calendar = Calendar(identifier: .gregorian)
+                    agendaFormatter.dateFormat = "yyyy-MM-dd"
+                    let dates = try Set(starts.map { agendaFormatter.string(from: try AgendaDates.parse($0)) })
+                    guard dates.isSubset(of: queriedAgendaDates) else { throw AppFailure("安排待办前请调用 get_day_agenda 查询目标日。") }
+                    _ = try AgendaOperations.applying(additions: reply.todos, todoChanges: reply.todoChanges, agendaChanges: reply.agendaChanges, to: agenda, table: table, profile: profile)
                     let referencedCourses = Set(reply.todos.compactMap(\.nextCourseID))
                     guard referencedCourses.isSubset(of: queriedCourses) else {
                         throw AppFailure("请先调用 get_next_course_lessons 查询待办所引用课程的下一次开课，再返回待办。")

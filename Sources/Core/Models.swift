@@ -184,11 +184,12 @@ public struct AppData: Codable, Equatable, Sendable {
     public var timetables: [Timetable]
     public var selectedID: UUID
     public var todos: [TodoItem]
+    public var todoSyncIssue: String? = nil
     public init(timeProfile: TimeProfile = .standard, timetables: [Timetable], selectedID: UUID, todos: [TodoItem] = []) {
         self.timeProfile = timeProfile; self.timetables = timetables; self.selectedID = selectedID
         self.todos = todos
     }
-    private enum CodingKeys: String, CodingKey { case schemaVersion, timeProfile, timetables, selectedID, todos }
+    private enum CodingKeys: String, CodingKey { case schemaVersion, timeProfile, timetables, selectedID, todos, todoSyncIssue }
     public init(from decoder: any Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try values.decode(Int.self, forKey: .schemaVersion)
@@ -196,6 +197,7 @@ public struct AppData: Codable, Equatable, Sendable {
         timetables = try values.decode([Timetable].self, forKey: .timetables)
         selectedID = try values.decode(UUID.self, forKey: .selectedID)
         todos = try values.decodeIfPresent([TodoItem].self, forKey: .todos) ?? []
+        todoSyncIssue = try values.decodeIfPresent(String.self, forKey: .todoSyncIssue)
     }
     public static func fresh() -> AppData {
         let table = Timetable()

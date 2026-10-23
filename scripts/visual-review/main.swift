@@ -1,11 +1,24 @@
 import AppKit
 import SwiftUI
+import YIClassCore
 
 @main struct VisualReview {
     @MainActor static func main() throws {
         let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let output = root.appendingPathComponent("dist/visual-review")
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone.current
+        let day = calendar.startOfDay(for: Date())
+        let weekday = (calendar.component(.weekday, from: day) + 5) % 7 + 1
+        let course = Course(name: "高等数学", location: "蘭榕楼 2 号多媒体教室", color: 0xFFAE65A3,
+            schedules: [CourseSchedule(weekday: weekday, periods: [1,2], weekPattern: [1])])
+        let table = Timetable(name: "青大", startDate: ScheduleEngine.monday(of: day), courses: [course])
+        let todo = TodoItem(title: "完成实验报告", notes: "整理实验数据，提交课程平台", deadline: day.addingTimeInterval(23*3600+59*60), importance: .high, createdAt: day)
+        let task2 = TodoItem(title: "准备英语展示", deadline: day.addingTimeInterval(18*3600), createdAt: day)
+        let document = DayAgendaDocument(todos: [todo, task2], placements: [TodoPlacement(todoID: todo.id, start: day.addingTimeInterval(9*3600), end: day.addingTimeInterval(10*3600))])
+        let fixture = AppData(timeProfile: .standard, timetables: [table], selectedID: table.id, todos: document.todos)
+        let dayItems = DayAgendaEngine.items(data: fixture, agenda: document, on: day)
         for dark in [false, true] {
             let sheet = VStack(alignment: .leading, spacing: 22) {
                 Text("Lock screen · actual SwiftUI view").font(.title3.bold())
@@ -33,6 +46,32 @@ import SwiftUI
             .background(dark ? Color(white: 0.08) : Color(white: 0.96))
             .environment(\.colorScheme, dark ? .dark : .light)
             .environment(\.locale, Locale(identifier: "zh_CN"))
+            let agendaSheet = HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("日程 · 课程与待办").font(.title2.bold())
+                    Text(day, format: .dateTime.month().day().weekday()).font(.headline).foregroundStyle(.secondary)
+                    DayTimelineCanvas(items: dayItems, date: day, now: day.addingTimeInterval(9*3600+30*60))
+                        .frame(width: 365, height: 390, alignment: .top).clipped()
+                }.frame(width: 365)
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("待办").font(.title2.bold())
+                    TodoTaskCard(item: todo, reference: day.addingTimeInterval(12*3600), placement: document.placements.first, complete: {}, edit: {})
+                    TodoTaskCard(item: task2, reference: day.addingTimeInterval(12*3600), complete: {}, edit: {})
+                    Text("待办锁屏组件 · 160 × 56 / 76").font(.caption)
+                    TodoWidgetContent(todos: document.todos, date: day.addingTimeInterval(12*3600))
+                        .frame(width: 160, height: 56).border(.secondary.opacity(0.25))
+                    TodoWidgetContent(todos: document.todos, date: day.addingTimeInterval(12*3600))
+                        .frame(width: 160, height: 76).border(.secondary.opacity(0.25))
+                }.frame(width: 340)
+            }.padding(24)
+                .background(dark ? Color(white: 0.08) : Color(white: 0.96))
+                .environment(\.colorScheme, dark ? .dark : .light)
+                .environment(\.locale, Locale(identifier: "zh_CN"))
+            let agendaRenderer = ImageRenderer(content: agendaSheet)
+            agendaRenderer.scale = 3
+            guard let agendaImage = agendaRenderer.cgImage,
+                  let agendaPNG = NSBitmapImageRep(cgImage: agendaImage).representation(using: .png, properties: [:]) else { fatalError("Agenda render failed") }
+            try agendaPNG.write(to: output.appendingPathComponent(dark ? "agenda-dark.png" : "agenda-light.png"))
             let renderer = ImageRenderer(content: sheet)
             renderer.scale = 3
             guard let image = renderer.cgImage else { fatalError("SwiftUI image render failed") }

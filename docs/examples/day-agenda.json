@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "revision": 0,
+  "todos": [
+    {
+      "id": "37D941AC-1514-4D03-B93F-DA0F6A56F703",
+      "title": "完成实验报告",
+      "notes": "整理数据，提交课程平台",
+      "deadline": "2026-10-24T23:59:00+08:00",
+      "importance": "high",
+      "source": "manual",
+      "createdAt": "2026-10-23T08:00:00+08:00"
+    }
+  ],
+  "placements": [
+    {
+      "todoID": "37D941AC-1514-4D03-B93F-DA0F6A56F703",
+      "start": "2026-10-23T15:00:00+08:00",
+      "end": "2026-10-23T16:00:00+08:00"
+    }
+  ]
+}
