@@ -70,8 +70,9 @@ import YIClassCore
     private func loadAgenda() {
         do {
             if FileManager.default.fileExists(atPath: agendaURL.path) {
-                agenda = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: Data(contentsOf: agendaURL))
-                try agenda.validate()
+                let loadedAgenda = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: Data(contentsOf: agendaURL))
+                try loadedAgenda.validate()
+                agenda = loadedAgenda
             } else {
                 let migrated = DayAgendaDocument(todos: data.todos)
                 try migrated.validate()
@@ -89,6 +90,7 @@ import YIClassCore
             }
             data.todos = agenda.todos
         } catch {
+            agenda = DayAgendaDocument()
             agendaLoadFailed = true
             agendaIssue = "日程文件读取失败，原文件已保留。可恢复日程备份或导出文件。"
             data.todos = []
