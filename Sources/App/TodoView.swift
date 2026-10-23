@@ -108,6 +108,7 @@ struct TodoEditor: View {
                 Section("事项") {
                     TextField("要做什么", text: $draft.title, axis: .vertical)
                     TextField("备注（可选）", text: $draft.notes, axis: .vertical)
+                    Toggle("已完成", isOn: Binding(get: { draft.completedAt != nil }, set: { draft.completedAt = $0 ? Date() : nil }))
                     Picker("重要程度", selection: $draft.importance) {
                         ForEach(TodoImportance.allCases) { Text($0.title).tag($0) }
                     }

@@ -41,16 +41,20 @@ struct DayTimelineView: View {
                                 }
                             }.padding(12).background(.background.opacity(0.65), in: RoundedRectangle(cornerRadius: 16))
                         }
+                        let inbox = TodoItem.ranked(store.data.todos, on: reference).filter { $0.deadline == nil && store.agenda.placement(for: $0.id) == nil }
+                        if !inbox.isEmpty {
+                            DisclosureGroup {
+                                ForEach(inbox) { todo in
+                                    TodoTaskCard(item: todo, reference: reference, complete: { toggle(todo) }, edit: { proposedStart = nil; editing = todo })
+                                }
+                            } label: {
+                                Label("未安排时间 · \(inbox.count) 项", systemImage: "tray")
+                                    .font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
+                            }
+                        }
                         DayTimelineCanvas(items: items, date: date, now: context.date) { item in
                             if item.kind == .course, let course = store.table.courses.first(where: { $0.id == item.sourceID }) { onCourse(course) }
                             if item.kind == .todo, let todo = store.data.todos.first(where: { $0.id == item.sourceID }) { proposedStart = nil; editing = todo }
-                        }
-                        let inbox = TodoItem.ranked(store.data.todos, on: date).filter { $0.deadline == nil && store.agenda.placement(for: $0.id) == nil }
-                        if !inbox.isEmpty {
-                            Text("未安排时间").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                            ForEach(inbox) { todo in
-                                TodoTaskCard(item: todo, reference: reference, complete: { toggle(todo) }, edit: { proposedStart = nil; editing = todo })
-                            }
                         }
                     }
                     .padding(.horizontal, 16).padding(.top, 4)
