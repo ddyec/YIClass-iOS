@@ -10,7 +10,8 @@ struct DayTimelineView: View {
     @State private var proposedStart: Date?
     var body: some View {
         TimelineView(.everyMinute) { context in
-            let items = DayAgendaEngine.items(data: store.data, agenda: store.agenda, on: date)
+            let reference = Calendar.current.isDate(date, inSameDayAs: context.date) ? context.date : date
+            let items = DayAgendaEngine.items(data: store.data, agenda: store.agenda, on: reference)
             ScrollViewReader { reader in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
@@ -48,7 +49,7 @@ struct DayTimelineView: View {
                         if !inbox.isEmpty {
                             Text("未安排时间").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                             ForEach(inbox) { todo in
-                                TodoTaskCard(item: todo, reference: context.date, complete: { toggle(todo) }, edit: { proposedStart = nil; editing = todo })
+                                TodoTaskCard(item: todo, reference: reference, complete: { toggle(todo) }, edit: { proposedStart = nil; editing = todo })
                             }
                         }
                     }
