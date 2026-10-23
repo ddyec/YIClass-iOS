@@ -26,11 +26,11 @@ struct TodoTaskCard: View {
                         if item.importance == .high { Text("· 重要") }
                     }.font(.caption.weight(.medium)).foregroundStyle(color)
                     if let deadline = item.deadline {
-                        (Text("截止 · ") + Text(deadline, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()))
+                        (Text("截止 · ") + Text(deadline, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     if let placement {
-                        (Text("安排 · ") + Text(placement.start, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()) + Text("–") + Text(placement.end, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute()))
+                        (Text("安排 · ") + Text(placement.start, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)) + Text("–") + Text(placement.end, format: .dateTime.month().day().hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                     if !item.notes.isEmpty { Text(item.notes).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
@@ -90,7 +90,7 @@ struct DayTimelineCanvas: View {
                     let minute = Calendar.current.component(.hour, from: now) * 60 + Calendar.current.component(.minute, from: now)
                     if minute >= firstHour * 60 && minute < lastHour * 60 {
                         HStack(spacing: 0) {
-                            Text(now, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute())
+                            Text(now, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits))
                                 .font(.system(size: 10, weight: .semibold).monospacedDigit())
                                 .foregroundStyle(.red).frame(width: gutter - 2, alignment: .trailing)
                             Circle().fill(.red).frame(width: 4, height: 4)
@@ -116,7 +116,7 @@ struct DayTimelineCanvas: View {
                         .strikethrough(item.completed)
                 }.foregroundStyle(.primary)
                 if height >= 54 {
-                    (Text(item.start, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute()) + Text("–") + Text(item.end, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute()))
+                    (Text(item.start, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)) + Text("–") + Text(item.end, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)))
                         .font(.system(size: 10).monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if height >= 84 && !item.subtitle.isEmpty {
