@@ -91,7 +91,7 @@ import UIKit
         override var intrinsicContentSize: CGSize { CGSize(width: UIView.noIntrinsicMetric, height: 60) }
     }
 
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
         var parent: NativeNavigationControl
         var values: [Int] = []
         weak var expandTap: UITapGestureRecognizer?
