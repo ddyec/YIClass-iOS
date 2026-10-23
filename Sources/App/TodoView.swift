@@ -6,7 +6,7 @@ struct TodoView: View {
     @State private var editing: TodoItem?
     @State private var day = Date()
     @State private var choosingDate = false
-    @State private var showCompleted = false
+    @State private var showCompleted = true
     var body: some View {
         NavigationStack {
             ZStack {
