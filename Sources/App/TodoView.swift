@@ -16,10 +16,16 @@ struct TodoView: View {
                     let items = TodoItem.ranked(store.data.todos, on: reference)
                     VStack(spacing: 12) {
                         HStack {
-                            Text("待办").font(.title2.bold()).accessibilityAddTraits(.isHeader)
+                            Text("待办").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                             Spacer()
-                            Button("添加待办", systemImage: "plus") { editing = TodoItem(title: "") }
-                                .labelStyle(.iconOnly).frame(width: 44, height: 44).buttonStyle(.glass)
+                            Button { editing = TodoItem(title: "") } label: {
+                                Image(systemName: "plus")
+                                    .font(.title2.weight(.medium))
+                                    .frame(width: 44, height: 44)
+                            }
+                            .buttonStyle(.glass)
+                            .buttonBorderShape(.circle)
+                            .accessibilityLabel("添加待办")
                         }.padding(.horizontal, 16)
                         HStack(spacing: 10) {
                             Button("前一天", systemImage: "chevron.left") { move(-1) }.labelStyle(.iconOnly).frame(width: 40, height: 36)
