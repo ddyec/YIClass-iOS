@@ -48,7 +48,7 @@ struct TodoView: View {
                                 }
                             }.padding(.horizontal, 16).padding(.bottom, 16)
                                 .background { TabBarScrollConnection() }
-                        }.accessibilityIdentifier("todo-list-scroll").floatingNavigationScrollTracking()
+                        }.accessibilityIdentifier("todo-list-scroll")
                     }.padding(.top, 8)
                     .onChange(of: Calendar.current.startOfDay(for: context.date)) { old, new in
                         if Calendar.current.isDate(day, inSameDayAs: old) { day = new }
