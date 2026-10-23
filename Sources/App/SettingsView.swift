@@ -145,7 +145,7 @@ struct SettingsView: View {
                     Link("原项目与开源协议", destination: URL(string: "https://github.com/ddyec/YIClass")!)
                 }
             }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
-            .floatingNavigationScrollTracking()
+            .background { TabBarScrollConnection() }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .background {
                 DocumentImportPicker(isPresented: $importingAgenda, contentTypes: [.json]) { url in
