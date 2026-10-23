@@ -107,7 +107,7 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 | --- | --- |
 | 3.2.2 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39944375854/artifacts/12497976173) |
 
-后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.0-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
+后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.2-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
 
 按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
