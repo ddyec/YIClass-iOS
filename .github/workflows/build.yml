@@ -61,7 +61,7 @@ jobs:
         id: ipa
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-3.1.17-iPhone-iPad-IPA
+          name: YIClass-3.1.18-iPhone-iPad-IPA
           path: |
             dist/YIClass-iOS26-resign.ipa
             dist/device-manifest.json
@@ -73,7 +73,7 @@ jobs:
           IPA_ARTIFACT_URL: ${{ steps.ipa.outputs.artifact-url }}
         run: |
           echo '## iPhone / iPad IPA' >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download 3.1.17 (19) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download 3.1.18 (20) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
           echo 'Tests finished before this build. This is the device package; re-sign before installation.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload build logs on failure
         if: failure()

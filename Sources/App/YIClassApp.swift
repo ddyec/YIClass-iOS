@@ -105,14 +105,12 @@ struct RootView: View {
     private var bottomNavigation: some View {
         GlassEffectContainer(spacing: 12) {
             HStack(spacing: 12) {
-                HStack(spacing: 2) {
-                    if !navigationMinimized || selected == 0 { navigationItem("课表", icon: "calendar", value: 0) }
-                    if !navigationMinimized || selected == 3 { navigationItem("待办", icon: "checklist", value: 3) }
-                    if !navigationMinimized || selected == 2 { navigationItem("设置", icon: "slider.horizontal.3", value: 2) }
-                }
-                .padding(5)
-                .frame(maxWidth: navigationMinimized ? 60 : .infinity)
-                .glassEffect(.regular, in: .capsule)
+                NativeNavigationControl(selection: $selected, minimized: navigationMinimized,
+                    accent: Color(argb: UInt32(clamping: accent))) {
+                        withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) { navigationMinimized = false }
+                    }
+                    .frame(maxWidth: navigationMinimized ? 60 : .infinity)
+                    .frame(height: 60)
                 if navigationMinimized { Spacer(minLength: 12) }
                 Button { assistantPresented = true } label: {
                     AssistantLogo(size: 34)
@@ -128,25 +126,4 @@ struct RootView: View {
         }
         .accessibilityIdentifier("bottom-navigation")
     }
-    private func navigationItem(_ title: String, icon: String, value: Int) -> some View {
-        Button {
-            selected = value
-            withAnimation(reduceMotion ? nil : .smooth(duration: 0.24)) { navigationMinimized = false }
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 21, weight: .medium))
-                if !navigationMinimized { Text(title).font(.caption.weight(.medium)) }
-            }
-            .frame(maxWidth: .infinity, minHeight: 50)
-            .foregroundStyle(selected == value ? Color(argb: UInt32(clamping: accent)) : Color.primary)
-            .background {
-                if selected == value { Capsule().fill(Color(argb: UInt32(clamping: accent)).opacity(0.12)) }
-            }
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(selected == value ? .isSelected : [])
-    }
-
 }

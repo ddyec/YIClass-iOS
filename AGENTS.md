@@ -14,3 +14,5 @@
 - Automatic Actions use one ordered pipeline: Test first, then Build IPA only after Test succeeds. Do not duplicate automatic test/build runs across workflows. Link the versioned IPA artifact directly in the final build summary; do not run another test job after packaging.
 - AI book strokes must remain clean vector paths with open counters. Do not thicken the bitmap with repeated shadows. Inspect small-size light/dark renderings before delivery.
 - Visual checks may use a macOS SwiftUI ImageRenderer for the production card view; distinguish these from real iOS WidgetKit or device screenshots.
+
+- Use a native UISegmentedControl for the left navigation selection, keeping its system background and selection lens. Do not substitute a painted capsule for native Liquid Glass interaction. The separate AI action continues to open a drawer.
