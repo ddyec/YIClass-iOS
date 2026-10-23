@@ -43,34 +43,9 @@ jobs:
           path: dist/visual-review/*.png
           if-no-files-found: error
           retention-days: 30
-  visual:
-    name: 2 - iPhone visual checks (screenshots only)
-    needs: test
-    runs-on: macos-15-intel
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '26.0'
-      - name: Check static glass, selection, collapse and todo layout
-        timeout-minutes: 20
-        run: bash scripts/test-navigation-visual.sh
-      - name: Export iPhone screenshots
-        if: always()
-        continue-on-error: true
-        run: xcrun xcresulttool export attachments --path dist/NavigationReview.xcresult --output-path dist/navigation-review/screenshots
-      - name: Upload screenshot review (no simulator app)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: iPhone-navigation-screenshots
-          path: dist/navigation-review/
-          if-no-files-found: warn
-          retention-days: 30
   build:
-    name: 3 - Build IPA (iPhone and iPad)
-    needs: visual
+    name: 2 - Build IPA (iPhone and iPad)
+    needs: test
     runs-on: macos-15
     timeout-minutes: 25
     steps:

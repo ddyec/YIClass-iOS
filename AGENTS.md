@@ -20,4 +20,4 @@
 - Day agenda tasks and placements are canonical in day-agenda.json; retain stable UUIDs on migration and do not copy timetable courses into that document. Deadline is separate from scheduled work time. Show overlaps in lanes, and preserve atomic task/placement edits, backup/recovery, undo and stale-AI rejection.
 - Keep Actions ordered Test -> Build IPA. Review production timeline, task cards and task widget renders before sharing the device package.
 
-- The user authorized CI iPhone simulator screenshots for this visual fix. Prefer screenshots and interaction checks; screen recording is optional and not requested. Continue delivering only device IPA artifacts. Run visual UI checks before the device Build IPA job.
+- For the current navigation fix, the user chose on-device human visual review after CI simulator startup stalled. Keep the automatic pipeline Test -> Build IPA; do not gate device delivery on simulator UI checks. Only deliver the device IPA.
