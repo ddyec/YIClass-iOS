@@ -6,8 +6,8 @@ python3 - <<'PY'
 from pathlib import Path
 s = Path('Sources/App/Design.swift').read_text()
 a = s.index('struct AssistantLogo: View {')
-b = s.index('\nprivate struct FloatingNavigationScrollKey:', a)
-s = s[a:b].replace('Image("AssistantLogo")', 'Image(nsImage: NSImage(contentsOfFile: "Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.pdf")!)')
+# AssistantLogo is the final declaration; the obsolete custom scroll key is gone.
+s = s[a:].replace('Image("AssistantLogo")', 'Image(nsImage: NSImage(contentsOfFile: "Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.pdf")!)')
 Path('dist/visual-review/AssistantLogo.swift').write_text('import AppKit\nimport SwiftUI\n' + s)
 s = Path('Sources/App/Design.swift').read_text()
 a = s.index('extension Color {'); b = s.index('\nstruct AppBackdrop:', a)

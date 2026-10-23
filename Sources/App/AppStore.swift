@@ -47,6 +47,15 @@ import YIClassCore
                         schedules: [CourseSchedule(weekday: day, periods: periods, weekPattern: Array(1...20))])
                 })
             data = AppData(timetables: [table], selectedID: table.id)
+            if CommandLine.arguments.contains("--ui-testing-todos") {
+                let now = Date()
+                agenda = DayAgendaDocument(todos: [
+                    TodoItem(title: "完成实验报告", notes: "整理数据并提交课程平台", deadline: now.addingTimeInterval(3600), importance: .high, createdAt: now.addingTimeInterval(-86400)),
+                    TodoItem(title: "准备英语展示", deadline: now.addingTimeInterval(86400), createdAt: now.addingTimeInterval(-86400)),
+                    TodoItem(title: "已完成的测试事项", createdAt: now.addingTimeInterval(-86400), completedAt: now)
+                ])
+                data.todos = agenda.todos
+            }
             return
         }
         #endif
@@ -191,6 +200,9 @@ import YIClassCore
         try commit(restored, undoable: true, reason: "恢复历史记录")
     }
     func syncWidgets() {
+        #if DEBUG
+        if CommandLine.arguments.contains("--ui-testing-demo") { return }
+        #endif
         guard !loadFailed else { return }
         #if os(iOS)
         LessonReminderManager.shared.refresh(data: data)

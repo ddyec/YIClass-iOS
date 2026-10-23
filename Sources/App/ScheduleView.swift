@@ -37,7 +37,7 @@ struct ScheduleView: View {
                                 .containerRelativeFrame(.vertical)
                                 .background { TabBarScrollConnection() }
                         }.scrollBounceBehavior(.always, axes: .vertical)
-                            .floatingNavigationScrollTracking()
+
                             .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
                     } else if mode == .week {
                         WeekGrid(table: store.table, profile: store.profile, week: week, bottomNavigationInset: bottomNavigationInset, bottomNavigationTop: bottomNavigationTop) { selection = CourseSelection(course: $0) }
@@ -179,7 +179,7 @@ struct ScheduleView: View {
                 }
             }
         }.scrollContentBackground(.hidden)
-            .floatingNavigationScrollTracking()
+
             .contentMargins(.bottom, bottomNavigationInset, for: .scrollContent)
             .scrollBounceBehavior(.always, axes: .vertical)
             .background { TabBarScrollConnection() }
@@ -260,7 +260,7 @@ struct WeekGrid: View {
                                 if canCollapseEvening && showFullEvening { eveningToggle }
                             }
                         }.scrollBounceBehavior(.always, axes: .vertical)
-                            .floatingNavigationScrollTracking()
+
                             .contentMargins(.bottom, showFullEvening ? navigationOverlap + 8 : 8, for: .scrollContent)
                             .accessibilityIdentifier("week-grid-scroll")
                     }.frame(width: 44 + columnWidth * CGFloat(days), height: gridHeight)

@@ -1,3 +1,27 @@
+## 3.2.3 待办页标题与加号比例
+
+“待办”由 title2 升为 largeTitle.bold，层级高于 24 点“待完成”。加号使用 title2.medium 图标、原生 large 控件尺寸和圆形玻璃按钮，至少 44 点点击区域，不以内部固定大画布重复增加系统内边距。
+
+源码 `be541b243b810119166393620fe2f876577a1aa5` 的 [构建 39945985171](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171) 已按 Test → Build IPA 完成，基础测试、生产卡片渲染与设备归档通过，设备产物 `12498456700`。未新增测试或运行模拟器；标题和按钮实际观感由用户真机验收。
+
+## 3.2.2 原生系统底栏替换
+
+用户提供 3.2.1 真机截图：底栏和选中层为矩形玻璃板，视觉验收失败。此前堆叠 UIVisualEffectView／UIGlassEffect 并自行驱动选中与收纳，不能等同于系统底栏。
+
+此次删除 NativeNavigationControl 和自定义滚动收纳驱动，使用真正 UITabBarController 与 UITab。右侧 UISearchTab 在紧凑布局下由系统独立分组，替换为现有书页图标和“AI 助手”名称；通过公开 shouldSelectTab 委托拒绝切换并打开原抽屉，关闭后保留原页面。三个 UIHostingController 保持实例，主题色更新不会重建页面。tabBarMinimizeBehavior = .onScrollDown；原有 TabBarScrollConnection 将日／周／列表的竖向滚动视图连接至控制器。移除自绘 overlay、额外底部安全区预留、宽度插值及灰色／透明选中层。所有底栏外观与交互交由 UIKit，不设置背景或私有子视图。
+
+依据：[Apple WWDC25 原生底栏及 UISearchTab](https://developer.apple.com/videos/play/wwdc2025/284/)、[UISearchTab](https://developer.apple.com/documentation/uikit/uisearchtab)、[公开选择委托](https://developer.apple.com/documentation/uikit/uitabbarcontrollerdelegate/tabbarcontroller(_:shouldselecttab:))。未使用 iOS 27 才新增的 prominentTabIdentifier，不提高最低系统版本。
+
+按用户决定，不再运行模拟器界面检查；自动流程 Test → Build IPA，版本 3.2.2 (23)。可选 UI 用例源码改为系统 tabBar 定位，尚未运行。源码 `e8437493b09d1aef4e25955a19c90e35965911a7` 的 [构建 39944375854](https://github.com/ddyec/YIClass-iOS/actions/runs/39944375854) 已按 Test → Build IPA 完成：工程／资源、核心测试、真实 PDF／存储集成、生产卡片 SwiftUI 渲染及 iPhoneOS 归档全部通过。设备 IPA 已上传为产物 `12497976173`，无打包后的测试任务。静止／拖动选中、上下滚动收纳、助手抽屉返回由用户真机验收，不宣称视觉已通过。
+
+## 3.2.1 导航静态玻璃、收纳与待办主次层级
+
+旧版 UISegmentedControl 静止时显示默认灰色选中背景，只有交互时提供清透透镜。按用户澄清，底座可有适度模糊，停留的选中胶囊不可额外磨砂。此次 UIKit UIVisualEffectView 分别持有 regular 与 clear UIGlassEffect，选中层静止、拖动时都保留同一实例，无灰色选中填充或位图替换，材质视图 alpha 保持 1。
+
+导航标签改用稳定的 UIButton、UIImageView、UILabel，收纳不删除重建。外层宽度由一次 SwiftUI 动画驱动，UIKit 不叠加收纳尺寸动画；标签几何根据实际宽度插值，AI 入口位置固定。滚动采用 30／40 点不同阈值，根节点只响应实际状态变化；手动展开后也能再次滚动收起。
+
+“已完成”按最新要求默认折叠，“待完成”标题 24 点、数量 18 点，空态内容区 190 点并提供添加入口。按用户最新决定，导航静止材质和收纳手势由用户安装后人眼验收。CI 曾完成 iPhone Simulator 目标编译，但运行环境在 bootstatus 启动检查处超时，未进入界面测试，也未取得 iPhone 截图；不计作 UI 验收通过。已停止模拟器检查，恢复 Test → Build IPA 单一流水线。核心／PDF／存储及生产 macOS SwiftUI 渲染此前通过，已查看浅深色课程、待办和组件图；这些不验证 UIKit 导航材质。源码 `92f8a3694102ee1858629d706eb76f1517249e20` 的 [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39942262130) 已通过，3.2.1 (22) 设备包已上传；随后用户真机截图否决其底栏设计，不能继续将该版本视为视觉合格。
+
 ## 3.2.0 日程时间轴、独立待办文件与锁屏组件
 
 本轮基于已交付的 3.1.18。核心新增独立日程模型、安排校验、跨午夜裁切、重叠分列、截止日筛选及组件时间线。新增回归覆盖 JSON 往返与损坏引用、截止不等于工作时间、跨日裁切、重叠列释放、AI 同批拒绝与取消安排、新任务同时安排、工具查询真实 ID。存储集成新增旧数据迁移、文件分离、重启、安排删除／撤销、过期 AI 快照拒绝及损坏文件独立恢复。首轮修正工具协议测试后，58 项核心检查及真实 PDF／存储检查已通过，生产共享视图渲染及 iPhoneOS 归档通过。视觉检查发现半小时静态刻度与当前时间重叠，已隐藏附近静态刻度，统一时间格式；日视图默认从顶部显示，保留“首项”手动定位。最终源码 `d7e60841e9a27d2188edb7c1162bd730bb603a53` 的 [构建 39924154987](https://github.com/ddyec/YIClass-iOS/actions/runs/39924154987) 已按 Test → Build IPA 完成：58 项核心测试、PDF／存储集成、生产 SwiftUI 渲染和 iPhoneOS 设备归档通过，3.2.0 (21) IPA 已上传。已下载并查看补零后的深浅色图，确认 09:00／10:00 及当前时间刻度正确，组件未发生裁切。

@@ -14,6 +14,12 @@
 
 ## 3.2 日程与待办
 
+3.2.3 (24) 将待办页“待办”升为系统大标题，加号同步放大并使用原生大号圆形玻璃按钮，确保页面标题高于“待完成”分区层级。
+
+3.2.2 (23) 改用真正的 UIKit `UITabBarController`，不再自绘底栏或叠加玻璃透镜。系统负责胶囊形状、选中态、拖动和滚动收纳；右侧独立入口采用公开 `UISearchTab` 分组能力，使用新版线条书页图标，通过公开委托拦截选择来打开 AI 抽屉，不切换页面或激活搜索框。保留放大的“待完成”区域与默认折叠的“已完成”。安全区由系统管理，移除自定义底栏预留与竞争的滚动动画。
+
+3.2.1 (22) 的自定义玻璃叠层已被用户真机验收否决：底座与选中项呈现矩形。此前不能只凭 API 名称就认定视觉正确。3.2.2 完全移除该实现，按 [Apple 的原生底栏与独立搜索入口说明](https://developer.apple.com/videos/play/wwdc2025/284/) 采用系统控件。自动流程保持 Test → Build IPA，导航实际观感由用户真机验收。
+
 3.2.0 (21) 将日视图改为带半小时刻度与当前时间线的课程／待办时间轴。课程按实际时长排列，安排工作时间的待办加入同一轴，重叠分列；只有截止时间的事项列在“当天截止”，没有截止及安排的事项留在“未安排时间”。待办编辑器分别设置工作时间与截止时间，可跨日安排。待办页统一课表的背景、日期导航、色条与卡片层级，保留完成／重开、重要程度、紧急度及删除／撤销。
 
 待办与安排迁移到独立 `day-agenda.json`，保留旧 UUID 和状态，课程仍从课表读取。设置可导出与预览导入，带备份、撤销、损坏保护。AI 新增 get_todos / get_day_agenda，支持新增、编辑、完成、重开、删除待办及安排／移动／取消工作时间，执行前校验快照，同批原子保存。新增长方形／圆形／行内“待办清单”锁屏组件。结构与示例见 [日程文件说明](docs/DAY-AGENDA.md)。
@@ -97,13 +103,13 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.2.0 (21) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `d7e60841e9a27d2188edb7c1162bd730bb603a53`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39924154987)。新增日程时间轴、独立日程 JSON、待办 AI 操作与锁屏组件；已检查生产组件的深浅色 SwiftUI 渲染图，完整触控效果仍待真机验收。
+**3.2.3 (24) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `be541b243b810119166393620fe2f876577a1aa5`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171)。本版放大待办页主标题和右侧加号，使用系统大号圆形玻璃按钮，沿用原生 UIKit 底栏与独立助手入口。基础测试、生产卡片渲染及设备归档通过，导航实际观感与手势由用户真机验收。
 
 | 产物 | 下载 |
 | --- | --- |
-| 3.2.0 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39924154987/artifacts/12489120538) |
+| 3.2.3 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171/artifacts/12498456700) |
 
-后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.0-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
+后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.3-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
 
 按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
