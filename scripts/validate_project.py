@@ -48,7 +48,15 @@ png = (ROOT / 'Sources/App/Assets.xcassets/AppIcon.appiconset/AppIcon.png').read
 assert png[:8] == b'\x89PNG\r\n\x1a\n'
 assert struct.unpack('>II', png[16:24]) == (1024, 1024), 'App icon must be 1024 square'
 assert (ROOT / 'Sources/App/Assets.xcassets/Brand.imageset/Brand.png').read_bytes() == png, 'Legacy YC branding must use the normal current app logo'
-assistant_logo = (ROOT / 'Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.png').read_bytes()
+assistant_logo = (ROOT / 'scripts/artwork/AssistantLogo-original.png').read_bytes()
 assert assistant_logo[:8] == b'\x89PNG\r\n\x1a\n' and assistant_logo[25] == 6, 'Assistant line logo must be an RGBA PNG'
+assistant_asset = json.loads((ROOT / 'Sources/App/Assets.xcassets/AssistantLogo.imageset/Contents.json').read_text())
+assert assistant_asset['images'][0]['filename'] == 'AssistantLogo.pdf'
+assert assistant_asset['properties']['preserves-vector-representation'] is True
+vector = ROOT / 'Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.pdf'
+before_vector = vector.read_bytes()
+subprocess.run([sys.executable, str(ROOT / 'scripts/prepare-assistant-logo.py')], check=True, capture_output=True)
+assert before_vector == vector.read_bytes(), 'Assistant vector is stale'
+assert b'/MediaBox [0 0 32 32]' in before_vector
 assert (ROOT / 'LICENSE').exists() and (ROOT / 'NOTICE').exists()
 print(f'PASS: deterministic Xcode project; {len(defined)} objects; source membership; iOS target; assets; privacy manifest; scheme; attribution')

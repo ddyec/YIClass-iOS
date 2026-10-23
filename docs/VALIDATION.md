@@ -1,3 +1,25 @@
+## 3.1.18 原生导航选择控件
+
+用户补充 Outlook 拖动选择时的玻璃透镜截图。此前将静态 glassEffect 外壳等同于完整原生选择交互，判断不充分。左侧已替换成真正 UISegmentedControl，由 UIKit 处理拖动、点击、选择透镜与动画；保留默认背景和 selectedSegmentTintColor，只提供图标／文字画面及主题色。三个目标仍为课表／待办／设置，右侧独立 AI 继续打开抽屉，滚动后单项收起可点击展开。使用 UIAction 标题保留每段可访问名称。
+
+这是原生分段控件，不将其说成 UITabBar；也不推测微软内部采用哪一控件。Apple 官方 Liquid Glass 文档明确列举 UISegmentedControl 交互更新。静态 macOS ImageRenderer 不能验证 iOS UIKit 透镜的拖动动画；该交互需在 iOS 26 真机操作确认。继续执行单条 Test → Build IPA 流程，不追加模拟器包或构建后测试。
+
+## 3.1.17 排版修正与可视检查
+
+上版只按 68–76 点计算行高，未覆盖用户截图中更矮的实际区域；截图中标题、地点与边框相碰。此次把普通锁屏卡片抽成生产组件 LockScreenCourseCard，由 WidgetKit 和 macOS SwiftUI 渲染程序共用。检查 160 点宽、52／56／60／68／72／76 点高，含长课名、长教室、明日、上课描边和双格对齐。较矮高度的完整三行总需求分别为 48／54 点；68 点单课需求 66 点，76 点双行标题需求 76 点。外部格子仍由系统决定。
+
+删除四层阴影加粗，沿原书页结构重建可编辑矢量描边，外线 1.6、内部线 1.25，保留内部空白与 32 点画布。SVG 与 PDF 由确定性脚本保持一致。已在本地查看 20／34／88 点、黑白两套矢量预览。CI 使用真正的 SwiftUI ImageRenderer 输出生产组件与生产 PDF 的深浅色检查图；这是 macOS SwiftUI 组件渲染，不冒充 iOS 锁屏截屏或真机验收。
+
+底栏核查：Outlook 截图的视觉布局可以实现，不能仅凭截图确定微软是否使用系统 UITabBar。本项目当前是隐藏系统标签栏后，用原生玻璃材质组合三个导航按钮与独立 AI 抽屉按钮。Apple 的普通任意标签突出接口 prominentTabIdentifier 官方元数据标注 iOS 27.0 起；当前工程使用 iOS 26 SDK，不为得到同一外观改用私有 API或把 AI 改成搜索入口。此前“这种效果无法实现”的表述不准确。参考 https://developer.apple.com/documentation/uikit/uitabbarcontroller/prominenttabidentifier 与 https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass 。
+
+流水线调整为单次 Test → Build IPA，去掉 Native iOS 的重复自动触发。所有核心／集成／视觉渲染任务在设备归档前执行，构建任务只打包、校验产物并上传。日志仅失败时另存，成功摘要直接提供带版本号的设备 IPA。
+
+## 3.1.16 锁屏与独立助手入口
+
+基于 `feat/custom-theme-and-todos` 的 `31116bedc0a837e0695bb2aee3c6b8fc9d032598`，该分支与用户截图一致。保留独立 AI 抽屉及原始 AssistantLogo PNG；只调整 SwiftUI 图标渲染比例、轮廓与底栏控件尺寸。普通锁屏长方形满幅使用自己的系统格子，单课三行在 68 点高度下需要 67 点，多课三行在 68 点高度下需要 64 点，在 72／76 点高度下需要 68 点；描边不再侵入格子外。该计算检查行高、间距和内边距，不替代 WidgetKit 实际渲染。
+
+本地 Python 工程／资源／隐私校验通过；本地环境无 Swift 或 Xcode，核心测试与 iPhoneOS SDK 编译待设备构建工作流确认。没有运行模拟器 UI 测试，不把编译通过当作锁屏或深浅色视觉验收。验收需覆盖单课长标题、双格对齐、长教室名称、明日标记、透明无课状态；检查 60 点圆形按钮与左侧胶囊等高、黑白图标、滚动收纳及抽屉关闭／历史入口。
+
 # 验证记录
 
 ## 3.1.15 (17) 周课表空间与主题色

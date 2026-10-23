@@ -92,11 +92,12 @@ struct ProductLogo: View {
 struct AssistantLogo: View {
     @Environment(\.colorScheme) private var colorScheme
     var size: CGFloat = 88
+    private var ink: Color { colorScheme == .dark ? .white : .black }
     var body: some View {
         Image("AssistantLogo")
             .resizable().renderingMode(.template).scaledToFit()
-            .foregroundStyle(colorScheme == .dark ? Color.white : Color.black)
             .frame(width: size, height: size)
+            .foregroundStyle(ink)
             .accessibilityHidden(true)
     }
 }
