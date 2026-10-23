@@ -25,7 +25,9 @@ struct ScheduleView: View {
                 AppBackdrop()
                 VStack(spacing: 12) {
                     controls.padding(.horizontal, 16)
-                    if store.table.courses.isEmpty {
+                    if mode == .day {
+                        DayTimelineView(date: selectedDate, bottomInset: bottomNavigationInset) { selection = CourseSelection(course: $0) }
+                    } else if store.table.courses.isEmpty {
                         ScrollView {
                             ContentUnavailableView {
                             Label(mode == .day ? "当天还没有课程" : "把这一周安排好", systemImage: "calendar.badge.plus")

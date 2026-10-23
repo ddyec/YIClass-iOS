@@ -51,7 +51,10 @@ public struct AssistantReply: Codable, Sendable {
     public var questions: [Clarification]
     public var plans: [AssistantPlan]
     public var todos: [AssistantTodo]
-    private enum CodingKeys: String, CodingKey { case message, applyDirectly, questions, plans, todos }
+    public var todoChanges: [AssistantTodoChange]
+    public var agendaChanges: [AssistantAgendaChange]
+    public var hasTaskChanges: Bool { !todos.isEmpty || !todoChanges.isEmpty || !agendaChanges.isEmpty }
+    private enum CodingKeys: String, CodingKey { case message, applyDirectly, questions, plans, todos, todoChanges, agendaChanges }
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         message = try container.decode(String.self, forKey: .message)
@@ -59,6 +62,8 @@ public struct AssistantReply: Codable, Sendable {
         questions = try container.decodeIfPresent([Clarification].self, forKey: .questions) ?? []
         plans = try container.decodeIfPresent([AssistantPlan].self, forKey: .plans) ?? []
         todos = try container.decodeIfPresent([AssistantTodo].self, forKey: .todos) ?? []
+        todoChanges = try container.decodeIfPresent([AssistantTodoChange].self, forKey: .todoChanges) ?? []
+        agendaChanges = try container.decodeIfPresent([AssistantAgendaChange].self, forKey: .agendaChanges) ?? []
     }
     public static func parse(_ text: String, table: Timetable, profile: TimeProfile) throws -> AssistantReply {
         var value = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -87,10 +92,10 @@ public struct AssistantReply: Codable, Sendable {
         guard !reply.message.isEmpty, reply.questions.count <= 3, reply.plans.count <= 3,
               Set(reply.questions.map(\.title)).count == reply.questions.count,
               Set(reply.plans.map(\.title)).count == reply.plans.count else { throw AppFailure("助手方案格式不正确，请补充说明后重试。") }
-        guard reply.todos.count <= 100, reply.todos.isEmpty || reply.plans.isEmpty else { throw AppFailure("请将待办与课表修改分开提交，每次最多 100 条待办。") }
+        guard reply.todos.count + reply.todoChanges.count + reply.agendaChanges.count <= 100, !reply.hasTaskChanges || reply.plans.isEmpty else { throw AppFailure("请将待办与课表修改分开提交，每次最多 100 条待办。") }
         for todo in reply.todos { _ = try todo.materialize(table: table, profile: profile) }
         if reply.applyDirectly == true {
-            guard reply.questions.isEmpty, (reply.plans.count == 1 || !reply.todos.isEmpty) else { throw AppFailure("直接修改必须给出唯一且完整的课表结果。") }
+            guard reply.questions.isEmpty, (reply.plans.count == 1 || reply.hasTaskChanges) else { throw AppFailure("直接修改必须给出唯一且完整的课表结果。") }
         }
         for question in reply.questions {
             guard !question.title.isEmpty, (2...4).contains(question.options.count),
@@ -134,14 +139,16 @@ public enum AssistantPrompt {
     执行前数据与日期课程清单是唯一事实来源；历史 assistant 的声称可能有误或尚未应用，不可用历史方案覆盖当前数据。查某日有无课必须检查全天所有节次及停课标记；未排时间不等于没有该课程。修改明确时不要只回一段“已修改”而不返回可执行方案；应用成功后由本地核对并说明结果。
     用户提供调课通知时，结合当前学期确定通知中的具体日期，调整源日期的课程到目标日期，仅修改涉及的那几周，保留其他周、课程 UUID、教师和地点。通知明确说原目标日课程另行安排但没有给出日期时，保留为未排时间，不猜测补课日。
     支持 function calling 的接口：涉及日期查课或调课，先调用 get_schedule_dates 查询所有源日与目标日；需要完整课程周次时调用 get_course_records。系统返回的 tool JSON 为权威数据，不把自己的推测当工具结果。拿到结果后再返回最终方案。工具只读，不代表已保存；不要在查询后声称已执行。无工具的设备端模式使用本次权威日期清单。
-    用户要求记待办、作业、报告、报名等任务时，使用 todos 数组，不要把待办当成课程。理解自然语言，不要求用户写 JSON 或固定模板。每条格式：{"title":"交实验报告","notes":"","deadline":"含时区的 ISO 8601，例如 2026-10-23T23:59:00+08:00","importance":"high"}。importance 可选 low/normal/high，未说明默认 normal，不随意把每件事标为高。明确要求添加就 applyDirectly:true，由本地保存后报告；仅建议时 false。deadline 未知为 null，不编造；只给日期未给时刻则按设备时区当天 23:59，并在 message 说明。相对日期依据设备时间解析，与学期范围无关。关键日期歧义才用 questions 简短追问，不声称已保存。每次最多 100 条；同批先解决所有关键歧义再保存，避免追问时重复导入。todos 只新增，不支持修改或删除现有待办，不要声称已完成这些操作；引导在待办页编辑。待办与课表修改分开回答，不在同一回复同时返回非空 todos 和 plans。待办回复示意：{"message":"添加报告待办，截止当晚 23:59","applyDirectly":true,"questions":[],"plans":[],"todos":[{"title":"交报告","deadline":"2026-10-23T23:59:00+08:00","importance":"normal"}]}。截止日期示例不能作为真实用户日期。
+    用户要求记待办、作业、报告、报名等任务时，使用 todos 数组，不要把待办当成课程。理解自然语言，不要求用户写 JSON 或固定模板。每条格式：{"title":"交实验报告","notes":"","deadline":"含时区的 ISO 8601，例如 2026-10-23T23:59:00+08:00","importance":"high"}。importance 可选 low/normal/high，未说明默认 normal，不随意把每件事标为高。明确要求添加就 applyDirectly:true，由本地保存后报告；仅建议时 false。deadline 未知为 null，不编造；只给日期未给时刻则按设备时区当天 23:59，并在 message 说明。相对日期依据设备时间解析，与学期范围无关。关键日期歧义才用 questions 简短追问，不声称已保存。每次最多 100 条；同批先解决所有关键歧义再保存，避免追问时重复导入。todos 用于新增；修改现有待办使用 todoChanges，安排工作时间使用 agendaChanges，格式见后文。待办与课表修改分开回答，不在同一回复同时返回非空 todos 和 plans。待办回复示意：{"message":"添加报告待办，截止当晚 23:59","applyDirectly":true,"questions":[],"plans":[],"todos":[{"title":"交报告","deadline":"2026-10-23T23:59:00+08:00","importance":"normal"}]}。截止日期示例不能作为真实用户日期。
     用户说“下次实验课交报告／下节英语课前完成”等以课程为截止依据时，主动读取当前课表，按课程名、简称及上下文匹配课程。远程模式先调用 get_next_course_lessons 查询候选 UUID 的下一次实际开课；设备端使用上下文的本地下一次开课清单。不要仅按星期推测，须考虑周次、单双周、停课、已保存的调课及统一课节时间，搜索整个学期，不限未来两周。已开始的课不算“下一次”。明确课程时不反问日期；多个实验课程且上下文无法区分时给课程名选项追问。没有未来已排课时说明原因并问截止时间，不编造。
     “下次课交／课前交”默认在下一次开课前完成，todos 使用 nextCourseID（当前课表课程 UUID），deadline:null；应用会重新从当前课表计算并以开课时刻作为截止时间，不依赖模型算日期。message 说明采用哪门课及具体时间。不要在这类请求中只填自行推测的 deadline 而省略 nextCourseID。只有明确指定课程之后另一天或课后时间等其他截止含义时，查询后根据用户要求给 deadline，不使用 nextCourseID。待办保存的是添加时的截止时间快照，之后调课不自动修改已有待办。
     最终回答只输出 JSON，不要 Markdown，格式：
     {"message":"简短说明做了什么","applyDirectly":true,"questions":[],
     "plans":[{"title":"调整课表","explanation":"变化说明","courses":[{"name":"课程","location":"","teacher":"","schedules":[{"weekday":1,"periods":[1,2],"weekPattern":[1,2]}]}]}]}
     日期调课最终格式：{"message":"日期调课方案","applyDirectly":true,"questions":[],"plans":[{"title":"按通知调课","explanation":"全天课程一起调整","dateMoves":[{"from":"2026-09-29","to":"2026-10-25","targetOriginal":"unschedule"}]}]}。日期方案不要同时输出 courses；courseIDs 省略代表全天，不是仅上午。不要把示例日期当作用户实际日期。
-    questions 与 plans 无内容时返回 []。applyDirectly:true 时必须没有问题，且有一个完整 plan 或非空 todos。
+    questions 与 plans 无内容时返回 []。applyDirectly:true 时必须没有问题，且有一个完整 plan 或非空 todos / todoChanges / agendaChanges。
+    日视图由独立 day-agenda.json 管理待办与安排，课程来自课表。先用 get_todos 查询现有任务 UUID；查某日课程与安排用 get_day_agenda。deadline 是最晚完成时间，scheduledStart / scheduledEnd 是实际安排去做的时间段，不能混为一谈。明确要求“明天下午三点做一小时报告”时新建 todos 条目可附 scheduledStart 与 scheduledEnd（均为含时区 ISO 8601）。若用户未给时长，不编造结束时间，先询问时长，或只保存待办不安排，并说明。
+    修改既有待办返回 todoChanges:[{"todoID":"真实UUID","action":"update","title":"可选新标题","notes":"可选新备注","deadline":"可选新截止","clearDeadline":false,"importance":"normal"}]。action 还支持 complete / reopen / delete。清除截止用 clearDeadline:true，不同时填 deadline。安排或移动待办用 agendaChanges:[{"todoID":"真实UUID","action":"schedule","start":"含时区ISO8601","end":"含时区ISO8601"}]；取消时间安排用 action:remove（不会删除任务）。不得猜测 UUID。操作前必须查询 get_todos；安排、搬动前必须查询 get_day_agenda 的目标日，有重叠应说明，不能为了消除重叠擅自移动课程。明确要求操作可 applyDirectly:true，建议用 false。任务与课程修改分开提交。本地以执行前快照校验；任何一条无效，整批不保存。不要根据用户文本声称保存成功，由应用实际保存后生成回执。
     """
     public static func context(table: Timetable, profile: TimeProfile, now: Date = Date(), calendar: Calendar = .current, focusText: String = "") throws -> String {
         let data = try TimetableTransfer.encode(table: table, profile: profile)

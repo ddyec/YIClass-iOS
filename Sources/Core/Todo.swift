@@ -72,6 +72,8 @@ public struct AssistantTodo: Codable, Sendable {
     public var deadline: String?
     public var importance: TodoImportance?
     public var nextCourseID: UUID?
+    public var scheduledStart: String?
+    public var scheduledEnd: String?
     public func materialize(now: Date = Date(), table: Timetable? = nil, profile: TimeProfile? = nil,
                             calendar: Calendar = .current) throws -> TodoItem {
         var date: Date?

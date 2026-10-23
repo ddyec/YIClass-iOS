@@ -16,3 +16,6 @@
 - Visual checks may use a macOS SwiftUI ImageRenderer for the production card view; distinguish these from real iOS WidgetKit or device screenshots.
 
 - Use a native UISegmentedControl for the left navigation selection, keeping its system background and selection lens. Do not substitute a painted capsule for native Liquid Glass interaction. The separate AI action continues to open a drawer.
+
+- Day agenda tasks and placements are canonical in day-agenda.json; retain stable UUIDs on migration and do not copy timetable courses into that document. Deadline is separate from scheduled work time. Show overlaps in lanes, and preserve atomic task/placement edits, backup/recovery, undo and stale-AI rejection.
+- Keep Actions ordered Test -> Build IPA. Review production timeline, task cards and task widget renders before sharing the device package.

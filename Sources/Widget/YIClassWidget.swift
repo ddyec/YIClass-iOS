@@ -233,6 +233,7 @@ struct CurrentLessonWidget: Widget {
 @main struct YIClassWidgets: WidgetBundle {
     var body: some Widget {
         YIClassWidget()
+        TodoLockWidget()
         CurrentLessonWidget()
         FollowingLessonWidget()
         LastLessonLiveActivity()
