@@ -12,17 +12,11 @@ assert phones, 'No available iOS 26 iPhone simulator on this runner'
 print(phones[0]['udid'])
 PY
 )
-xcrun simctl boot "$YICLASS_REVIEW_DEVICE" || true
-xcrun simctl bootstatus "$YICLASS_REVIEW_DEVICE" -b > dist/navigation-review/boot.log 2>&1 &
-YICLASS_BOOT_PID=$!
-# Compile while the simulator performs its first boot; no simulator package is made.
+# Let Xcode manage simulator startup; a separate bootstatus process can hang
+# indefinitely on hosted ARM runners before any UI test starts.
 xcodebuild -project YIClass.xcodeproj -scheme YIClass \
-  -destination "platform=iOS Simulator,id=$YICLASS_REVIEW_DEVICE" \
-  -derivedDataPath build/NavigationReview -parallel-testing-enabled NO \
-  CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES build-for-testing 2>&1 | tee dist/navigation-review/test.log
-wait "$YICLASS_BOOT_PID"
-xcodebuild -project YIClass.xcodeproj -scheme YIClass \
-  -destination "platform=iOS Simulator,id=$YICLASS_REVIEW_DEVICE" \
+  -destination "platform=iOS Simulator,id=$YICLASS_REVIEW_DEVICE" -destination-timeout 120 \
   -derivedDataPath build/NavigationReview -resultBundlePath dist/NavigationReview.xcresult \
   -parallel-testing-enabled NO -only-testing:YIClassUITests/NavigationPolishTests \
-  CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test-without-building 2>&1 | tee -a dist/navigation-review/test.log
+  -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 \
+  CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES test 2>&1 | tee dist/navigation-review/test.log
