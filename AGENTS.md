@@ -21,3 +21,5 @@
 - Keep Actions ordered Test -> Build IPA. Review production timeline, task cards and task widget renders before sharing the device package.
 
 - For the current navigation fix, the user chose on-device human visual review after CI simulator startup stalled. Keep the automatic pipeline Test -> Build IPA; do not gate device delivery on simulator UI checks. Only deliver the device IPA.
+
+- Live Activity follow-up: shorten the compact resident Dynamic Island capsule; expanded size is acceptable. Use one type icon without duplicate course/task headings, place the countdown on the right, and keep content inset and clipped to bounds. Provide a Settings style-test screen with idle/upcoming/ongoing/ending states and an explicit countdown start. Prioritize phone acceptance; do not add simulator runs or repeated visual-render work.

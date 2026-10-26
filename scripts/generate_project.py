@@ -85,7 +85,7 @@ app_settings = {
     'INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad': 'UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight',
     'TARGETED_DEVICE_FAMILY': '1,2', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator',
     'SUPPORTS_MACCATALYST': 'NO', 'SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD': 'NO',
-    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.2.4', 'CURRENT_PROJECT_VERSION': '25',
+    'CODE_SIGN_STYLE': 'Automatic', 'MARKETING_VERSION': '3.2.5', 'CURRENT_PROJECT_VERSION': '26',
     'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIconSlate', 'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME': 'AccentColor',
     'SWIFT_EMIT_LOC_STRINGS': 'YES', 'CODE_SIGN_ENTITLEMENTS': 'Sources/App/YIClass.entitlements',
 }
@@ -102,7 +102,7 @@ widget_settings = {
     'APPLICATION_EXTENSION_API_ONLY': 'YES', 'TARGETED_DEVICE_FAMILY': '1,2',
     'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'SUPPORTS_MACCATALYST': 'NO',
     'CODE_SIGN_STYLE': 'Automatic', 'CODE_SIGN_ENTITLEMENTS': 'Sources/Widget/YIClass.entitlements',
-    'MARKETING_VERSION': '3.2.4', 'CURRENT_PROJECT_VERSION': '25',
+    'MARKETING_VERSION': '3.2.5', 'CURRENT_PROJECT_VERSION': '26',
     'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks',
 }
 

@@ -89,6 +89,9 @@ struct SettingsView: View {
                 }
                 if reading { ProgressView("正在读取课表…") }
                 Section("小组件") {
+                    NavigationLink("实时活动样式测试", systemImage: "play.rectangle") {
+                        LiveActivityPreviewView()
+                    }
                     Toggle("锁屏实时活动", isOn: Binding(get: { wideLesson.enabled }, set: {
                         wideLesson.setEnabled($0, data: store.data)
                     }))

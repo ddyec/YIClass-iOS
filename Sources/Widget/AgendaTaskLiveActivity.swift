@@ -12,36 +12,24 @@ struct AgendaTaskLiveActivity: Widget {
                 .widgetURL(URL(string: "yiclass://todos"))
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    if context.state.islandEnabled && !context.isStale {
-                        Label("待办", systemImage: "checklist")
-                            .font(.caption.weight(.semibold)).foregroundStyle(.mint)
-                    }
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.islandEnabled && !context.isStale {
-                        AgendaActivityCountdown(item: context.state.item, referenceDate: context.state.referenceDate)
-                            .frame(width: 82)
-                    }
-                }
                 DynamicIslandExpandedRegion(.bottom) {
                     if context.state.islandEnabled && !context.isStale {
                         AgendaActivityCard(items: [context.state.item], referenceDate: context.state.referenceDate,
-                            compact: true)
+                            compact: true, island: true)
                     }
                 }
             } compactLeading: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "checklist").foregroundStyle(.mint)
+                    Image(systemName: "checklist").font(.system(size: 12)).foregroundStyle(.mint).frame(width: 12)
                 }
             } compactTrailing: {
                 if context.state.islandEnabled && !context.isStale {
-                    AgendaActivityCountdown(item: context.state.item, referenceDate: context.state.referenceDate, label: false)
-                        .frame(width: 60).clipped()
+                    AgendaActivityCountdown(item: context.state.item, referenceDate: context.state.referenceDate, label: false, small: true)
+                        .frame(width: 40).clipped()
                 }
             } minimal: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "checklist").foregroundStyle(.mint)
+                    Image(systemName: "checklist").font(.system(size: 12)).foregroundStyle(.mint).frame(width: 12)
                 }
             }
             .widgetURL(context.state.islandEnabled ? URL(string: "yiclass://todos") : nil)

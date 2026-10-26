@@ -131,6 +131,16 @@ import YIClassCore
     private func reconcileTasks(_ items: [AgendaActivityItem], at now: Date) async {
         var retained = Set<String>()
         for activity in Activity<AgendaTaskActivityAttributes>.activities {
+            if activity.attributes.itemID.hasPrefix("preview-") {
+                if enabled && ActivityAuthorizationInfo().areActivitiesEnabled && activity.content.state.item.end > now {
+                    let state = activity.content.state
+                    if state.islandEnabled != islandEnabled {
+                        await activity.update(ActivityContent(state: .init(item: state.item,
+                            referenceDate: state.referenceDate, islandEnabled: islandEnabled), staleDate: state.item.end))
+                    }
+                } else { await activity.end(nil, dismissalPolicy: .immediate) }
+                continue
+            }
             guard let item = items.first(where: { $0.id == activity.attributes.itemID }),
                   activity.activityState != .ended, activity.activityState != .dismissed,
                   retained.insert(item.id).inserted else {

@@ -22,3 +22,11 @@ On-device review: check lock screen and all island presentations; rename/resched
 Commit `863ba46`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883) passed, including 62 core tests, PDF/persistence integration, production SwiftUI renders and the device archive. Inspected 320-point standard/accessibility and 62-point constrained-height renders. The downloaded IPA reports 3.2.4 (25), iPhoneOS only; manifest and SHA-256 match.
 
 [Download 3.2.4 (25) device IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883/artifacts/12649942338). Re-sign before installation. The artifact container retains the previous workflow's 3.2.3 label because the available OAuth credential cannot change workflow files; the verified IPA internal version is 3.2.4 (25). [Production render images](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883/artifacts/12650445363). These are layout evidence, not iOS device screenshots.
+
+## 3.2.5 (26): phone feedback
+
+The compact resident island now uses a 12-point icon and 40-point timer column (previously 60 points), with 12-point timer text and no hours field. The expanded island retains useful content space: one icon/title block on the left and countdown on the right, with no duplicate heading. Content columns clip within their allocated width and use additional horizontal safety padding.
+
+Settings → 小组件 → 实时活动样式测试 uses the shared production card. It supports idle, upcoming, ongoing and ending states, course/task content and a long-title switch. “应用到锁屏与灵动岛” creates or updates one isolated test activity; “模拟开始，启动倒计时” switches upcoming content to a running timer. “结束测试” removes only test activities. The master activity switch and island content preference remain respected. Test payloads never enter the timetable, day-agenda document or course bridge, and foreground reconciliation preserves unexpired tests.
+
+Validation for this follow-up uses the existing core checks and device build, without simulator startup or additional render matrices. Final UI acceptance takes place on the user's phone.

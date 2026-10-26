@@ -13,36 +13,24 @@ struct LastLessonLiveActivity: Widget {
         } dynamicIsland: { context in
             let item = AgendaActivityItem(lesson: context.state.window)
             return DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    if context.state.islandEnabled && !context.isStale {
-                        Label("课程", systemImage: "book.closed.fill")
-                            .font(.caption.weight(.semibold)).foregroundStyle(.cyan)
-                    }
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.islandEnabled && !context.isStale {
-                        AgendaActivityCountdown(item: item, referenceDate: context.state.referenceDate)
-                            .frame(width: 82)
-                    }
-                }
                 DynamicIslandExpandedRegion(.bottom) {
                     if context.state.islandEnabled && !context.isStale {
                         AgendaActivityCard(items: context.state.lessons.map { AgendaActivityItem(lesson: $0) },
-                            referenceDate: context.state.referenceDate, compact: true)
+                            referenceDate: context.state.referenceDate, compact: true, island: true)
                     }
                 }
             } compactLeading: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "book.closed.fill").foregroundStyle(.cyan)
+                    Image(systemName: "book.closed.fill").font(.system(size: 12)).foregroundStyle(.cyan).frame(width: 12)
                 }
             } compactTrailing: {
                 if context.state.islandEnabled && !context.isStale {
-                    AgendaActivityCountdown(item: item, referenceDate: context.state.referenceDate, label: false)
-                        .frame(width: 60).clipped()
+                    AgendaActivityCountdown(item: item, referenceDate: context.state.referenceDate, label: false, small: true)
+                        .frame(width: 40).clipped()
                 }
             } minimal: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "book.closed.fill").foregroundStyle(.cyan)
+                    Image(systemName: "book.closed.fill").font(.system(size: 12)).foregroundStyle(.cyan).frame(width: 12)
                 }
             }
             .widgetURL(context.state.islandEnabled ? URL(string: "yiclass://schedule") : nil)
