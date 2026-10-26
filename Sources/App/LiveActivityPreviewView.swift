@@ -84,10 +84,6 @@ struct LiveActivityPreviewView: View {
     private(set) var busy = false
     private(set) var message: String?
 
-    private var activities: [Activity<AgendaTaskActivityAttributes>] {
-        Activity<AgendaTaskActivityAttributes>.activities.filter { $0.attributes.itemID.hasPrefix("preview-") }
-    }
-
     func show(_ item: AgendaActivityItem) async {
         guard !busy else { return }
         guard LastLessonActivityManager.shared.enabled,
@@ -100,13 +96,18 @@ struct LiveActivityPreviewView: View {
         let content = ActivityContent(state: AgendaTaskActivityAttributes.ContentState(item: item,
             referenceDate: Date(), islandEnabled: LastLessonActivityManager.shared.islandEnabled), staleDate: item.end)
         do {
-            if let current = activities.first(where: { $0.activityState == .active || $0.activityState == .stale }) {
+            if let current = Activity<AgendaTaskActivityAttributes>.activities.first(where: {
+                $0.attributes.itemID.hasPrefix("preview-") && ($0.activityState == .active || $0.activityState == .stale)
+            }) {
                 await current.update(content)
-                for extra in activities where extra.id != current.id {
+                for extra in Activity<AgendaTaskActivityAttributes>.activities
+                    where extra.attributes.itemID.hasPrefix("preview-") && extra.id != current.id {
                     await extra.end(nil, dismissalPolicy: .immediate)
                 }
             } else {
-                for old in activities { await old.end(nil, dismissalPolicy: .immediate) }
+                for old in Activity<AgendaTaskActivityAttributes>.activities where old.attributes.itemID.hasPrefix("preview-") {
+                    await old.end(nil, dismissalPolicy: .immediate)
+                }
                 _ = try Activity<AgendaTaskActivityAttributes>.request(attributes: .init(itemID: "preview-\(UUID())"),
                     content: content, pushType: nil)
             }
@@ -118,7 +119,9 @@ struct LiveActivityPreviewView: View {
         guard !busy else { return }
         busy = true
         defer { busy = false }
-        for activity in activities { await activity.end(nil, dismissalPolicy: .immediate) }
+        for activity in Activity<AgendaTaskActivityAttributes>.activities where activity.attributes.itemID.hasPrefix("preview-") {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
         message = "测试活动已结束。"
     }
 }
