@@ -96,18 +96,17 @@ struct LiveActivityPreviewView: View {
         let content = ActivityContent(state: AgendaTaskActivityAttributes.ContentState(item: item,
             referenceDate: Date(), islandEnabled: LastLessonActivityManager.shared.islandEnabled), staleDate: item.end)
         do {
-            if let current = Activity<AgendaTaskActivityAttributes>.activities.first(where: {
-                $0.attributes.itemID.hasPrefix("preview-") && ($0.activityState == .active || $0.activityState == .stale)
-            }) {
-                await current.update(content)
-                for extra in Activity<AgendaTaskActivityAttributes>.activities
-                    where extra.attributes.itemID.hasPrefix("preview-") && extra.id != current.id {
-                    await extra.end(nil, dismissalPolicy: .immediate)
+            var updated = false
+            for activity in Activity<AgendaTaskActivityAttributes>.activities
+                where activity.attributes.itemID.hasPrefix("preview-") {
+                if !updated && (activity.activityState == .active || activity.activityState == .stale) {
+                    await activity.update(content)
+                    updated = true
+                } else {
+                    await activity.end(nil, dismissalPolicy: .immediate)
                 }
-            } else {
-                for old in Activity<AgendaTaskActivityAttributes>.activities where old.attributes.itemID.hasPrefix("preview-") {
-                    await old.end(nil, dismissalPolicy: .immediate)
-                }
+            }
+            if !updated {
                 _ = try Activity<AgendaTaskActivityAttributes>.request(attributes: .init(itemID: "preview-\(UUID())"),
                     content: content, pushType: nil)
             }
