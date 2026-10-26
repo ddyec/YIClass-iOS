@@ -30,3 +30,9 @@ The compact resident island now uses a 12-point icon and 40-point timer column (
 Settings → 小组件 → 实时活动样式测试 uses the shared production card. It supports idle, upcoming, ongoing and ending states, course/task content and a long-title switch. “应用到锁屏与灵动岛” creates or updates one isolated test activity; “模拟开始，启动倒计时” switches upcoming content to a running timer. “结束测试” removes only test activities. The master activity switch and island content preference remain respected. Test payloads never enter the timetable, day-agenda document or course bridge, and foreground reconciliation preserves unexpired tests.
 
 Validation for this follow-up uses the existing core checks and device build, without simulator startup or additional render matrices. Final UI acceptance takes place on the user's phone.
+
+### 3.2.5 verified device delivery
+
+Source `02b1172`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40330236891) succeeded after resolving Settings type-checking complexity and Swift 6 isolation of test activity handles. No simulator run or extra visual scenarios were added. Downloaded IPA verified as 3.2.5 (26), iPhoneOS only, with matching manifest/source commit and SHA-256.
+
+[Download the 3.2.5 (26) phone IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40330236891/artifacts/12655087272). Re-sign before installation. Artifact container name still carries the prior workflow version; internal IPA version is verified. Final boundary/layout acceptance is on the user's phone using Settings → 小组件 → 实时活动样式测试.
