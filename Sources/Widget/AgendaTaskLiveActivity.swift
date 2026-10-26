@@ -9,7 +9,7 @@ struct AgendaTaskLiveActivity: Widget {
             TaskActivityContent(context: context)
                 .activityBackgroundTint(.black)
                 .activitySystemActionForegroundColor(.white)
-                .widgetURL(URL(string: "yiclass://todos"))
+                .widgetURL(URL(string: context.state.item.kind == .course ? "yiclass://schedule" : "yiclass://todos"))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.bottom) {
@@ -20,7 +20,10 @@ struct AgendaTaskLiveActivity: Widget {
                 }
             } compactLeading: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "checklist").font(.system(size: 12)).foregroundStyle(.mint).frame(width: 12)
+                    Image(systemName: context.state.item.kind == .course ? "book.closed.fill" : "checklist")
+                        .font(.system(size: 12))
+                        .foregroundStyle(context.state.item.kind == .course ? Color.cyan : Color.mint)
+                        .frame(width: 12)
                 }
             } compactTrailing: {
                 if context.state.islandEnabled && !context.isStale {
@@ -29,10 +32,13 @@ struct AgendaTaskLiveActivity: Widget {
                 }
             } minimal: {
                 if context.state.islandEnabled && !context.isStale {
-                    Image(systemName: "checklist").font(.system(size: 12)).foregroundStyle(.mint).frame(width: 12)
+                    Image(systemName: context.state.item.kind == .course ? "book.closed.fill" : "checklist")
+                        .font(.system(size: 12))
+                        .foregroundStyle(context.state.item.kind == .course ? Color.cyan : Color.mint)
+                        .frame(width: 12)
                 }
             }
-            .widgetURL(context.state.islandEnabled ? URL(string: "yiclass://todos") : nil)
+            .widgetURL(context.state.islandEnabled ? URL(string: context.state.item.kind == .course ? "yiclass://schedule" : "yiclass://todos") : nil)
         }
         .supplementalActivityFamilies([.small, .medium])
     }
