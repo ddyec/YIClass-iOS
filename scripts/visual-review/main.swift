@@ -101,6 +101,10 @@ import YIClassCore
                         .frame(width: CGFloat(width)).background(.black)
                     AgendaActivityCard(items: [nextCourse], referenceDate: activityNow)
                         .frame(width: CGFloat(width)).background(.black)
+                    AgendaActivityCard(items: [longCourse], referenceDate: activityNow, compact: true)
+                        .frame(width: 160, height: 62).background(.black)
+                    AgendaActivityCard(items: [longCourse, nextCourse], referenceDate: activityNow)
+                        .frame(width: CGFloat(width), height: 62).background(.black)
                     AgendaActivityCard(items: [longTask], referenceDate: activityNow, compact: true)
                         .frame(width: 160, height: 62).background(.black)
                 }

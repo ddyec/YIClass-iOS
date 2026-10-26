@@ -7,6 +7,7 @@ struct AgendaActivityCard: View {
     let items: [AgendaActivityItem]
     let referenceDate: Date
     var compact = false
+    @ScaledMetric(relativeTo: .headline) private var titleSize = 18.0
     var body: some View {
         ViewThatFits(in: .vertical) {
             content(tight: compact)
@@ -19,7 +20,7 @@ struct AgendaActivityCard: View {
         let visible = Array(items.prefix(compact ? 1 : 2))
         return HStack(alignment: .top, spacing: 16) {
             ForEach(visible) { item in
-                VStack(alignment: .leading, spacing: tight ? 4 : 7) {
+                VStack(alignment: .leading, spacing: tight ? 2 : 7) {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: item.kind == .course ? "book.closed.fill" : "checklist")
                             .font(.system(size: tight ? 13 : 16, weight: .semibold))
@@ -27,9 +28,10 @@ struct AgendaActivityCard: View {
                             .frame(width: 20, height: tight ? 18 : 22)
                             .accessibilityHidden(true)
                         Text(item.title)
-                            .font(.system(size: tight ? 15 : 18, weight: .semibold))
+                            .font(.system(size: min(titleSize, tight ? 15 : 22), weight: .semibold))
                             .lineLimit(tight ? 1 : 2, reservesSpace: !tight)
                             .truncationMode(.tail)
+                            .accessibilityLabel("\(item.kind == .course ? "课程" : "待办")，\(item.title)")
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .layoutPriority(1)
                         if visible.count == 1 && !compact {
@@ -53,7 +55,7 @@ struct AgendaActivityCard: View {
             }
         }
         .padding(.horizontal, tight ? 12 : 16)
-        .padding(.vertical, tight ? 9 : 14)
+        .padding(.vertical, tight ? 6 : 14)
     }
     private func tint(_ item: AgendaActivityItem) -> Color {
         if item.phase(at: referenceDate) == .ending { return .orange }
