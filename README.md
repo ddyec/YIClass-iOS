@@ -159,3 +159,7 @@ scripts/        工程生成、PDF 实测、产物校验与构建
 真机签名安装、TestFlight、实际 Apple Intelligence 与自定义 AI 服务需要对应设备／凭证验收。旧版教务脚本仓库、直接网页导入与本地上课通知尚未迁移，不声称与旧版所有功能等价。
 
 基于 [ddyec/YIClass](https://github.com/ddyec/YIClass) `c8f857828c236706afa745b7aea6435f9a428396` 重写，原仓库未修改。Apache License 2.0，保留 `Copyright 2025 wykwey`；3.1.12 起使用新设计的书页课表图标，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
+
+### 3.2.4 实时活动改进
+
+课程与已安排的待办共用自适应卡片：书本/清单图标区分类型，长标题有行数限制，倒计时独占固定宽度，窄尺寸采用紧凑布局。待办依据已安排的工作时间显示，仅有截止时间不会开启活动。设置中可独立关闭待办实时活动。详见 [实时活动说明](docs/LIVE-ACTIVITIES.md)。

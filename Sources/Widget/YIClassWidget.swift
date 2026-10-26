@@ -237,5 +237,6 @@ struct CurrentLessonWidget: Widget {
         CurrentLessonWidget()
         FollowingLessonWidget()
         LastLessonLiveActivity()
+        AgendaTaskLiveActivity()
     }
 }

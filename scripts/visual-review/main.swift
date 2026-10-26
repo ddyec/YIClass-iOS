@@ -79,6 +79,44 @@ import YIClassCore
             guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("PNG encode failed") }
             try png.write(to: output.appendingPathComponent(dark ? "dark.png" : "light.png"))
         }
+        let activityNow = Date()
+        let longCourse = AgendaActivityItem(id: "long-course", kind: .course,
+            title: "习近平新时代中国特色社会主义思想概论与实践课程", location: "蘭榕楼 2 号多媒体教室（东区）",
+            start: activityNow.addingTimeInterval(-3600), end: activityNow.addingTimeInterval(275))
+        let longTask = AgendaActivityItem(id: "long-task", kind: .task,
+            title: "完成实验报告并提交课程平台，整理所有实验数据与分析结果",
+            start: activityNow.addingTimeInterval(-1800), end: activityNow.addingTimeInterval(3600))
+        let nextCourse = AgendaActivityItem(id: "next", kind: .course, title: "大学英语（一）",
+            location: "致明楼 501", start: activityNow.addingTimeInterval(3600), end: activityNow.addingTimeInterval(7200))
+        for width in [320, 375, 408] {
+            for large in [false, true] {
+                let cards = VStack(alignment: .leading, spacing: 18) {
+                    Text("Production Live Activity · \(width) pt · \(large ? "accessibility" : "standard")")
+                        .font(.caption).foregroundStyle(.white)
+                    AgendaActivityCard(items: [longCourse], referenceDate: activityNow)
+                        .frame(width: CGFloat(width)).background(.black)
+                    AgendaActivityCard(items: [longTask], referenceDate: activityNow)
+                        .frame(width: CGFloat(width)).background(.black)
+                    AgendaActivityCard(items: [longCourse, nextCourse], referenceDate: activityNow)
+                        .frame(width: CGFloat(width)).background(.black)
+                    AgendaActivityCard(items: [nextCourse], referenceDate: activityNow)
+                        .frame(width: CGFloat(width)).background(.black)
+                    AgendaActivityCard(items: [longTask], referenceDate: activityNow, compact: true)
+                        .frame(width: 160, height: 62).background(.black)
+                }
+                .padding(20).background(Color(white: 0.12))
+                .environment(\.colorScheme, .dark)
+                .environment(\.locale, Locale(identifier: "zh_CN"))
+                .environment(\.dynamicTypeSize, large ? .accessibility3 : .large)
+                let renderer = ImageRenderer(content: cards)
+                renderer.scale = 3
+                guard let image = renderer.cgImage,
+                      let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:]) else {
+                    fatalError("Live Activity production view render failed")
+                }
+                try png.write(to: output.appendingPathComponent("live-activity-\(width)-\(large ? "large" : "standard").png"))
+            }
+        }
         print("Rendered production lock-screen card and logo with SwiftUI at 3x")
     }
 }
