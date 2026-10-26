@@ -16,3 +16,9 @@ Portable project validation checks new source membership and deterministic proje
 The existing Test -> Build IPA pipeline compiles the device app after all tests and production SwiftUI rendering pass. Production `AgendaActivityCard` renders cover widths 320/375/408, long titles/locations, single/two-course cards, active/upcoming tasks and a 160 x 62 compact card. Accessibility environment render variants are included. These are macOS SwiftUI ImageRenderer images, not iOS device screenshots.
 
 On-device review: check lock screen and all island presentations; rename/reschedule/complete an active task; toggle tasks/master/island; background across a scheduled start and end; try large system text and a 12-hour time locale. Verify no text crosses the card edge and expired names disappear. No simulator package is produced.
+
+## Verified delivery
+
+Commit `863ba46`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883) passed, including 62 core tests, PDF/persistence integration, production SwiftUI renders and the device archive. Inspected 320-point standard/accessibility and 62-point constrained-height renders. The downloaded IPA reports 3.2.4 (25), iPhoneOS only; manifest and SHA-256 match.
+
+[Download 3.2.4 (25) device IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883/artifacts/12649942338). Re-sign before installation. The artifact container retains the previous workflow's 3.2.3 label because the available OAuth credential cannot change workflow files; the verified IPA internal version is 3.2.4 (25). [Production render images](https://github.com/ddyec/YIClass-iOS/actions/runs/40322434883/artifacts/12650445363). These are layout evidence, not iOS device screenshots.
