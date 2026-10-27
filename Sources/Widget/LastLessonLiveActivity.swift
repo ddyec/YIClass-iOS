@@ -39,6 +39,10 @@ struct LastLessonLiveActivity: Widget {
                     Image(systemName: "book.closed.fill").font(.system(size: 12)).foregroundStyle(.cyan).frame(width: 12)
                 }
             }
+            // The small expanded island has deep corner arcs. Reserve an
+            // interior rectangle instead of enlarging the activity or clipping
+            // text against the capsule's outer mask. Compact margins stay native.
+            .contentMargins(.horizontal, 28, for: .expanded)
             .widgetURL(context.state.islandEnabled ? URL(string: "yiclass://schedule") : nil)
         }
         .supplementalActivityFamilies([.small, .medium])

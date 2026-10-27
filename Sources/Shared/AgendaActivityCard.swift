@@ -98,11 +98,18 @@ struct AgendaActivityIslandTitle: View {
             Image(systemName: item.kind == .course ? "book.closed.fill" : "checklist")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(item.kind == .course ? Color.cyan : Color.mint)
+                .frame(width: 14, height: 17)
+                .fixedSize()
                 .accessibilityHidden(true)
             Text(item.title).font(.system(size: 14, weight: .semibold))
-                .lineLimit(2).truncationMode(.tail)
+                .lineLimit(2, reservesSpace: true).truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        }.foregroundStyle(.white)
+                .accessibilityLabel(item.title)
+                .clipped()
+        }
+        .frame(maxWidth: 120, alignment: .leading)
+        .foregroundStyle(.white)
+        .clipped()
     }
 }
 
@@ -114,12 +121,13 @@ struct AgendaActivityIslandBottom: View {
                 Text("\(item.start.formatted(date: .omitted, time: .shortened))–\(item.end.formatted(date: .omitted, time: .shortened))")
                     .font(.system(size: 11).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.75)
                 if !item.location.isEmpty {
-                    Text(item.location).font(.system(size: 11)).lineLimit(2).truncationMode(.tail)
+                    Text(item.location).font(.system(size: 11)).lineLimit(1).truncationMode(.tail)
                 }
             }.foregroundStyle(.white.opacity(0.75))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            AgendaActivityProgress(item: item).frame(width: 144)
+            AgendaActivityProgress(item: item).frame(width: 144).clipped()
         }.padding(.top, 5)
+            .frame(maxWidth: .infinity, alignment: .leading).clipped()
     }
 }
 
@@ -132,7 +140,7 @@ struct AgendaActivityProgress: View {
     private var tint: Color { item.kind == .course ? .cyan : .mint }
     var body: some View {
         VStack(alignment: .trailing, spacing: 5) {
-            if periods.count <= 4 {
+            if periods.count <= 2 {
                 ForEach(Array(periods.enumerated()), id: \.element.id) { index, period in
                     HStack(spacing: 5) {
                         if period.number > 0 {
@@ -175,12 +183,15 @@ struct AgendaActivityIslandPreview: View {
     let referenceDate: Date
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 24) {
+            HStack(alignment: .top, spacing: 0) {
                 AgendaActivityIslandTitle(item: item)
+                Spacer(minLength: 24)
                 AgendaActivityCountdown(item: item, referenceDate: referenceDate)
                     .frame(width: 76, alignment: .trailing).clipped()
             }
             AgendaActivityIslandBottom(item: item)
-        }.padding(16).foregroundStyle(.white)
+        }
+        .padding(.horizontal, 28).padding(.vertical, 16)
+        .foregroundStyle(.white)
     }
 }

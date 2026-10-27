@@ -52,3 +52,12 @@ The phone style-test screen uses the same title/timer/details/progress component
 Source `3655264b88a6503f851cf95fc904614ed7645530`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610) passed: 65 core tests, PDF/persistence integration, the existing production render suite and device archive. No simulator run or extra render matrix was added. The artifact name now reads its version/build from the packaged manifest, fixing the stale 3.2.3 download label without adding tests after packaging.
 
 [Download 3.2.6 (27) device IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610/artifacts/12732405213). Re-sign before installation. Use Settings → 小组件 → 实时活动样式测试 → 进行中／课间 → 应用到锁屏与灵动岛 for final phone acceptance. Existing timers/bars are system-managed; view rendering and archive success are not a substitute for physical Dynamic Island/camera layout review.
+
+
+## 3.2.7 (28): small capsule boundary and very long course names
+
+Phone feedback showed the upper icon/timer and lower location touching the deep corner arcs. Both activity types now set native horizontal contentMargins to 28 points for expanded mode only; no outer frame, vertical margins, minimum height, or compact/minimal size is increased. This follows Apple's concentric-content guidance and public DynamicIsland content-margin API.
+
+The title is bounded to at most 120 points and two 14-point semibold lines with a tail ellipsis, preserving its full accessibility label. Its 14-point icon cannot be squeezed away. Location is one truncated line. More than two small periods use the existing compact segmented strip rather than adding rows and increasing height. In-app acceptance now shows a capsule, using the same horizontal inset and production title/details components instead of a mildly rounded rectangle.
+
+No simulator or additional render matrix is introduced. Phone acceptance: enable the long-title switch, check courses and tasks, verify icon/title/timer/location/end labels remain clear of all four arcs, and verify the small expanded size remains acceptable. System camera/region layout still requires phone review; the in-app preview does not emulate the hardware cutout.

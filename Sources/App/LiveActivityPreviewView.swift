@@ -52,7 +52,7 @@ struct LiveActivityPreviewView: View {
                             .frame(maxWidth: .infinity, minHeight: 64)
                     } else {
                         AgendaActivityIslandPreview(item: item, referenceDate: context.date)
-                            .background(.black, in: RoundedRectangle(cornerRadius: 24))
+                            .background(.black, in: Capsule())
                     }
                 }
             }

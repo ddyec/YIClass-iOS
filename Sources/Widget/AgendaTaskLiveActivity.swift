@@ -44,6 +44,10 @@ struct AgendaTaskLiveActivity: Widget {
                         .frame(width: 12)
                 }
             }
+            // The small expanded island has deep corner arcs. Reserve an
+            // interior rectangle instead of enlarging the activity or clipping
+            // text against the capsule's outer mask. Compact margins stay native.
+            .contentMargins(.horizontal, 28, for: .expanded)
             .widgetURL(context.state.islandEnabled ? URL(string: context.state.item.kind == .course ? "yiclass://schedule" : "yiclass://todos") : nil)
         }
         .supplementalActivityFamilies([.small, .medium])
