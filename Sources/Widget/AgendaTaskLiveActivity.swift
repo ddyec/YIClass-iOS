@@ -12,11 +12,17 @@ struct AgendaTaskLiveActivity: Widget {
                 .widgetURL(URL(string: context.state.item.kind == .course ? "yiclass://schedule" : "yiclass://todos"))
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.bottom) {
+                DynamicIslandExpandedRegion(.leading, priority: 1) {
+                    if context.state.islandEnabled && !context.isStale { AgendaActivityIslandTitle(item: context.state.item) }
+                }
+                DynamicIslandExpandedRegion(.trailing) {
                     if context.state.islandEnabled && !context.isStale {
-                        AgendaActivityCard(items: [context.state.item], referenceDate: context.state.referenceDate,
-                            compact: true, island: true)
+                        AgendaActivityCountdown(item: context.state.item, referenceDate: context.state.referenceDate)
+                            .frame(width: 76, alignment: .trailing).clipped()
                     }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    if context.state.islandEnabled && !context.isStale { AgendaActivityIslandBottom(item: context.state.item) }
                 }
             } compactLeading: {
                 if context.state.islandEnabled && !context.isStale {

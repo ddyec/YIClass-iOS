@@ -4,7 +4,7 @@ import SwiftUI
 import YIClassCore
 
 private enum ActivityPreviewScenario: String, CaseIterable, Identifiable {
-    case idle = "空闲", upcoming = "未开始", ongoing = "进行中", ending = "即将结束"
+    case idle = "空闲", upcoming = "未开始", ongoing = "进行中", breakTime = "课间", ending = "即将结束"
     var id: String { rawValue }
 }
 
@@ -18,10 +18,18 @@ struct LiveActivityPreviewView: View {
     private var item: AgendaActivityItem {
         let title = kind == .course ? (longTitle ? "习近平新时代中国特色社会主义思想概论与实践课程" : "大学英语（一）") :
             (longTitle ? "完成实验报告并整理实验数据，提交课程平台" : "完成实验报告")
+        let start = anchor.addingTimeInterval(scenario == .upcoming ? 60 :
+            (scenario == .ending || scenario == .breakTime ? -600 : -60))
+        let end = anchor.addingTimeInterval(scenario == .ending ? 45 : 600)
+        let firstEnd = anchor.addingTimeInterval(scenario == .ending ? -300 : scenario == .breakTime ? -30 : 240)
+        let secondStart = anchor.addingTimeInterval(scenario == .ending ? -240 : scenario == .breakTime ? 60 : 300)
+        let periods: [AgendaActivityPeriod]? = kind == .course ? [
+            .init(number: 1, start: start, end: firstEnd),
+            .init(number: 2, start: secondStart, end: end)
+        ] : nil
         return AgendaActivityItem(id: "preview", kind: kind, title: "测试 · \(title)",
             location: kind == .course ? (longTitle ? "蘭榕楼 2 号多媒体教室（东区）" : "致明楼 501") : "",
-            start: anchor.addingTimeInterval(scenario == .upcoming ? 60 : -60),
-            end: anchor.addingTimeInterval(scenario == .ending ? 45 : 600))
+            start: start, end: end, periods: periods)
     }
 
     var body: some View {
@@ -43,7 +51,7 @@ struct LiveActivityPreviewView: View {
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, minHeight: 64)
                     } else {
-                        AgendaActivityCard(items: [item], referenceDate: context.date, compact: true, island: true)
+                        AgendaActivityIslandPreview(item: item, referenceDate: context.date)
                             .background(.black, in: RoundedRectangle(cornerRadius: 24))
                     }
                 }

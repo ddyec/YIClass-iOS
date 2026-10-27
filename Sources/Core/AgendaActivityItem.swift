@@ -1,5 +1,16 @@
 import Foundation
 
+/// A real teaching period, excluding the break before the next period.
+public struct AgendaActivityPeriod: Codable, Hashable, Sendable, Identifiable {
+    public let number: Int
+    public let start: Date
+    public let end: Date
+    public var id: String { "\(number)-\(start.timeIntervalSince1970)" }
+    public init(number: Int, start: Date, end: Date) {
+        self.number = number; self.start = start; self.end = end
+    }
+}
+
 /// Small, self-contained ActivityKit payload. Deadlines never imply work time.
 public struct AgendaActivityItem: Codable, Hashable, Sendable, Identifiable {
     public enum Kind: String, Codable, Hashable, Sendable { case course, task }
@@ -9,13 +20,27 @@ public struct AgendaActivityItem: Codable, Hashable, Sendable, Identifiable {
     public let location: String
     public let start: Date
     public let end: Date
-    public init(id: String, kind: Kind, title: String, location: String = "", start: Date, end: Date) {
+    public let periods: [AgendaActivityPeriod]?
+    public init(id: String, kind: Kind, title: String, location: String = "", start: Date, end: Date, periods: [AgendaActivityPeriod]? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.location = location
-        self.start = start; self.end = end
+        self.start = start; self.end = end; self.periods = periods
     }
     public init(lesson: WideLessonWindow) {
         self.init(id: lesson.id, kind: .course, title: lesson.name, location: lesson.location,
-                  start: lesson.start, end: lesson.end)
+                  start: lesson.start, end: lesson.end, periods: lesson.periods)
+    }
+    /// Keep all periods in the payload: each native timer can advance without
+    /// requiring an ActivityKit update at a class/break boundary.
+    public var progressPeriods: [AgendaActivityPeriod] {
+        guard end > start else { return [] }
+        let candidates = (periods ?? []).filter {
+            kind == .course && $0.number > 0 && $0.start >= start && $0.end <= end && $0.end > $0.start
+        }.sorted { $0.start == $1.start ? $0.end < $1.end : $0.start < $1.start }
+        var result: [AgendaActivityPeriod] = []
+        for period in candidates where result.last.map({ period.start >= $0.end }) ?? true {
+            result.append(period)
+        }
+        return result.isEmpty ? [.init(number: 0, start: start, end: end)] : result
     }
     public enum Phase: Equatable, Sendable { case upcoming, ongoing, ending, ended }
     public func phase(at date: Date) -> Phase {
@@ -28,6 +53,16 @@ public struct AgendaActivityItem: Codable, Hashable, Sendable, Identifiable {
 }
 
 public enum AgendaActivityPlanner {
+    public static func coursePeriods(start: Date, end: Date, profile: TimeProfile,
+                                     calendar: Calendar = .current) -> [AgendaActivityPeriod] {
+        profile.periods.compactMap { period in
+            guard let begins = calendar.date(bySettingHour: period.start / 60, minute: period.start % 60, second: 0, of: start),
+                  let ends = calendar.date(bySettingHour: period.end / 60, minute: period.end % 60, second: 0, of: start),
+                  begins >= start, ends <= end, ends > begins else { return nil }
+            return AgendaActivityPeriod(number: period.period, start: begins, end: ends)
+        }.sorted { $0.start < $1.start }
+    }
+
     /// Keep the system activity budget bounded; include overnight placements,
     /// exclude completed/expired tasks, and never invent time from a deadline.
     public static func tasks(agenda: DayAgendaDocument, at now: Date) -> [AgendaActivityItem] {

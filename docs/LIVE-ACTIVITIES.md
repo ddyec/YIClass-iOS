@@ -36,3 +36,12 @@ Validation for this follow-up uses the existing core checks and device build, wi
 Source `02b1172`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40330236891) succeeded after resolving Settings type-checking complexity and Swift 6 isolation of test activity handles. No simulator run or extra visual scenarios were added. Downloaded IPA verified as 3.2.5 (26), iPhoneOS only, with matching manifest/source commit and SHA-256.
 
 [Download the 3.2.5 (26) phone IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40330236891/artifacts/12655087272). Re-sign before installation. Artifact container name still carries the prior workflow version; internal IPA version is verified. Final boundary/layout acceptance is on the user's phone using Settings → 小组件 → 实时活动样式测试.
+
+
+## 3.2.6 (27): expanded regions and small-period progress
+
+Based on the 3.2.5 follow-up in the user's other conversation. The actual expanded widget previously placed the entire card in `.bottom`; it now uses `.leading` for the icon/title, `.trailing` for the bounded whole-course timer and `.bottom` for time/location plus right-aligned progress. Compact/minimal widths remain 12/40 points.
+
+Course payloads carry the real teaching periods from the configured TimeProfile, preserving custom durations and breaks. Each small period has an independent native `ProgressView(timerInterval:countsDown:)`, with its end labelled 休息, 换节 or 下课. Completed bars empty, future bars stay full and the current period drains without a local background timer or boundary-refresh dependency. Tasks use one bar for their actual scheduled work interval. More than four teaching periods use a compact segmented strip to bound the island height. Missing old metadata falls back to one overall bar without inventing a 45-minute lesson.
+
+The phone style-test screen uses the same title/timer/details/progress components, adds a 课间 scenario and sends the period metadata into the real test activity. It is an in-app layout preview, not an emulation of the system camera cutout or a claimed device screenshot. New core tests cover custom 35/40-minute periods with a 7-minute break, window-to-payload propagation, invalid/overlapping periods, task fallback and old JSON. Final phone acceptance uses the existing Settings entry; no simulator or additional render matrix is introduced.

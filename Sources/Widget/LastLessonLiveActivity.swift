@@ -13,11 +13,17 @@ struct LastLessonLiveActivity: Widget {
         } dynamicIsland: { context in
             let item = AgendaActivityItem(lesson: context.state.window)
             return DynamicIsland {
-                DynamicIslandExpandedRegion(.bottom) {
+                DynamicIslandExpandedRegion(.leading, priority: 1) {
+                    if context.state.islandEnabled && !context.isStale { AgendaActivityIslandTitle(item: item) }
+                }
+                DynamicIslandExpandedRegion(.trailing) {
                     if context.state.islandEnabled && !context.isStale {
-                        AgendaActivityCard(items: context.state.lessons.map { AgendaActivityItem(lesson: $0) },
-                            referenceDate: context.state.referenceDate, compact: true, island: true)
+                        AgendaActivityCountdown(item: item, referenceDate: context.state.referenceDate)
+                            .frame(width: 76, alignment: .trailing).clipped()
                     }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    if context.state.islandEnabled && !context.isStale { AgendaActivityIslandBottom(item: item) }
                 }
             } compactLeading: {
                 if context.state.islandEnabled && !context.isStale {
