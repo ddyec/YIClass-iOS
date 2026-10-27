@@ -103,13 +103,13 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.2.3 (24) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `be541b243b810119166393620fe2f876577a1aa5`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171)。本版放大待办页主标题和右侧加号，使用系统大号圆形玻璃按钮，沿用原生 UIKit 底栏与独立助手入口。基础测试、生产卡片渲染及设备归档通过，导航实际观感与手势由用户真机验收。
+**3.2.6 (27) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `3655264b88a6503f851cf95fc904614ed7645530`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610)。本版调整展开灵动岛的上方分区，并在右下加入按实际小节递减的进度条，标明休息／下课时间。核心／集成检查、现有生产卡片渲染及设备归档通过；新增的灵动岛布局由用户真机验收。
 
 | 产物 | 下载 |
 | --- | --- |
-| 3.2.3 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/39945985171/artifacts/12498456700) |
+| 3.2.6 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610/artifacts/12732405213) |
 
-后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.3-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
+后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.6-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
 
 按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
@@ -167,3 +167,8 @@ scripts/        工程生成、PDF 实测、产物校验与构建
 ### 3.2.5 实时活动手机验收调整
 
 缩短常驻灵动岛胶囊，展开时仅显示一套课程信息并将倒计时放在右侧；加强卡片边界约束。设置 → 小组件 → 实时活动样式测试，可切换空闲、未开始、进行中、即将结束，支持长标题及手机锁屏/灵动岛测试。
+
+
+### 3.2.6 展开灵动岛分区与小节倒计时
+
+继续基于 3.2.5 的常驻小岛和手机测试修复。展开态改用系统 leading／trailing 放置课名和整课倒计时，bottom 左侧显示时间、教室，右侧按实际小节显示原生倒计时条与休息／下课时刻；待办按安排的工作时间显示一条。每条独立计时，保留课间空隙。手机样式测试新增“课间”场景，沿用设置 → 小组件 → 实时活动样式测试。未运行模拟器，实际灵动岛布局由用户真机验收。

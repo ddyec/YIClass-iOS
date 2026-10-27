@@ -45,3 +45,10 @@ Based on the 3.2.5 follow-up in the user's other conversation. The actual expand
 Course payloads carry the real teaching periods from the configured TimeProfile, preserving custom durations and breaks. Each small period has an independent native `ProgressView(timerInterval:countsDown:)`, with its end labelled 休息, 换节 or 下课. Completed bars empty, future bars stay full and the current period drains without a local background timer or boundary-refresh dependency. Tasks use one bar for their actual scheduled work interval. More than four teaching periods use a compact segmented strip to bound the island height. Missing old metadata falls back to one overall bar without inventing a 45-minute lesson.
 
 The phone style-test screen uses the same title/timer/details/progress components, adds a 课间 scenario and sends the period metadata into the real test activity. It is an in-app layout preview, not an emulation of the system camera cutout or a claimed device screenshot. New core tests cover custom 35/40-minute periods with a 7-minute break, window-to-payload propagation, invalid/overlapping periods, task fallback and old JSON. Final phone acceptance uses the existing Settings entry; no simulator or additional render matrix is introduced.
+
+
+### 3.2.6 verified delivery
+
+Source `3655264b88a6503f851cf95fc904614ed7645530`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610) passed: 65 core tests, PDF/persistence integration, the existing production render suite and device archive. No simulator run or extra render matrix was added. The artifact name now reads its version/build from the packaged manifest, fixing the stale 3.2.3 download label without adding tests after packaging.
+
+[Download 3.2.6 (27) device IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40498920610/artifacts/12732405213). Re-sign before installation. Use Settings → 小组件 → 实时活动样式测试 → 进行中／课间 → 应用到锁屏与灵动岛 for final phone acceptance. Existing timers/bars are system-managed; view rendering and archive success are not a substitute for physical Dynamic Island/camera layout review.
