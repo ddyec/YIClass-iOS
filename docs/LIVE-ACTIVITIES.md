@@ -61,3 +61,10 @@ Phone feedback showed the upper icon/timer and lower location touching the deep 
 The title is bounded to at most 120 points and two 14-point semibold lines with a tail ellipsis, preserving its full accessibility label. Its 14-point icon cannot be squeezed away. Location is one truncated line. More than two small periods use the existing compact segmented strip rather than adding rows and increasing height. In-app acceptance now shows a capsule, using the same horizontal inset and production title/details components instead of a mildly rounded rectangle.
 
 No simulator or additional render matrix is introduced. Phone acceptance: enable the long-title switch, check courses and tasks, verify icon/title/timer/location/end labels remain clear of all four arcs, and verify the small expanded size remains acceptable. System camera/region layout still requires phone review; the in-app preview does not emulate the hardware cutout.
+
+
+### 3.2.7 verified delivery
+
+Source `6f1406c9096cd795efcffa0924a6e30a391783df`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545) succeeded, including the existing 65 core tests, PDF/persistence integration, existing production render suite and device archive. No new tests, simulator runs, render matrix or post-build testing were added for this layout change.
+
+[Download 3.2.7 (28) phone IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545/artifacts/12733211396). Phone acceptance remains required for the actual camera/capsule boundaries; use Settings → 小组件 → 实时活动样式测试, enable the long-title switch and apply both course/task cases. Compilation and macOS card renders do not constitute actual iPhone island visual acceptance.
