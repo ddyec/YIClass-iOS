@@ -57,11 +57,21 @@ jobs:
         run: python3 scripts/prepare-icons.py
       - name: Archive and package device IPA
         run: bash scripts/package-build.sh device
+      - name: Read packaged version for the download label
+        run: |
+          python3 - <<'PYVERSION'
+          import json, os
+          from pathlib import Path
+          package = json.loads(Path('dist/device-manifest.json').read_text())
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              print('IPA_VERSION=' + package['version'], file=output)
+              print('IPA_BUILD=' + package['build'], file=output)
+          PYVERSION
       - name: Download IPA here
         id: ipa
         uses: actions/upload-artifact@v4
         with:
-          name: YIClass-3.2.3-iPhone-iPad-IPA
+          name: YIClass-${{ env.IPA_VERSION }}-iPhone-iPad-IPA
           path: |
             dist/YIClass-iOS26-resign.ipa
             dist/device-manifest.json
@@ -73,7 +83,7 @@ jobs:
           IPA_ARTIFACT_URL: ${{ steps.ipa.outputs.artifact-url }}
         run: |
           echo '## iPhone / iPad IPA' >> "$GITHUB_STEP_SUMMARY"
-          echo "[Download 3.2.3 (24) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "[Download $IPA_VERSION ($IPA_BUILD) IPA]($IPA_ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
           echo 'Tests finished before this build. This is the device package; re-sign before installation.' >> "$GITHUB_STEP_SUMMARY"
       - name: Upload build logs on failure
         if: failure()

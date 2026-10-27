@@ -8,6 +8,7 @@ public struct WideLessonWindow: Codable, Hashable, Sendable, Identifiable {
     public let visibleFrom: Date
     public let start: Date
     public let end: Date
+    public var periods: [AgendaActivityPeriod]? = nil
     public var id: String { "\(tableID)-\(courseID)-\(start.timeIntervalSince1970)" }
 }
 
@@ -17,7 +18,8 @@ public enum WideLessonPlanner {
         let ordered = WidgetSchedule.lockScreenLessons(schedule.lessons, at: now)
         return ordered.map {
             WideLessonWindow(tableID: data.selectedID, courseID: $0.course.id, name: $0.course.name,
-                location: $0.course.location, visibleFrom: now, start: $0.start, end: $0.end)
+                location: $0.course.location, visibleFrom: now, start: $0.start, end: $0.end,
+                periods: AgendaActivityPlanner.coursePeriods(start: $0.start, end: $0.end, profile: data.timeProfile, calendar: calendar))
         }
     }
     /// Plan local starts while the app is open. ActivityKit limits each activity
@@ -35,7 +37,8 @@ public enum WideLessonPlanner {
             let begin = max(available, otherEnd, last.end.addingTimeInterval(-8 * 3600 + 60))
             guard begin < last.end else { return nil } // Simultaneously ending classes never become a single class.
             return WideLessonWindow(tableID: data.selectedID, courseID: last.course.id,
-                name: last.course.name, location: last.course.location, visibleFrom: begin, start: last.start, end: last.end)
+                name: last.course.name, location: last.course.location, visibleFrom: begin, start: last.start, end: last.end,
+                periods: AgendaActivityPlanner.coursePeriods(start: last.start, end: last.end, profile: data.timeProfile, calendar: calendar))
         }
     }
 }
