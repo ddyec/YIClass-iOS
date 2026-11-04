@@ -19,19 +19,42 @@ private func gridTable() throws -> Timetable {
     return try PDFTimetableImporter.parse(grid, template: Timetable(startDate: start), profile: .standard)
 }
 
-@Test func wideLastLessonStartsAfterOtherClassEndsAndStopsAtItsOwnEnd() throws {
+@Test func lessonActivitiesUseReminderWindowsAndStopAtActualEnds() throws {
     let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
     let first = Course(name: "大学语文", schedules: [CourseSchedule(weekday: 4, periods: [5,6], weekPattern: [1])])
     let last = Course(name: "最后一节", schedules: [CourseSchedule(weekday: 4, periods: [7,8], weekPattern: [1])])
     let table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [first, last])
     let data = AppData(timetables: [table], selectedID: table.id)
     let lessons = WidgetSchedule.lessons(data: data, from: day, days: 1, calendar: utcCalendar)
-    let windows = WideLessonPlanner.windows(data: data, at: day.addingTimeInterval(13 * 3600), calendar: utcCalendar)
-    #expect(windows.count == 1)
-    #expect(windows.first?.courseID == last.id)
-    #expect(windows.first?.visibleFrom == lessons[0].end)
-    #expect(windows.first?.end == lessons[1].end)
+    let windows = WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar)
+    #expect(windows.map(\.courseID) == [first.id, last.id])
+    for (window, lesson) in zip(windows, lessons) {
+        #expect(window.visibleFrom == lesson.start.addingTimeInterval(-600))
+        #expect(!window.isVisible(at: window.visibleFrom.addingTimeInterval(-1)))
+        #expect(window.isVisible(at: window.visibleFrom))
+        #expect(window.isVisible(at: lesson.start))
+        #expect(window.isVisible(at: lesson.end.addingTimeInterval(-1)))
+        #expect(!window.isVisible(at: lesson.end))
+    }
+    #expect(!windows.contains { $0.isVisible(at: day) })
+    let between = WideLessonPlanner.windows(data: data, at: lessons[0].end, calendar: utcCalendar)
+    #expect(between.first?.courseID == last.id)
+    #expect(!between.contains { $0.isVisible(at: lessons[0].end) })
     #expect(WideLessonPlanner.windows(data: data, at: lessons[1].end, calendar: utcCalendar).isEmpty)
+}
+
+@Test func lessonActivityLeadChangesDoNotKeepAnAllDayPreview() throws {
+    let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
+    let course = Course(name: "课程", schedules: [CourseSchedule(weekday: 4, periods: [5,6], weekPattern: [1])])
+    let table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [course])
+    let data = AppData(timetables: [table], selectedID: table.id)
+    let zero = try #require(WideLessonPlanner.windows(data: data, at: day, leadMinutes: 0, calendar: utcCalendar).first)
+    let thirty = try #require(WideLessonPlanner.windows(data: data, at: day, leadMinutes: 30, calendar: utcCalendar).first)
+    #expect(zero.visibleFrom == zero.start)
+    #expect(thirty.visibleFrom == thirty.start.addingTimeInterval(-1800))
+    #expect(!thirty.isVisible(at: thirty.start.addingTimeInterval(-1801)))
+    #expect(thirty.id == zero.id)
+    #expect(!zero.isVisible(at: zero.start.addingTimeInterval(-1)))
 }
 
 @Test func liveActivityReadsCurrentAndFollowingFromActualSelectedDay() throws {
@@ -48,7 +71,7 @@ private func gridTable() throws -> Timetable {
     #expect(WideLessonPlanner.remaining(data: data, at: end, calendar: utcCalendar).isEmpty)
 }
 
-@Test func wideLastLessonRespectsEightHourLimitHolidayAndSimultaneousEnd() throws {
+@Test func lessonActivityWindowsBoundLifetimeAndPreserveHolidayAndConflictHandling() throws {
     let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
     let last = Course(name: "晚课", schedules: [CourseSchedule(weekday: 4, periods: [10], weekPattern: [1])])
     var table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: [last])
@@ -58,7 +81,7 @@ private func gridTable() throws -> Timetable {
     #expect(window.visibleFrom >= day)
     table.courses.append(Course(name: "同时间另一门", schedules: last.schedules))
     data.timetables = [table]
-    #expect(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).isEmpty)
+    #expect(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).count == 2)
     table.courses = [last]; table.holidays = [day]; data.timetables = [table]
     #expect(WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar).isEmpty)
 }
@@ -220,4 +243,18 @@ private func gridTable() throws -> Timetable {
     let oldCutoff = start.addingTimeInterval(Double(TimeProfile.standard.periods.last!.end * 60))
     let unchanged = WidgetSchedule.daySchedule(data: data, at: oldCutoff, calendar: utcCalendar)
     #expect(!unchanged.isTomorrow && unchanged.lessons.map(\.course.name) == ["晚课"])
+}
+
+@Test func lessonActivitiesQueueAtMostTwoWithinTheNextDay() throws {
+    let day = try AssistantDateEdits.date("2026-10-22", calendar: utcCalendar)
+    let courses = [1,3,5,7,9].map { period in
+        Course(name: "课\(period)", schedules: [CourseSchedule(weekday: 4, periods: [period], weekPattern: [1])])
+    }
+    let table = Timetable(startDate: ScheduleEngine.monday(of: day, calendar: utcCalendar), courses: courses)
+    let data = AppData(timetables: [table], selectedID: table.id)
+    let windows = WideLessonPlanner.windows(data: data, at: day, calendar: utcCalendar)
+    #expect(windows.count == 2)
+    #expect(windows.map(\.courseID) == Array(courses.prefix(2)).map(\.id))
+    let shifted = WideLessonPlanner.windows(data: data, at: windows[0].end, calendar: utcCalendar)
+    #expect(shifted.map(\.courseID) == [courses[1].id, courses[2].id])
 }

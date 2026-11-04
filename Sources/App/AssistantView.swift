@@ -151,7 +151,12 @@ struct AssistantView: View {
                         } label: { Image(systemName: "xmark") }
                         .accessibilityLabel("关闭助手")
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        Button("新对话", systemImage: "square.and.pencil") {
+                            reset(); inputFocused = true
+                        }
+                        .labelStyle(.iconOnly)
+                        .accessibilityIdentifier("assistant-new-conversation")
                         Button("历史记录", systemImage: "clock.arrow.circlepath") { persistConversation(); inputFocused = false; historyShowing = true }
                             .disabled(busy || reading)
                     }
@@ -432,24 +437,34 @@ struct AssistantView: View {
         busy = false
     }
     private func invalidatePlans() { cancel(); reply = nil; snapshot = nil; selectedPlan = nil; selections = [:] }
-    private func persistConversation() {
-        guard !messages.isEmpty else { return }
-        if !planningImport { activeConversation = conversationID.uuidString }
-        store.perform {
+    @discardableResult private func persistConversation() -> Bool {
+        guard !messages.isEmpty else { return true }
+        do {
             try store.saveConversation(id: conversationID, messages: messages, modelHistory: modelHistory, importing: planningImport, importTable: importTable)
+            if !planningImport { activeConversation = conversationID.uuidString }
+            return true
+        } catch {
+            store.error = error.localizedDescription
+            return false
         }
     }
     private func openConversation(_ conversation: ConversationRecord) {
-        persistConversation(); invalidatePlans()
+        guard persistConversation() else { return }
+        invalidatePlans()
         conversationID = conversation.id; messages = conversation.messages; modelHistory = conversation.modelHistory
         planningImport = conversation.importing; importTable = conversation.importTable
         input = ""; pendingImages = []; retrySubmission = nil; historyShowing = false
     }
     private func reset() {
-        persistConversation(); invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil
+        guard persistConversation() else { invalidatePlans(); cancelImport(); return }
+        invalidatePlans(); messages = []; modelHistory = []; input = ""; importTable = nil
         cancelImport(); photo = nil
         conversationID = UUID(); activeConversation = ""; planningImport = importMode; pendingImages = []; retrySubmission = nil
+        sourceChangesCurrent = !importMode
         sourceImages = []; sourceText = ""; sourceGrid = nil
+        pendingSubmission = nil; pendingImport = nil; directImport = nil
+        sourceReview = false; sourceIssue = nil; localError = nil
+        importStatus = ""; importFilename = ""; agendaSnapshot = store.agenda
     }
     private var sourceReviewView: some View {
         NavigationStack {
@@ -606,14 +621,29 @@ struct AISettingsView: View {
     @State private var testResult: String?
     @State private var testTask: Task<Void, Never>?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     var body: some View {
         Form {
             Section {
                 Picker("处理方式", selection: $mode) {
                     ForEach(AssistantMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }
-                if mode == .onDevice { Text(availability).font(.footnote).foregroundStyle(.secondary) }
-            }
+                if mode == .onDevice {
+                    Text(availability).font(.footnote).foregroundStyle(.secondary)
+                    Button("重新检测设备端状态") {
+                        availability = AIService.availability; testResult = nil
+                    }
+                    Button(action: testOnDevice) {
+                        HStack {
+                            Text(testing ? "测试中…" : "测试设备端 AI")
+                            if testing { ProgressView() }
+                        }
+                    }
+                    if let testResult { Text(testResult).font(.footnote).textSelection(.enabled) }
+                    Text("请先在系统设置开启 Apple Intelligence 并完成模型准备。此处以 Foundation Models 接口的实时状态为准；系统功能开放后，模型接口也可能仍在准备。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }.disabled(testing)
             if mode == .remote {
                 Section("快捷配置") {
                     Button("DeepSeek · 支持原图") {
@@ -659,6 +689,18 @@ struct AISettingsView: View {
             }.onChange(of: mode) { _, value in
                 testTask?.cancel(); testResult = nil
                 if value == .onDevice { availability = AIService.availability }
+            }.onChange(of: scenePhase) { _, value in
+                if value == .active && mode == .onDevice { availability = AIService.availability }
             }.onDisappear { testTask?.cancel() }
+    }
+    private func testOnDevice() {
+        testing = true; testResult = nil
+        availability = AIService.availability
+        testTask = Task {
+            do { testResult = try await AIService.testOnDevice() }
+            catch { if !Task.isCancelled { testResult = error.localizedDescription } }
+            availability = AIService.availability
+            testing = false
+        }
     }
 }

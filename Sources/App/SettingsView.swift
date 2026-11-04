@@ -165,20 +165,16 @@ struct SettingsView: View {
                 wideLesson.setEnabled($0, data: store.data)
             }))
             if wideLesson.enabled {
-                Picker("展示范围", selection: Binding(get: { wideLesson.allLessons }, set: { wideLesson.setAllLessons($0, data: store.data) })) {
-                    Text("仅末课宽幅").tag(false)
-                    Text("当前与后续课程").tag(true)
-                }
+                Text("课程在上课前 \(reminders.leadMinutes) 分钟至本段课程结束期间显示，提前量跟随上课提醒设置。")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("显示已安排的待办", isOn: Binding(get: { wideLesson.scheduledTasks }, set: { wideLesson.setScheduledTasks($0, data: store.data) }))
                 Toggle("在灵动岛显示活动内容", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
                 if !wideLesson.islandEnabled {
                     Text("此开关只隐藏活动内容；实时活动仍可能占据灵动岛。iOS 不提供仅保留锁屏实时活动的独立开关。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if wideLesson.allLessons {
-                    Text("回到应用时更新课程。倒计时由系统刷新；课程结束后隐藏过期内容，普通课表组件继续按时间线切课。")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                Text("下课后清理活动。应用被系统挂起时可能保留过期外壳，返回应用会立即清理；后台精确撤除需要活动推送。")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             if wideLesson.enabled {
                 Text("已安排的待办在工作时间开始时显示，完成或取消安排后结束。仅有截止时间的待办不会开启实时活动。课程为蓝色书本，待办为绿色清单；距结束五分钟内回到应用会显示橙色提示。")

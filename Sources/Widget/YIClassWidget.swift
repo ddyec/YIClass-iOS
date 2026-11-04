@@ -28,8 +28,7 @@ struct LessonProvider: TimelineProvider {
         let horizon = Calendar.current.date(byAdding: .day, value: 1, to: now)!
         var dates = data.map { WidgetSchedule.displayTimelineDates(data: $0, from: now, until: horizon) } ?? [now]
         if let data {
-            dates += WideLessonPlanner.windows(data: data, at: now).flatMap { [$0.visibleFrom, $0.end] }
-                .filter { $0 > now && $0 < horizon }
+            dates += WideLessonBridge.timelineDates(tableID: data.selectedID, from: now, until: horizon)
             dates = Array(Set(dates)).sorted()
         }
         let entries = dates.map { entry(at: $0, result: result) }

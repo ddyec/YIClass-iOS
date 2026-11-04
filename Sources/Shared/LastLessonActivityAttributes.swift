@@ -33,7 +33,16 @@ enum WideLessonBridge {
                 written = true
             } catch { continue }
         }
-        if !written { throw AppFailure("末课宽幅状态未能同步。") }
+        if !written { throw AppFailure("课程活动状态未能同步。") }
+    }
+    static func timelineDates(tableID: UUID, from now: Date, until horizon: Date) -> [Date] {
+        Activity<LastLessonActivityAttributes>.activities
+            .filter { $0.activityState != .ended && $0.activityState != .dismissed }
+            .flatMap { activity -> [Date] in
+                let window = activity.content.state.window
+                guard window.tableID == tableID else { return [] }
+                return [window.visibleFrom, window.end].filter { $0 > now && $0 < horizon }
+            }
     }
     static func covers(_ lesson: ScheduledLesson, tableID: UUID, at date: Date) -> Bool {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return false }
@@ -48,7 +57,7 @@ enum WideLessonBridge {
             return records.contains { record in
                 let w = record.window
                 return w.tableID == tableID && w.courseID == lesson.course.id && w.start == lesson.start && w.end == lesson.end &&
-                    w.name == lesson.course.name && w.location == lesson.course.location && w.visibleFrom <= date && date < w.end &&
+                    w.name == lesson.course.name && w.location == lesson.course.location && w.isVisible(at: date) &&
                     activities.contains { $0.id == record.activityID && $0.content.state.window == w }
             }
         }

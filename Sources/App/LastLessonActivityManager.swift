@@ -7,7 +7,6 @@ import YIClassCore
 @MainActor @Observable final class LastLessonActivityManager {
     static let shared = LastLessonActivityManager()
     private(set) var enabled = UserDefaults.standard.object(forKey: "wideLastLesson.enabled") as? Bool ?? true
-    private(set) var allLessons = UserDefaults.standard.bool(forKey: "lessonActivity.allLessons")
     private(set) var islandEnabled = UserDefaults.standard.object(forKey: "lessonActivity.islandEnabled") as? Bool ?? true
     private(set) var scheduledTasks = UserDefaults.standard.object(forKey: "lessonActivity.scheduledTasks") as? Bool ?? true
     private var agenda = DayAgendaDocument()
@@ -15,14 +14,10 @@ import YIClassCore
     private var worker: Task<Void, Never>?
     private var boundary: Task<Void, Never>?
     private var generation = 0
+    private var expiryObservers: [String: Task<Void, Never>] = [:]
     func setEnabled(_ value: Bool, data: AppData) {
         enabled = value
         UserDefaults.standard.set(value, forKey: "wideLastLesson.enabled")
-        refresh(data: data)
-    }
-    func setAllLessons(_ value: Bool, data: AppData) {
-        allLessons = value
-        UserDefaults.standard.set(value, forKey: "lessonActivity.allLessons")
         refresh(data: data)
     }
     func setIslandEnabled(_ value: Bool, data: AppData) {
@@ -57,31 +52,22 @@ import YIClassCore
         boundary?.cancel()
         let now = Date()
         let allowed = ActivityAuthorizationInfo().areActivitiesEnabled
-        let windows = enabled && allowed ? WideLessonPlanner.windows(data: data, at: now) : []
+        let windows = enabled && allowed ? WideLessonPlanner.windows(data: data, at: now, leadMinutes: LessonReminderManager.shared.leadMinutes) : []
         let tableName = data.timetables.first { $0.id == data.selectedID }?.name ?? ""
-        var desired = windows.map { window in
+        let desired = windows.map { window in
             var state = LastLessonActivityAttributes.ContentState(window: window)
             state.referenceDate = max(now, window.visibleFrom)
             state.tableName = tableName
             state.islandEnabled = islandEnabled
             return Request(id: window.id, state: state)
         }
-        let day = WidgetSchedule.daySchedule(data: data, at: now)
-        if enabled && allowed && allLessons && day.lessons.count > 1,
-           let first = WideLessonPlanner.remaining(data: data, at: now).first {
-            var state = LastLessonActivityAttributes.ContentState(window: first)
-            state.following = Array(WideLessonPlanner.remaining(data: data, at: now).dropFirst())
-            state.remainingCount = day.lessons.count
-            state.referenceDate = now
-            state.tableName = tableName
-            state.islandEnabled = islandEnabled
-            desired.append(Request(id: "daily-\(data.selectedID)-\(day.day.timeIntervalSince1970)", state: state))
-        }
         issue = enabled && !allowed ? "请在系统设置中允许 YIClass 的实时活动。" : nil
         var retained: [Activity<LastLessonActivityAttributes>] = []
         for activity in Activity<LastLessonActivityAttributes>.activities {
             if let request = desired.first(where: { $0.id == activity.attributes.windowID }),
-               activity.activityState != .ended, activity.activityState != .dismissed {
+               activity.activityState != .ended, activity.activityState != .dismissed,
+               (request.start <= now || (activity.activityState == .pending &&
+                    activity.content.state.window.visibleFrom == request.start)) {
                 // Update content and island preference in place; never recreate
                 // an activity merely because a setting or course changed.
                 if activity.content.state != request.state {
@@ -94,6 +80,7 @@ import YIClassCore
         }
         for request in desired where !retained.contains(where: { $0.attributes.windowID == request.id }) {
             guard UIApplication.shared.applicationState == .active else { break }
+            guard request.state.window.end > Date() else { continue }
             do {
                 let attributes = LastLessonActivityAttributes(windowID: request.id)
                 let content = ActivityContent(state: request.state, staleDate: request.state.window.end)
@@ -101,7 +88,7 @@ import YIClassCore
                 if request.start > Date() {
                     activity = try Activity.request(attributes: attributes, content: content, pushType: nil,
                         style: .standard,
-                        alertConfiguration: AlertConfiguration(title: "最后一节课", body: "\(request.state.window.name)", sound: .default),
+                        alertConfiguration: AlertConfiguration(title: "即将上课", body: "\(request.state.window.name)", sound: .default),
                         start: request.start)
                 } else {
                     activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
@@ -109,22 +96,52 @@ import YIClassCore
                 retained.append(activity)
             } catch { issue = "实时活动未能启用，普通锁屏组件仍可使用：\(error.localizedDescription)" }
         }
+        let retainedIDs = Set(retained.map(\.id))
+        for id in Array(expiryObservers.keys) where !retainedIDs.contains(id) {
+            expiryObservers.removeValue(forKey: id)?.cancel()
+        }
+        for id in retainedIDs { observeExpiry(id) }
         do {
-            try WideLessonBridge.write(retained.filter { !$0.attributes.windowID.hasPrefix("daily-") }
-                .map { .init(activityID: $0.id, window: $0.content.state.window) })
+            try WideLessonBridge.write(retained.map { .init(activityID: $0.id, window: $0.content.state.window) })
         } catch { issue = error.localizedDescription }
         let taskItems = enabled && allowed && scheduledTasks ? AgendaActivityPlanner.tasks(agenda: agenda, at: now) : []
         await reconcileTasks(taskItems, at: now)
         WidgetCenter.shared.reloadAllTimelines()
         var dates = windows.flatMap { [$0.visibleFrom, $0.start, $0.end] }
-        if allLessons { dates += day.lessons.flatMap { [$0.start, $0.end] } }
         dates += taskItems.flatMap { [$0.visibleFrom, $0.end.addingTimeInterval(-300), $0.end] }
         dates += windows.map { $0.end.addingTimeInterval(-300) }
         if let next = dates.filter({ $0 > Date() }).min() {
             boundary = Task {
                 do { try await Task.sleep(for: .seconds(max(1, next.timeIntervalSinceNow))) }
                 catch { return }
+                await self.endExpiredCourses()
                 self.refresh(data: data)
+            }
+        }
+    }
+    /// Ending is allowed from the background. The callback/timer can still be
+    /// suspended by iOS; staleDate alone does not guarantee shell dismissal.
+    private func endExpiredCourses() async {
+        let now = Date()
+        for activity in Activity<LastLessonActivityAttributes>.activities
+            where activity.content.state.window.end <= now || activity.activityState == .stale {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+    private func observeExpiry(_ id: String) {
+        guard expiryObservers[id] == nil else { return }
+        expiryObservers[id] = Task { [weak self] in
+            defer { self?.expiryObservers[id] = nil }
+            for activity in Activity<LastLessonActivityAttributes>.activities where activity.id == id {
+                for await state in activity.activityStateUpdates {
+                    guard !Task.isCancelled else { return }
+                    if state == .stale {
+                        await activity.end(nil, dismissalPolicy: .immediate)
+                        return
+                    }
+                    if state == .ended || state == .dismissed { return }
+                }
+                return
             }
         }
     }

@@ -68,3 +68,12 @@ No simulator or additional render matrix is introduced. Phone acceptance: enable
 Source `6f1406c9096cd795efcffa0924a6e30a391783df`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545) succeeded, including the existing 65 core tests, PDF/persistence integration, existing production render suite and device archive. No new tests, simulator runs, render matrix or post-build testing were added for this layout change.
 
 [Download 3.2.7 (28) phone IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545/artifacts/12733211396). Phone acceptance remains required for the actual camera/capsule boundaries; use Settings → 小组件 → 实时活动样式测试, enable the long-title switch and apply both course/task cases. Compilation and macOS card renders do not constitute actual iPhone island visual acceptance.
+
+
+## 3.3.0 (29): only near class and during class
+
+Course planning now queues at most the current/next two courses in a rolling 24-hour horizon. Each window begins at the course's actual start minus the existing reminder lead time (default 10 minutes, adjustable to 0/5/10/15/30) and ends at that course block's actual end. Internal small-period breaks stay in the same course activity so their countdown bars remain useful; long gaps between courses have no active course request. Future ActivityKit requests use a pending scheduled start rather than creating an active all-day preview. Old daily/last-course requests and prematurely active old requests are ended or rescheduled when reconciling; reminder changes trigger replanning. Ordinary widget timelines use actual accepted activity boundaries, including custom lead times.
+
+The manager observes stale/end states and attempts immediate dismissal on expiry, ends expired activities before foreground reconciliation, and uses end dates for stale content. These callbacks/timers can be suspended by iOS. A purely local app cannot guarantee exact shell removal while suspended; ActivityKit end push would be needed for that guarantee. This limit is stated in Settings instead of claiming staleDate automatically dismisses an activity. Explicit style tests remain manual, and scheduled tasks keep their actual work intervals.
+
+Validation covers half-open start/end visibility, no all-day preview, custom lead times, holidays, simultaneous courses and the two-request cap. No simulator or new rendering matrix is introduced. Check real-device pending starts and end cleanup with the app active and backgrounded.
