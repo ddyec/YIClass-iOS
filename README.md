@@ -103,13 +103,13 @@ PDF 未提供明确的学期第一周日期。预览中需要确认“开学日�
 
 ## 下载构建
 
-**3.2.7 (28) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `6f1406c9096cd795efcffa0924a6e30a391783df`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545)。本版收紧小尺寸灵动岛的圆弧安全边距，限制长课名和教室的行数，保留按小节递减条。核心／集成检查、原有生产渲染及设备归档通过；实际圆弧边界和长课名由用户真机验收。
+**3.3.0 (29) iPhone/iPad 设备包已通过 Test → Build IPA 并上传**，源码 `559494064d617d5ebf236641bfff289e09e4be74`，[构建记录](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978)。本版增加设备端 AI 诊断／调用测试、助手直接新建对话，并将课程活动限定在临近上课和上课时段。67 项核心、PDF／历史／存储集成、原有生产渲染和设备归档通过；系统模型实测与活动后台生命周期仍需真机验收。
 
 | 产物 | 下载 |
 | --- | --- |
-| 3.2.7 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/40501070545/artifacts/12733211396) |
+| 3.3.0 iPhone／iPad 待重签 IPA（含课程及待办小组件） | [下载 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978/artifacts/13321495433) |
 
-后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.2.7-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
+后续可在 [Test then Build IPA](https://github.com/ddyec/YIClass-iOS/actions/workflows/build.yml) 运行新的构建。先完成 Test，再运行 Build IPA；成功摘要顶部直接显示设备包链接。`YIClass-3.3.0-iPhone-iPad-IPA` 包含 IPA、产物清单及 SHA-256 校验文件；测试图片另存为 `Visual-review-images`，日志仅在构建失败时上传。产物保存 30 天。安装前需使用自己的 Apple 签名身份和描述文件重签。
 
 按项目维护者偏好，下载构建只生成 iPhone／iPad 真机 IPA，不构建或上传模拟器包。
 
@@ -177,3 +177,10 @@ scripts/        工程生成、PDF 实测、产物校验与构建
 ### 3.2.7 小尺寸圆弧边界与长课名
 
 保留当前紧凑的展开布局，使用原生横向内容边距把四角内容收回胶囊内部。课名最多两行、省略超长部分，图标独立保留宽度，教室一行截断；较多小节使用单行分段条，避免撑高。手机样式测试背景改为大圆弧胶囊，开启长标题测试后应用到灵动岛验收。
+
+
+### 3.3.0 设备端 AI 检测、新对话与临近上课活动
+
+AI 配置增加具体可用状态、返回前台重新检测及“测试设备端 AI”；通过 Foundation Models 的 LanguageModelSession.respond 实际调用系统设备端模型，无需 API Key。国行 27.3 Beta 系统功能开放后仍以接口的实时可用性为准，使用步骤见 [设备端调用说明](docs/APPLE-INTELLIGENCE.md)。助手右上角直接新增“新对话”，先保存历史，清空旧请求、附件和方案并启用独立上下文。
+
+课程实时活动改为上课提醒的提前量（默认 10 分钟）至本段课程结束，只预排当前／下一门课程，取消全天末课预览。修改提醒时间会调整预排活动，下课时尝试立即结束并在回前台清理。应用被 iOS 挂起时，过期活动外壳可能保留；纯本地状态／计时回调不能保证后台准点撤除，严格保证需要 ActivityKit 结束推送。已安排的待办仍按实际工作时间显示。

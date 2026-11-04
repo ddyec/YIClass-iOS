@@ -20,3 +20,10 @@ print(response.content)
 AIService.reply 的设备端分支也使用该 API，传入本轮课表／日程快照并按现有协议校验模型返回；测试成功不代表复杂课表方案必然生成成功。没有自动切换至远程服务。CI 不具备真实国行设备或已准备的系统模型，SDK 编译检查不视为国行模型实测。
 
 官方依据：[国行开放公告](https://www.apple.com.cn/newsroom/2026/10/apple-intelligence-features-are-coming-to-users-in-china/)、[SystemLanguageModel availability](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel)、[LanguageModelSession 生成](https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models)。
+
+
+## 3.3.0 验证记录
+
+源码 `559494064d617d5ebf236641bfff289e09e4be74` 的 [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978) 已通过 67 项核心、PDF／存储（含独立对话历史）及设备归档。Framework 接口已通过 iPhoneOS SDK 编译，未在 CI 调用实际系统模型，未运行国行 iOS 27.3 设备或模拟器。
+
+[下载 3.3.0 (29) 设备 IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978/artifacts/13321495433)。按本页步骤检测／实际调用并保存配置；可用性由设备返回，不根据新闻公告推断第三方接口一定已开放。

@@ -77,3 +77,8 @@ Course planning now queues at most the current/next two courses in a rolling 24-
 The manager observes stale/end states and attempts immediate dismissal on expiry, ends expired activities before foreground reconciliation, and uses end dates for stale content. These callbacks/timers can be suspended by iOS. A purely local app cannot guarantee exact shell removal while suspended; ActivityKit end push would be needed for that guarantee. This limit is stated in Settings instead of claiming staleDate automatically dismisses an activity. Explicit style tests remain manual, and scheduled tasks keep their actual work intervals.
 
 Validation covers half-open start/end visibility, no all-day preview, custom lead times, holidays, simultaneous courses and the two-request cap. No simulator or new rendering matrix is introduced. Check real-device pending starts and end cleanup with the app active and backgrounded.
+
+
+### 3.3.0 verified delivery
+
+Source `559494064d617d5ebf236641bfff289e09e4be74`: [Test → Build IPA](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978) passed 67 core tests, PDF/persistence integration (including independent conversations), existing rendering and device archive. [Download 3.3.0 (29)](https://github.com/ddyec/YIClass-iOS/actions/runs/41827248978/artifacts/13321495433). No simulator or post-packaging tests were added. Verify pending starts, reminder changes, old all-day activity cleanup and end-time behavior on a phone, including suspension; a purely local app cannot guarantee an immediate background shell dismissal.
