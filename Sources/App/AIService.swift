@@ -49,10 +49,32 @@ private final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unche
 @MainActor enum AIService {
     static var availability: String {
         switch SystemLanguageModel.default.availability {
-        case .available: return "设备端模型可用，课程与对话留在本机。"
-        case .unavailable: return "设备端模型暂不可用。请检查机型、Apple Intelligence 开关、语言与模型下载状态，或配置自定义接口。"
-        @unknown default: return "请检查设备端模型状态，或配置自定义接口。"
+        case .available:
+            return "设备端模型已就绪，可在本机生成，无需 API Key。"
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible:
+                return "当前设备或系统区域尚不满足 Foundation Models 使用条件，请检查支持机型及当前系统的开放状态。"
+            case .appleIntelligenceNotEnabled:
+                return "Apple Intelligence 尚未启用。请到系统“Apple Intelligence 与 Siri”开启，完成准备后返回重新检测。"
+            case .modelNotReady:
+                return "系统设备端模型尚未就绪，可能正在下载或初始化。请稍后重新检测。"
+            @unknown default:
+                return "系统暂未向此应用提供设备端模型，请完成系统模型准备后重新检测。"
+            }
+        @unknown default:
+            return "无法确认设备端模型状态，请重新检测。"
         }
+    }
+    /// Exercise the same public on-device API without sending timetable data.
+    static func testOnDevice() async throws -> String {
+        guard case .available = SystemLanguageModel.default.availability else { throw AppFailure(availability) }
+        let session = LanguageModelSession(instructions: "请使用简体中文，简短回答。")
+        let response = try await session.respond(to: "请只回复：设备端连接成功")
+        try Task.checkCancellation()
+        let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { throw AppFailure("设备端模型未返回内容，请稍后再试。") }
+        return "设备端调用成功 · " + String(text.prefix(100))
     }
     static func reply(mode: AssistantMode, messages: [ChatMessage], table: Timetable, profile: TimeProfile,
                       endpoint: String, model: String, agenda: DayAgendaDocument = DayAgendaDocument()) async throws -> AssistantReply {

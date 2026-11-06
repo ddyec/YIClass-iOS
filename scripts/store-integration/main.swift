@@ -143,6 +143,19 @@ import UniformTypeIdentifiers
         precondition(reopenedHistory.conversations.first?.id == conversationID)
         precondition(reopenedHistory.conversations.first?.messages.first?.images.isEmpty == true)
         precondition(reopenedHistory.conversations.first?.modelHistory.first?.content.contains("10月18日") == true)
+        let newConversationID = UUID()
+        try reopenedHistory.saveConversation(id: newConversationID,
+            messages: [ChatMessage(role: "user", content: "新的独立问题")],
+            modelHistory: [ChatMessage(role: "user", content: "新的独立问题")], importing: false, importTable: nil)
+        try reopenedHistory.saveConversation(id: newConversationID,
+            messages: [ChatMessage(role: "user", content: "新的独立问题"), ChatMessage(role: "assistant", content: "新的回答")],
+            modelHistory: [ChatMessage(role: "user", content: "新的独立问题")], importing: false, importTable: nil)
+        let distinctHistory = AppStore(storageURL: file).conversations
+        precondition(distinctHistory.count == 2)
+        precondition(distinctHistory.first?.id == newConversationID)
+        precondition(distinctHistory.first?.modelHistory.map(\.content) == ["新的独立问题"])
+        precondition(distinctHistory.first(where: { $0.id == conversationID })?.messages.first?.content.hasPrefix("按通知调课") == true)
+        print("PASS: a new conversation has separate UUID/context, preserves old history across restart and updates only its own record")
         let beforeFirstEdit = reopenedHistory.revisions.last!
         try reopenedHistory.restoreRevision(beforeFirstEdit.id)
         let restoredHistory = AppStore(storageURL: file)
@@ -151,7 +164,7 @@ import UniformTypeIdentifiers
         try restoredHistory.restoreRevision(restoredHistory.revisions.first!.id)
         let recoveredHistory = AppStore(storageURL: file)
         precondition(recoveredHistory.table.courses.first?.name == "英语" && recoveredHistory.profile == profile)
-        precondition(recoveredHistory.conversations.first?.id == conversationID)
+        precondition(Set(recoveredHistory.conversations.map(\.id)) == [conversationID, newConversationID])
         print("PASS: conversations persist across reopen without original image storage; historical restore preserves current state and can be reversed after restart")
         print("PASS: actual AppStore direct AI edit → atomic library.json save → reopen → undo → stale edit rejected without file mutation; empty location and global time preserved")
     }

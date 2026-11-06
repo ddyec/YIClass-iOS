@@ -206,7 +206,7 @@ import YIClassCore
         guard !loadFailed else { return }
         #if os(iOS)
         LessonReminderManager.shared.refresh(data: data)
-        LastLessonActivityManager.shared.refresh(data: data)
+        LastLessonActivityManager.shared.refresh(data: data, agenda: agenda)
         #endif
         do { var snapshot = data; snapshot.todoSyncIssue = agendaIssue; try SharedLibrary.write(snapshot); widgetSyncIssue = nil; widgetLastSync = Date(); WidgetCenter.shared.reloadAllTimelines() }
         catch { widgetSyncIssue = error.localizedDescription; widgetLastSync = nil }
