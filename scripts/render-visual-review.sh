@@ -6,8 +6,8 @@ python3 - <<'PY'
 from pathlib import Path
 s = Path('Sources/App/Design.swift').read_text()
 a = s.index('struct AssistantLogo: View {')
-b = s.index('\nprivate struct FloatingNavigationScrollKey:', a)
-s = s[a:b].replace('Image("AssistantLogo")', 'Image(nsImage: NSImage(contentsOfFile: "Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.pdf")!)')
+# AssistantLogo is the final declaration; the obsolete custom scroll key is gone.
+s = s[a:].replace('Image("AssistantLogo")', 'Image(nsImage: NSImage(contentsOfFile: "Sources/App/Assets.xcassets/AssistantLogo.imageset/AssistantLogo.pdf")!)')
 Path('dist/visual-review/AssistantLogo.swift').write_text('import AppKit\nimport SwiftUI\n' + s)
 s = Path('Sources/App/Design.swift').read_text()
 a = s.index('extension Color {'); b = s.index('\nstruct AppBackdrop:', a)
@@ -18,7 +18,7 @@ xcrun swiftc -target "$TEST_TARGET" -emit-library -emit-module -module-name YICl
   -o dist/visual-review/libYIClassCore.dylib -emit-module-path dist/visual-review/YIClassCore.swiftmodule
 xcrun swiftc -target "$TEST_TARGET" -parse-as-library -I dist/visual-review -L dist/visual-review -lYIClassCore \
   -Xlinker -rpath -Xlinker "$(pwd)/dist/visual-review" \
-  Sources/Widget/LockScreenCourseCard.swift Sources/Widget/TodoWidgetContent.swift \
+  Sources/Widget/LockScreenCourseCard.swift Sources/Widget/TodoWidgetContent.swift Sources/Shared/AgendaActivityCard.swift \
   Sources/App/AgendaCards.swift dist/visual-review/Color.swift \
   dist/visual-review/AssistantLogo.swift scripts/visual-review/main.swift \
   -o dist/visual-review/render

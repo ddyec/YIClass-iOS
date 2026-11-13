@@ -45,6 +45,7 @@ extension Notification.Name {
         guard [0, 5, 10, 15, 30].contains(value) else { return }
         leadMinutes = value; UserDefaults.standard.set(value, forKey: "reminders.minutes")
         refresh(data: data)
+        LastLessonActivityManager.shared.refresh(data: data)
     }
     func refresh(data: AppData) {
         let previous = worker

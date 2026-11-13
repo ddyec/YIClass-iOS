@@ -1,6 +1,35 @@
 import SwiftUI
 import YIClassCore
 
+struct TodoPendingSection<Content: View>: View {
+    let count: Int
+    var add: () -> Void
+    @ViewBuilder var content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("待完成").font(.system(size: 24, weight: .bold)).foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text("\(count) 项").font(.system(size: 18, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.tint)
+            }
+            if count == 0 {
+                VStack(spacing: 14) {
+                    Image(systemName: "checklist").font(.system(size: 30, weight: .light)).foregroundStyle(.secondary)
+                    Text("暂无待办").font(.title3.weight(.medium)).foregroundStyle(.secondary)
+                    Button("添加待办", systemImage: "plus", action: add)
+                        .font(.headline).frame(minHeight: 44).buttonStyle(.borderless)
+                }
+                .frame(maxWidth: .infinity, minHeight: 190)
+                .background(.background.opacity(0.55), in: RoundedRectangle(cornerRadius: 22))
+            } else { content }
+        }
+        .padding(.top, 6).padding(.bottom, 12)
+        .accessibilityIdentifier("todo-pending")
+    }
+}
+
 struct TodoTaskCard: View {
     let item: TodoItem
     let reference: Date

@@ -61,7 +61,8 @@ struct DayTimelineView: View {
                     .padding(.bottom, bottomInset + 16)
                     .background { TabBarScrollConnection() }
                 }
-                .floatingNavigationScrollTracking()
+                .accessibilityIdentifier("day-agenda-scroll")
+
                 .onChange(of: date) { _, _ in reader.scrollTo("agenda-top", anchor: .top) }
             }
         }

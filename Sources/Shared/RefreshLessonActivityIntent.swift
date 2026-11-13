@@ -11,30 +11,22 @@ struct RefreshLessonActivityIntent: LiveActivityIntent {
     @MainActor func perform() async throws -> some IntentResult {
         let data = try SharedLibrary.readResult().get()
         let now = Date()
-        let remaining = WideLessonPlanner.remaining(data: data, at: now)
-        for activity in Activity<LastLessonActivityAttributes>.activities where activity.attributes.windowID.hasPrefix("daily-") {
-            guard let first = remaining.first else {
+        for activity in Activity<LastLessonActivityAttributes>.activities {
+            let old = activity.content.state.window
+            let lead = Int(old.start.timeIntervalSince(old.visibleFrom) / 60)
+            let windows = WideLessonPlanner.windows(data: data, at: now, leadMinutes: lead)
+            guard !activity.attributes.windowID.hasPrefix("daily-"),
+                  let window = windows.first(where: { $0.id == activity.attributes.windowID }),
+                  window.end > now,
+                  window.isVisible(at: now) || activity.activityState == .pending else {
                 await activity.end(nil, dismissalPolicy: .immediate)
                 continue
             }
-            // Reuse the existing activity, without opening the app or advancing
-            // based on a guessed lesson index. Always read the actual JSON.
-            var state = LastLessonActivityAttributes.ContentState(window: first)
-            state.following = Array(remaining.dropFirst())
-            state.remainingCount = WidgetSchedule.daySchedule(data: data, at: now).lessons.count
-            state.referenceDate = now
+            var state = LastLessonActivityAttributes.ContentState(window: window)
+            state.referenceDate = max(now, window.visibleFrom)
             state.tableName = data.timetables.first { $0.id == data.selectedID }?.name ?? ""
             state.islandEnabled = activity.content.state.islandEnabled
-            let finalActivity = Activity<LastLessonActivityAttributes>.activities.first {
-                !$0.attributes.windowID.hasPrefix("daily-") && $0.content.state.window.courseID == first.courseID &&
-                $0.content.state.window.start == first.start && $0.content.state.window.visibleFrom <= now &&
-                $0.activityState == .active
-            }
-            if state.remainingCount == 1 && finalActivity != nil {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            } else {
-                await activity.update(ActivityContent(state: state, staleDate: first.end))
-            }
+            await activity.update(ActivityContent(state: state, staleDate: window.end))
         }
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
