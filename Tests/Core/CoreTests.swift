@@ -366,3 +366,16 @@ private func course(_ name: String = "数学", day: Int = 1, periods: [Int] = [1
     #expect(changed[0].date.timeIntervalSince(old[0].date) == 3600)
     #expect(changed[0].id != old[0].id)
 }
+
+@Test func jsonCodingHandlesBOMAndFractionalSeconds() throws {
+    let table = Timetable(startDate: Date(timeIntervalSince1970: 1_788_134_400), courses: [course("高等数学")])
+    let data = AppData(timetables: [table], selectedID: table.id)
+    let encoded = try JSONCoding.encoder().encode(data)
+    let withBOM = Data([0xEF, 0xBB, 0xBF]) + encoded
+    let decodedBOM = try JSONCoding.decode(AppData.self, from: withBOM)
+    #expect(decodedBOM == data)
+    let text = String(decoding: encoded, as: UTF8.self).replacingOccurrences(of: "Z\"", with: ".125Z\"")
+    let decodedFractional = try JSONCoding.decode(AppData.self, from: Data(text.utf8))
+    #expect(decodedFractional.selectedID == data.selectedID)
+    #expect(abs(decodedFractional.timetables[0].startDate.timeIntervalSince(data.timetables[0].startDate) - 0.125) < 0.001)
+}

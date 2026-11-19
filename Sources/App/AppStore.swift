@@ -61,42 +61,103 @@ import YIClassCore
         #endif
         file = storageURL ?? URL.applicationSupportDirectory.appending(path: "YIClass", directoryHint: .isDirectory)
             .appending(path: "library.json")
+        loadLibrary()
+        loadHistory()
+    }
+    private static let writeOptions: Data.WritingOptions = [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+
+    private func relaxFileProtection(at url: URL) {
+        #if os(iOS)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url.path)
+        #endif
+    }
+    private func encodeVerified(_ value: AppData) throws -> Data {
+        let bytes = try JSONCoding.encoder().encode(value)
+        let verified = try JSONCoding.decode(AppData.self, from: bytes)
+        try verified.validate()
+        return bytes
+    }
+    private func encodeVerified(_ value: DayAgendaDocument) throws -> Data {
+        let bytes = try JSONCoding.encoder().encode(value)
+        let verified = try JSONCoding.decode(DayAgendaDocument.self, from: bytes)
+        try verified.validate()
+        return bytes
+    }
+    private func encodeVerified(_ value: AssistantArchive) throws -> Data {
+        let bytes = try JSONCoding.encoder().encode(value)
+        _ = try JSONCoding.decode(AssistantArchive.self, from: bytes)
+        return bytes
+    }
+    private func writeBackupIfValid(from source: URL, to destination: URL, validate: (Data) throws -> Void) {
+        guard FileManager.default.fileExists(atPath: source.path),
+              let existing = try? Data(contentsOf: source),
+              (try? validate(existing)) != nil else { return }
+        try? existing.write(to: destination, options: Self.writeOptions)
+    }
+    private func loadLibrary() {
         do {
             if FileManager.default.fileExists(atPath: file.path) {
-                let loaded = try JSONCoding.decoder().decode(AppData.self, from: Data(contentsOf: file))
-                try loaded.validate(); data = loaded
+                let loaded = try JSONCoding.decode(AppData.self, from: Data(contentsOf: file))
+                try loaded.validate()
+                data = loaded
+                relaxFileProtection(at: file)
+                relaxFileProtection(at: backup)
             }
+            loadFailed = false
             loadAgenda()
             syncWidgets()
         } catch {
             self.error = "本地数据读取失败，原文件已保留。\(error.localizedDescription)"; loadFailed = true
         }
-        if FileManager.default.fileExists(atPath: historyFile.path) {
-            do { archive = try JSONCoding.decoder().decode(AssistantArchive.self, from: Data(contentsOf: historyFile)) }
-            catch { historyDamaged = true; historyIssue = "历史记录读取失败，原文件将保留备份。" }
+    }
+    private func loadHistory() {
+        guard FileManager.default.fileExists(atPath: historyFile.path) else {
+            historyDamaged = false; historyIssue = nil; return
         }
+        do {
+            archive = try JSONCoding.decode(AssistantArchive.self, from: Data(contentsOf: historyFile))
+            historyDamaged = false; historyIssue = nil
+            relaxFileProtection(at: historyFile)
+        } catch {
+            historyDamaged = true; historyIssue = "历史记录读取失败，原文件将保留备份。"
+        }
+    }
+    func reloadIfNeeded() {
+        if loadFailed {
+            error = nil
+            loadLibrary()
+        } else if agendaLoadFailed {
+            loadAgenda()
+            if !agendaLoadFailed { syncWidgets() }
+        }
+        if historyDamaged { loadHistory() }
     }
     private func loadAgenda() {
         do {
             if FileManager.default.fileExists(atPath: agendaURL.path) {
-                let loadedAgenda = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: Data(contentsOf: agendaURL))
+                let loadedAgenda = try JSONCoding.decode(DayAgendaDocument.self, from: Data(contentsOf: agendaURL))
                 try loadedAgenda.validate()
                 agenda = loadedAgenda
+                relaxFileProtection(at: agendaURL)
+                relaxFileProtection(at: agendaBackup)
             } else {
                 let migrated = DayAgendaDocument(todos: data.todos)
                 try migrated.validate()
                 try FileManager.default.createDirectory(at: agendaURL.deletingLastPathComponent(), withIntermediateDirectories: true)
                 // Write the independent document before clearing any legacy data.
-                try JSONCoding.encoder().encode(migrated).write(to: agendaURL, options: [.atomic, .completeFileProtection])
+                try encodeVerified(migrated).write(to: agendaURL, options: Self.writeOptions)
                 agenda = migrated
             }
             if !data.todos.isEmpty, FileManager.default.fileExists(atPath: file.path) {
                 // The new document is durable; retain the original as a backup,
                 // then remove the legacy task copy from the timetable file.
-                try Data(contentsOf: file).write(to: backup, options: [.atomic, .completeFileProtection])
+                writeBackupIfValid(from: file, to: backup) { try JSONCoding.decode(AppData.self, from: $0).validate() }
                 var timetableOnly = data; timetableOnly.todos = []
-                try JSONCoding.encoder().encode(timetableOnly).write(to: file, options: [.atomic, .completeFileProtection])
+                try encodeVerified(timetableOnly).write(to: file, options: Self.writeOptions)
             }
+            agendaLoadFailed = false
+            agendaIssue = nil
             data.todos = agenda.todos
         } catch {
             agenda = DayAgendaDocument()
@@ -106,23 +167,27 @@ import YIClassCore
         }
     }
     func recoverAgendaBackup() throws {
-        let restored = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: Data(contentsOf: agendaBackup))
+        let restored = try JSONCoding.decode(DayAgendaDocument.self, from: Data(contentsOf: agendaBackup))
         try restored.validate()
+        let bytes = try encodeVerified(restored)
         if FileManager.default.fileExists(atPath: agendaURL.path) {
             try FileManager.default.copyItem(at: agendaURL, to: agendaURL.appendingPathExtension("damaged-\(UUID())"))
         }
-        try JSONCoding.encoder().encode(restored).write(to: agendaURL, options: [.atomic, .completeFileProtection])
+        try bytes.write(to: agendaURL, options: Self.writeOptions)
         agenda = restored; data.todos = restored.todos; agendaLoadFailed = false; agendaIssue = nil
         undoData = nil; undoAgenda = nil; syncWidgets()
     }
     var damagedFile: URL { file }
     func recoverBackup() {
         do {
-            let restored = try JSONCoding.decoder().decode(AppData.self, from: Data(contentsOf: backup))
+            let restored = try JSONCoding.decode(AppData.self, from: Data(contentsOf: backup))
             try restored.validate()
-            let preserved = file.deletingLastPathComponent().appending(path: "library-damaged-\(UUID()).json")
-            try FileManager.default.copyItem(at: file, to: preserved)
-            try JSONCoding.encoder().encode(restored).write(to: file, options: [.atomic, .completeFileProtection])
+            let bytes = try encodeVerified(restored)
+            if FileManager.default.fileExists(atPath: file.path) {
+                let preserved = file.deletingLastPathComponent().appending(path: "library-damaged-\(UUID()).json")
+                try FileManager.default.copyItem(at: file, to: preserved)
+            }
+            try bytes.write(to: file, options: Self.writeOptions)
             data = restored; loadFailed = false; error = nil; loadAgenda(); syncWidgets()
         } catch { self.error = "恢复失败：\(error.localizedDescription)" }
     }
@@ -143,6 +208,10 @@ import YIClassCore
         // document. Reject accidental multi-document writes rather than partially
         // applying a mixed AI operation.
         guard !libraryChanged || !agendaChanged else { throw AppFailure("请将课表修改与日程待办修改分开保存。") }
+        let shouldWriteLibrary = libraryChanged || !FileManager.default.fileExists(atPath: file.path)
+        let libraryBytes = shouldWriteLibrary ? try encodeVerified(persisted) : nil
+        if agendaChanged { nextAgenda.revision = agenda.revision + 1 }
+        let agendaBytes = agendaChanged ? try encodeVerified(nextAgenda) : nil
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         if next.timetables != data.timetables || next.timeProfile != data.timeProfile {
             var history = archive
@@ -150,18 +219,13 @@ import YIClassCore
             history.revisions = Array(history.revisions.prefix(30))
             try persistArchive(history)
         }
-        if libraryChanged || !FileManager.default.fileExists(atPath: file.path) {
-            if FileManager.default.fileExists(atPath: file.path) {
-                try Data(contentsOf: file).write(to: backup, options: [.atomic, .completeFileProtection])
-            }
-            try JSONCoding.encoder().encode(persisted).write(to: file, options: [.atomic, .completeFileProtection])
+        if let libraryBytes {
+            writeBackupIfValid(from: file, to: backup) { try JSONCoding.decode(AppData.self, from: $0).validate() }
+            try libraryBytes.write(to: file, options: Self.writeOptions)
         }
-        if agendaChanged {
-            nextAgenda.revision = agenda.revision + 1
-            if FileManager.default.fileExists(atPath: agendaURL.path) {
-                try Data(contentsOf: agendaURL).write(to: agendaBackup, options: [.atomic, .completeFileProtection])
-            }
-            try JSONCoding.encoder().encode(nextAgenda).write(to: agendaURL, options: [.atomic, .completeFileProtection])
+        if let agendaBytes {
+            writeBackupIfValid(from: agendaURL, to: agendaBackup) { try JSONCoding.decode(DayAgendaDocument.self, from: $0).validate() }
+            try agendaBytes.write(to: agendaURL, options: Self.writeOptions)
         }
         undoData = undoable ? data : nil
         undoAgenda = undoable ? agenda : nil
@@ -170,13 +234,16 @@ import YIClassCore
         syncWidgets()
     }
     private func persistArchive(_ history: AssistantArchive) throws {
+        let bytes = try encodeVerified(history)
         try FileManager.default.createDirectory(at: historyFile.deletingLastPathComponent(), withIntermediateDirectories: true)
         if historyDamaged {
             let preserved = historyFile.appendingPathExtension("damaged-\(UUID())")
-            try FileManager.default.copyItem(at: historyFile, to: preserved)
+            if FileManager.default.fileExists(atPath: historyFile.path) {
+                try FileManager.default.copyItem(at: historyFile, to: preserved)
+            }
             historyDamaged = false
         }
-        try JSONCoding.encoder().encode(history).write(to: historyFile, options: [.atomic, .completeFileProtection])
+        try bytes.write(to: historyFile, options: Self.writeOptions)
         archive = history; historyIssue = nil
     }
     func saveConversation(id: UUID, messages: [ChatMessage], modelHistory: [ChatMessage], importing: Bool, importTable: Timetable?) throws {

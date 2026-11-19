@@ -64,8 +64,6 @@ struct ThemeSettingsView: View {
             Section("自由配色") {
                 ColorPicker("主题色", selection: Binding(get: { Color(argb: UInt32(clamping: accent)) }, set: { accent = Int($0.opaqueARGB) }), supportsOpacity: false)
                 ColorPicker("背景渐变色", selection: Binding(get: { Color(argb: UInt32(clamping: backdrop)) }, set: { backdrop = Int($0.opaqueARGB) }), supportsOpacity: false)
-                Text("主题色用于按钮、选中状态和助手气泡。背景渐变用于课表与助手。课程颜色可在编辑课程时单独选择。")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("预览") {
                 VStack(spacing: 16) {

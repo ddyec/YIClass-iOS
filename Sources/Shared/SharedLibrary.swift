@@ -14,19 +14,21 @@ enum SharedLibrary {
             return first > second
         }
         guard !candidates.isEmpty else { return readResult(from: nil) }
-        var failure = readResult(from: candidates[0])
+        var failure = AppFailure("共享课表读取失败，请解锁并打开应用重新同步。")
         for file in candidates {
             let result = readResult(from: file)
-            if case .success = result { return result }
-            failure = result
+            switch result {
+            case .success: return result
+            case .failure(let error): failure = error
+            }
         }
-        return failure
+        return .failure(failure)
     }
     static func readResult(from file: URL?) -> Result<AppData, AppFailure> {
         guard let file else { return .failure(AppFailure("小组件共享权限不可用，请检查重签时的 App Group。")) }
         guard FileManager.default.fileExists(atPath: file.path) else { return .failure(AppFailure("尚未同步课表，请打开应用并在设置中同步小组件。")) }
         do {
-            let data = try JSONCoding.decoder().decode(AppData.self, from: Data(contentsOf: file))
+            let data = try JSONCoding.decode(AppData.self, from: Data(contentsOf: file))
             try data.validate()
             return .success(data)
         } catch { return .failure(AppFailure("共享课表读取失败，请解锁并打开应用重新同步。")) }

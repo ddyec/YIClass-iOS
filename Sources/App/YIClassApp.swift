@@ -13,8 +13,9 @@ import YIClassCore
                     ContentUnavailableView {
                         Label("无法读取课表", systemImage: "externaldrive.badge.exclamationmark")
                     } description: {
-                        Text("本地原文件已保留。可恢复上次备份，或先分享原文件以便排查。")
+                        Text("本地原文件已保留，可重试读取或恢复备份。")
                     } actions: {
+                        Button("重新读取") { store.reloadIfNeeded() }.buttonStyle(.borderedProminent)
                         Button("恢复上次备份") { store.recoverBackup() }
                         ShareLink("导出原文件", item: store.damagedFile)
                     }
@@ -24,15 +25,22 @@ import YIClassCore
                 #if DEBUG
                 if CommandLine.arguments.contains("--ui-testing-demo") { return }
                 #endif
+                store.reloadIfNeeded()
                 if !store.loadFailed { await LessonReminderManager.shared.start(data: store.data) }
                 if !store.loadFailed { LastLessonActivityManager.shared.refresh(data: store.data, agenda: store.agenda) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in
+                store.reloadIfNeeded()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
                 if !store.loadFailed { LessonReminderManager.shared.refresh(data: store.data) }
                 if !store.loadFailed { LastLessonActivityManager.shared.refresh(data: store.data, agenda: store.agenda) }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { store.syncWidgets() }
+                if phase == .active {
+                    store.reloadIfNeeded()
+                    store.syncWidgets()
+                }
             }
             .environment(store)
             .tint(Color(argb: UInt32(clamping: accent)))

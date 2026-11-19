@@ -60,7 +60,7 @@ struct SettingsView: View {
                             Text("上课时").tag(0)
                             ForEach([5, 10, 15, 30], id: \.self) { Text("提前 \($0) 分钟").tag($0) }
                         }
-                        Text("已安排 \(reminders.pendingCount) 条提醒").font(.caption).foregroundStyle(.secondary)
+                        LabeledContent("已安排提醒", value: "\(reminders.pendingCount) 条")
                     }
                     if reminders.authorization == .denied {
                         Button("打开系统通知设置", systemImage: "bell.slash") {
@@ -84,23 +84,20 @@ struct SettingsView: View {
                 Section("日程与待办") {
                     ShareLink("导出日程 JSON", item: store.agendaURL)
                     Button("导入日程 JSON", systemImage: "square.and.arrow.down") { importingAgenda = true }.disabled(reading)
-                    Text("day-agenda.json 保存待办与工作时间安排；课程继续由课表提供。").font(.caption).foregroundStyle(.secondary)
                     if let issue = store.agendaIssue { AgendaRecoveryPanel(issue: issue) }
                 }
                 if reading { ProgressView("正在读取课表…") }
                 widgetSettings
                 if store.undoData != nil {
-                    Section { Button("撤销最近一次方案、导入或删除", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
+                    Section { Button("撤销最近一次更改", systemImage: "arrow.uturn.backward") { store.perform { try store.undo() } } }
                 }
                 Section {
                     Button("删除当前课表", role: .destructive) { deleting = true }.disabled(store.data.timetables.count == 1)
                 }
                 Section("关于") {
-                    Text("基于 YIClass 的原生重写。原项目 Copyright 2025 wykwey，Apache License 2.0。")
-                        .font(.footnote).foregroundStyle(.secondary)
-                    Link("原项目与开源协议", destination: URL(string: "https://github.com/ddyec/YIClass")!)
+                    Link("开源项目 · Apache 2.0", destination: URL(string: "https://github.com/ddyec/YIClass")!)
                 }
-            }.environment(\.defaultMinListRowHeight, 40).listSectionSpacing(.compact)
+            }.listSectionSpacing(.compact)
             .background { TabBarScrollConnection() }
             .navigationTitle("设置").navigationBarTitleDisplayMode(.inline)
             .background {
@@ -112,7 +109,7 @@ struct SettingsView: View {
                         defer { reading = false }
                         do {
                             let file = try await DocumentFileReader.read(url, maximumBytes: 5_000_000)
-                            let document = try JSONCoding.decoder().decode(DayAgendaDocument.self, from: file.data)
+                            let document = try JSONCoding.decode(DayAgendaDocument.self, from: file.data)
                             try document.validate()
                             agendaSelection = AgendaImportSelection(document: document, expected: expected)
                         } catch { store.error = "日程导入失败：" + error.localizedDescription }
@@ -124,7 +121,6 @@ struct SettingsView: View {
                     Form {
                         LabeledContent("待办", value: "\(selection.document.todos.count) 项")
                         LabeledContent("时间安排", value: "\(selection.document.placements.count) 段")
-                        Text("导入将替换当前待办与时间安排，课表不变。保存前自动备份，可撤销本次导入。")
                     }
                     .navigationTitle("导入日程").navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -155,50 +151,21 @@ struct SettingsView: View {
         }
     }
     private var widgetSettings: some View {
-        Section("小组件") {
+        Section("小组件与实时活动") {
+            Toggle("锁屏实时活动", isOn: Binding(get: { wideLesson.enabled }, set: {
+                wideLesson.setEnabled($0, data: store.data)
+            }))
+            if wideLesson.enabled {
+                Toggle("显示已安排的待办", isOn: Binding(get: { wideLesson.scheduledTasks }, set: { wideLesson.setScheduledTasks($0, data: store.data) }))
+                Toggle("在灵动岛显示活动内容", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
+            }
             NavigationLink {
                 LiveActivityPreviewView()
             } label: {
                 Label("实时活动样式测试", systemImage: "play.rectangle")
             }
-            Toggle("锁屏实时活动", isOn: Binding(get: { wideLesson.enabled }, set: {
-                wideLesson.setEnabled($0, data: store.data)
-            }))
-            if wideLesson.enabled {
-                Text("课程在上课前 \(reminders.leadMinutes) 分钟至本段课程结束期间显示，提前量跟随上课提醒设置。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Toggle("显示已安排的待办", isOn: Binding(get: { wideLesson.scheduledTasks }, set: { wideLesson.setScheduledTasks($0, data: store.data) }))
-                Toggle("在灵动岛显示活动内容", isOn: Binding(get: { wideLesson.islandEnabled }, set: { wideLesson.setIslandEnabled($0, data: store.data) }))
-                if !wideLesson.islandEnabled {
-                    Text("此开关只隐藏活动内容；实时活动仍可能占据灵动岛。iOS 不提供仅保留锁屏实时活动的独立开关。")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                Text("下课后清理活动。应用被系统挂起时可能保留过期外壳，返回应用会立即清理；后台精确撤除需要活动推送。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if wideLesson.enabled {
-                Text("已安排的待办在工作时间开始时显示，完成或取消安排后结束。仅有截止时间的待办不会开启实时活动。课程为蓝色书本，待办为绿色清单；距结束五分钟内回到应用会显示橙色提示。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("完全不占灵动岛（关闭实时活动）", systemImage: "rectangle.slash") {
-                    wideLesson.setEnabled(false, data: store.data)
-                }
-                Text("关闭后结束课程实时活动，包括已预排的活动；普通锁屏课表组件继续可用，不显示实时活动的大幅卡片。")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text("课程实时活动已关闭，不会占用灵动岛。锁屏可添加普通“课程安排”和“后续课程”组件。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
             if let issue = wideLesson.issue {
                 Text(issue).font(.footnote).foregroundStyle(.secondary)
-            }
-            DisclosureGroup("添加待办锁屏组件") {
-                Text("长按锁屏 → 自定 → 添加小组件 → YIClass → 待办清单。长方形显示紧急事项与截止时间，圆形显示未完成数量；点按打开待办。").font(.footnote).foregroundStyle(.secondary)
-            }
-            DisclosureGroup("锁屏并排显示两门课") {
-                Text("长按锁屏 → 自定 → 锁定屏幕 → 添加小组件。")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Text("各添加一个长方形的“课程安排”和“后续课程”，两门课会分别使用完整空间。")
-                    .font(.footnote).foregroundStyle(.secondary)
             }
             Button("同步课表到小组件", systemImage: "arrow.triangle.2.circlepath") { store.syncWidgets() }
             if let date = store.widgetLastSync { LabeledContent("最近同步") { Text(date, style: .time) } }
@@ -237,13 +204,12 @@ struct ImportReviewView: View {
                     LabeledContent("学期", value: "\(preview.table.totalWeeks) 周")
                     if let warning = preview.warning { Text(warning).font(.footnote).foregroundStyle(.secondary) }
                 }
-                Section {
-                    Text("默认沿用当前统一课节时间（\(store.profile.periods.count) 节）。")
-                    if let profile = preview.suggestedProfile {
-                        Toggle("采用文件内的时间，更新所有课表", isOn: $adoptTimes)
+                if let profile = preview.suggestedProfile {
+                    Section {
+                        Toggle("采用文件内的课节时间", isOn: $adoptTimes)
                         if adoptTimes { ForEach(profile.periods) { Text("第 \($0.period) 节  \($0.label)").font(.footnote.monospacedDigit()) } }
                     }
-                } footer: { Text("导入会新建一份课表。现有课程不会被覆盖。") }
+                }
                 Section("课程记录") {
                     ForEach(preview.table.courses) { course in
                         VStack(alignment: .leading, spacing: 3) {
@@ -331,8 +297,6 @@ struct TimeSettingsView: View {
                         .listRowInsets(EdgeInsets(top: 2, leading: 12, bottom: 2, trailing: 12))
                 }
             }
-            Section { Text("修改时间会联动后续课节；增减节数会重新编号。保存后对所有课表生效。")
-                .font(.footnote).foregroundStyle(.secondary) }
         }
         .environment(\.defaultMinListRowHeight, 44).listSectionSpacing(.compact)
         .navigationTitle("统一课节时间").navigationBarTitleDisplayMode(.inline)

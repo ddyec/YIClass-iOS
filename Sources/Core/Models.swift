@@ -237,11 +237,27 @@ public struct AppData: Codable, Equatable, Sendable {
 }
 
 public enum JSONCoding {
+    private static let utf8BOM = Data([0xEF, 0xBB, 0xBF])
+
     public static func encoder() -> JSONEncoder {
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]; return encoder
     }
     public static func decoder() -> JSONDecoder {
-        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601; return decoder
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let raw = try container.decode(String.self)
+            let fractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+            if let date = try? fractional.parse(raw) { return date }
+            let standard = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
+            if let date = try? standard.parse(raw) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO-8601 date: \(raw)")
+        }
+        return decoder
+    }
+    public static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        let cleaned = data.starts(with: utf8BOM) ? Data(data.dropFirst(utf8BOM.count)) : data
+        return try decoder().decode(type, from: cleaned)
     }
 }

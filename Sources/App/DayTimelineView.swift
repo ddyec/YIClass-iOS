@@ -87,6 +87,7 @@ struct AgendaRecoveryPanel: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(issue).font(.subheadline)
             HStack {
+                Button("重新读取") { store.reloadIfNeeded() }
                 Button("恢复日程备份") { store.perform { try store.recoverAgendaBackup() } }
                 ShareLink("导出原文件", item: store.agendaURL)
             }.font(.caption)

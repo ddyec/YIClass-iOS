@@ -489,8 +489,6 @@ struct AssistantView: View {
                 }
                 if sourceText.count > 18_000 { Text("内容超过 18,000 字，请分批导入，避免漏课。").font(.footnote).foregroundStyle(.orange) }
                 Section("识别内容 · 可修正") { TextEditor(text: $sourceText).focused($sourceFocused).frame(height: 260) }
-                Section { Text(mode == .remote ? (sourceImages.isEmpty ? "文字将发送到已配置的 AI 接口。" : "原图与文字将发送到已配置的 AI 接口。") : "设备端使用本机识别的文字。")
-                    .font(.footnote).foregroundStyle(.secondary) }
             }.scrollDismissesKeyboard(.interactively).alert("无法直接导入", isPresented: Binding(get: { sourceIssue != nil }, set: { if !$0 { sourceIssue = nil } })) {
                 Button("好", role: .cancel) { sourceIssue = nil }
             } message: { Text(sourceIssue ?? "") }
@@ -640,8 +638,6 @@ struct AISettingsView: View {
                         }
                     }
                     if let testResult { Text(testResult).font(.footnote).textSelection(.enabled) }
-                    Text("请先在系统设置开启 Apple Intelligence 并完成模型准备。此处以 Foundation Models 接口的实时状态为准；系统功能开放后，模型接口也可能仍在准备。")
-                        .font(.caption).foregroundStyle(.secondary)
                 }
             }.disabled(testing)
             if mode == .remote {
@@ -667,8 +663,6 @@ struct AISettingsView: View {
                     }.disabled(testing || endpoint.isEmpty || model.isEmpty || apiKey.isEmpty)
                     if let testResult { Text(testResult).font(.footnote).textSelection(.enabled) }
                 }.disabled(testing)
-                Section { Text("密钥存于本机钥匙串。对话与当前课表会发送至所选服务；测试仅发送连接检查。")
-                    .font(.footnote).foregroundStyle(.secondary) }
             }
         }.navigationTitle("AI 配置").navigationBarTitleDisplayMode(.inline)
             .toolbar {

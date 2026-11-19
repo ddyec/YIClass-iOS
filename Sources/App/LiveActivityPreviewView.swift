@@ -73,8 +73,6 @@ struct LiveActivityPreviewView: View {
                 Button("结束测试", role: .destructive) {
                     Task { await controller.stop() }
                 }.disabled(controller.busy)
-            } footer: {
-                Text("应用后可返回桌面或锁屏查看。未开始状态可点“模拟开始”切换为倒计时；其他状态也可随时切换后重新应用。测试不修改课程或待办，结束测试不影响真实活动。")
             }
             if let message = controller.message {
                 Section { Text(message).font(.footnote).foregroundStyle(.secondary) }

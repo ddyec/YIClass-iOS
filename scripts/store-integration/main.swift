@@ -165,7 +165,15 @@ import UniformTypeIdentifiers
         let recoveredHistory = AppStore(storageURL: file)
         precondition(recoveredHistory.table.courses.first?.name == "英语" && recoveredHistory.profile == profile)
         precondition(Set(recoveredHistory.conversations.map(\.id)) == [conversationID, newConversationID])
+        let validLibraryBytes = try Data(contentsOf: file)
+        try Data("temporarily unreadable".utf8).write(to: file)
+        let transientlyFailed = AppStore(storageURL: file)
+        precondition(transientlyFailed.loadFailed)
+        try validLibraryBytes.write(to: file)
+        transientlyFailed.reloadIfNeeded()
+        precondition(!transientlyFailed.loadFailed && transientlyFailed.table.courses.first?.name == "英语")
         print("PASS: conversations persist across reopen without original image storage; historical restore preserves current state and can be reversed after restart")
         print("PASS: actual AppStore direct AI edit → atomic library.json save → reopen → undo → stale edit rejected without file mutation; empty location and global time preserved")
+        print("PASS: AppStore.reloadIfNeeded recovers cleanly when library.json becomes readable again without forcing backup rollback")
     }
 }
